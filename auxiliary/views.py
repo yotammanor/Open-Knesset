@@ -411,6 +411,16 @@ def create_tag_and_add_to_item(request, app, object_type, object_id):
         return HttpResponseNotAllowed(['POST'])
 
 
+@permission_required('tagging.add_tag')
+def add_tag_synonym(request, parent_tag_id, synonym_tag_id):
+    parent_tag = Tag.objects.get(pk=parent_tag_id)
+    synonym_tag = Tag.objects.get(pk=synonym_tag_id)
+    assert parent_tag.synonym_synonym_tag.count() == 0
+    assert synonym_tag != parent_tag
+    TagSynonym.objects.create(tag_id = parent_tag_id, synonym_tag_id=synonym_tag_id)
+    return HttpResponse('ok')
+
+
 def calculate_cloud_from_models(*args):
     from tagging.models import Tag
     cloud = Tag._default_manager.cloud_for_model(args[0])
