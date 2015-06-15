@@ -7,12 +7,12 @@
     $(this).each (function() { this.reset(); });
   }
 
-	
-	$('.btn-inc').click(modifyZoomBy.bind(undefined,0.3));
-	$('.btn-dec').click(modifyZoomBy.bind(undefined,-0.3));
+	var zoomFactor = 0.15;
+	$('.btn-inc').click(modifyZoomBy.bind(undefined,zoomFactor));
+	$('.btn-dec').click(modifyZoomBy.bind(undefined,-zoomFactor));
 
-	function modifyZoomBy(multiplier) {
-		document.body.style.zoom = parseFloat(document.body.style.zoom || 100) * (1+ multiplier) + "%";
+	function modifyZoomBy(factor) {
+		document.body.style.zoom = parseFloat(document.body.style.zoom || 100) * (1+ factor) + "%";
 	}
   /***************************************************************
    * handle submission event of suggestion forms
