@@ -6638,7 +6638,7 @@ a:focus {
   margin: 12px 0px;
 }
 .row div[class*='span']:first-child .spacer {
-  margin-right: 12px;
+  margin: 0 12px;
 }
 .row div[class*='span']:last-child .spacer {
   margin-left: 12px;
