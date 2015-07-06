@@ -50,7 +50,7 @@ class PersonResource(BaseResource):
     external_info = fields.ToManyField(ExternalInfoResource, 'external_info', full=True)
 
     class Meta(BaseResource.Meta):
-        queryset = Person.objects.all()
+        queryset = Person.objects.select_related().prefetch_related()
         allowed_methods = ['get']
         filtering = {
                 'id': ALL,
@@ -58,6 +58,7 @@ class PersonResource(BaseResource):
                 'relations': ALL_WITH_RELATIONS,
                 'external_info': ALL_WITH_RELATIONS,
                 }
+        list_fields = ['name', 'id']
 
     def get_object_list(self, request):
         persons = super(PersonResource, self).get_object_list(request)
