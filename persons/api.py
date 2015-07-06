@@ -27,7 +27,6 @@ class ExternalInfoResource(BaseResource):
         filtering = {
                 'source': ALL,
                 'key': ALL,
-                'person': ALL_WITH_RELATIONS,
                 }
 
 class RoleResource(BaseResource):
