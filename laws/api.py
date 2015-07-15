@@ -6,6 +6,8 @@ from django.core.urlresolvers import reverse
 from tastypie.constants import ALL
 import tastypie.fields as fields
 
+from agendas.templatetags.agendas_tags import agendas_for
+
 from apis.resources.base import BaseResource
 from mks.models import Member, Party
 from mks.api import MemberResource
@@ -133,7 +135,32 @@ class PrivateProposalResource(BaseResource):
         queryset = PrivateProposal.objects.all()
         allowed_methods = ['get']
 
-
+class BillAgendaResource(BaseResource):pass
+        
+def detailed_agendas(agenda_list):
+    
+    result = []
+    for xagenda in agenda_list:
+        agenda = xagenda.agenda
+        resource_uri = reverse(
+            'api_dispatch_detail',
+            kwargs={
+                'resource_name': 'agenda', 'api_name': 'v2',
+                'pk': agenda.pk})
+        result.append({
+            'name': agenda.name,
+            'image': agenda.image.url if agenda.image else None,
+            'resource_uri': resource_uri,
+            'public_owner_name' : agenda.public_owner_name,
+            'reasoning' : xagenda.reasoning,
+            'score' : xagenda.score,
+            'importance' : xagenda.importance,
+        })
+    
+        
+    
+    return result
+    
 class BillResource(BaseResource):
     ''' Bill API '''
 
@@ -176,7 +203,46 @@ class BillResource(BaseResource):
                               attribute=lambda t: t.obj.tags,
                               null=True,
                               full=False)
+    
+    
+    # XXX : this adds the following select phrases
+    # [sql] SELECT ...
+      # FROM "agendas_agendabill"
+      # WHERE ("agendas_agendabill"."agenda_id" IN
+               # (SELECT ...
+                # FROM "agendas_agenda"
+                # WHERE "agendas_agenda"."is_public" = TRUE)
+             # AND "agendas_agendabill"."bill_id" = XXX)
+    # [sql] SELECT ...
+      # FROM "agendas_agenda"
+      # WHERE "agendas_agenda"."id" = YYY
+    agendas = fields.ToManyField(BillAgendaResource,
+                              'agendas',
+                              
+                              null=True,
+                              full=False)
 
+    def dehydrate_agendas(self, bundle):
+        result = None
+        try:
+            result = dict()
+            # fast-written and ugly code
+            agendas_detailes = agendas_for(bundle.request.user, bundle.obj, 'bill')
+            
+            result["agenda_list"] = detailed_agendas(agendas_detailes["agendas"])
+            result["suggest_agendas"] = agendas_detailes["suggest_agendas"] # XXX : should i call detailed_agendas here too?
+            
+            # XXX : there was no data examples here and i dont understand the data-structure that good. there should probably be a special handling for forms
+            result["formset"] = agendas_detailes["formset"] 
+            result["suggested_agendas"] = agendas_detailes["suggested_agendas"] # XXX : should i call detailed_agendas here three?
+            result["suggest_agendas_login"] = agendas_detailes["suggest_agendas_login"]
+            
+            return result
+            
+        except:
+            logging.error('Got exception dehydrating agendas')
+
+        return None
 
     def dehydrate_explanation(self, bundle):
         result = None
@@ -185,6 +251,8 @@ class BillResource(BaseResource):
         except:
             logging.error('Got exception dehydrating explanation')
             return ""
+        # TODO: do we need this here????
+        # return result
 
     def dehydrate_legal_code(self, bundle):
         return self.get_src_parts(bundle)[0]
