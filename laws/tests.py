@@ -720,6 +720,16 @@ class APIv2Test(TestCase):
         self.assertEqual(int(data['id']), self.law_1.id)
         self.assertEqual(data['title'], "law 1")
 
+    def test_bill_agenda(self):
+        uri = '%s/bill/%s/' % (self.url_prefix, self.bill_1.id)
+        res = self.client.get(uri, format='json')
+        self.assertEqual(res.status_code,200)
+        data = json.loads(res.content)
+        self.assertEqual(len(data['agenda_list']), 1)
+        self.assertEqual(data['agenda_list'][0]['name'], self.agenda_1.name)
+        self.assertEqual(data['agenda_list'][0]['public_owner_name'], self.agenda_1.public_owner_name)
+        self.assertEqual(data['agenda_list'][0]['resource_uri'], '%s/agenda/%s/' % (self.url_prefix, self.agenda_1.id))
+        
     def test_bill_resource(self):
         uri = '%s/bill/%s/' % (self.url_prefix, self.bill_1.id)
         res = self.client.get(uri, format='json')
