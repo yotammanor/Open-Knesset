@@ -16,7 +16,7 @@ import unittest
 
 from laws.models import Vote,Law, Bill,KnessetProposal, BillBudgetEstimation
 from mks.models import Member, Party, Membership, Knesset
-from agendas.models import Agenda, AgendaVote
+from agendas.models import Agenda, AgendaVote, AgendaBill
 
 just_id = lambda x: x.id
 APP='laws'
@@ -706,11 +706,31 @@ class APIv2Test(TestCase):
                                                    date=date.today())
         self.law_1 = Law.objects.create(title='law 1')
         self.tag_1 = Tag.objects.create(name='tag1')
+        
         self.agenda_1 = Agenda.objects.create(name='agenda 1',
                                           public_owner_name='owner name')
         self.agenda_vote = AgendaVote.objects.create(agenda=self.agenda_1,
                                                      vote=self.vote_1)
-
+                                                     
+        self.agenda_2 = Agenda.objects.create(name='agenda 2',
+                                          public_owner_name='owner name 2')
+        self.agenda_bill_1 = AgendaBill.objects.create(agenda=self.agenda_2,
+                                                     bill=self.bill_1)
+                                                     
+        self.agenda_3 = Agenda.objects.create(name='agenda 3',
+                                          public_owner_name='owner name 3', is_public = True)
+        self.agenda_bill_2 = AgendaBill.objects.create(agenda=self.agenda_3,
+                                                     bill=self.bill_1)
+                                                     
+        self.agenda_4 = Agenda.objects.create(name='agenda 4',
+                                          public_owner_name='owner name 4', is_public = False)
+        self.agenda_bill_3 = AgendaBill.objects.create(agenda=self.agenda_4,
+                                                     bill=self.bill_1)
+                                                     
+        self.adrian = User.objects.create_user('adrian', 'adrian@example.com',
+                                              'ADRIAN')
+        self.adrian.agendas.add(self.agenda_2)
+        
     def test_law_resource(self):
         uri = '%s/law/%s/' % (self.url_prefix, self.law_1.id)
         res = self.client.get(uri, format='json')
@@ -720,15 +740,35 @@ class APIv2Test(TestCase):
         self.assertEqual(int(data['id']), self.law_1.id)
         self.assertEqual(data['title'], "law 1")
 
-    def test_bill_agenda(self):
+    def test_bill_agenda_logged(self):
+        p = self.adrian.get_profile()
+        loggedin = self.client.login(username='adrian', password='ADRIAN')
+        self.assertTrue(loggedin)
+        
         uri = '%s/bill/%s/' % (self.url_prefix, self.bill_1.id)
+        
         res = self.client.get(uri, format='json')
         self.assertEqual(res.status_code,200)
         data = json.loads(res.content)
-        self.assertEqual(len(data['agenda_list']), 1)
-        self.assertEqual(data['agenda_list'][0]['name'], self.agenda_1.name)
-        self.assertEqual(data['agenda_list'][0]['public_owner_name'], self.agenda_1.public_owner_name)
-        self.assertEqual(data['agenda_list'][0]['resource_uri'], '%s/agenda/%s/' % (self.url_prefix, self.agenda_1.id))
+        
+        agendas = data['agendas']
+        
+        self.assertEqual(len(agendas['agenda_list']), 2)
+        self.assertEqual(agendas['agenda_list'][0]['name'], self.agenda_2.name)
+        self.assertEqual(agendas['agenda_list'][0]['public_owner_name'], self.agenda_2.public_owner_name)
+        self.assertEqual(agendas['agenda_list'][0]['resource_uri'], '%s/agenda/%s/' % (self.url_prefix, self.agenda_2.id))
+
+    def test_bill_agenda_unlogged(self):
+        uri = '%s/bill/%s/' % (self.url_prefix, self.bill_1.id)
+        
+        res = self.client.get(uri, format='json')
+        self.assertEqual(res.status_code,200)
+        data = json.loads(res.content)
+        
+        agendas = data['agendas']
+        print data
+        
+        self.assertEqual(len(agendas['agenda_list']), 1)
         
     def test_bill_resource(self):
         uri = '%s/bill/%s/' % (self.url_prefix, self.bill_1.id)
@@ -772,7 +812,16 @@ class APIv2Test(TestCase):
         self.vote_2.delete()
         self.bill_1.delete()
         self.bill_2.delete()
+        self.agenda_1.delete()
+        self.agenda_2.delete()
+        self.agenda_3.delete()
+        self.agenda_4.delete()
+        # self.agenda_vote.delete()
+        # self.agenda_bill_1.delete()
+        # self.agenda_bill_2.delete()
+        # self.agenda_bill_3.delete()
         self.law_1.delete()
         self.mk_1.delete()
         self.party_1.delete()
         self.tag_1.delete()
+        self.adrian.delete()
