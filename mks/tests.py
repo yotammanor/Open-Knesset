@@ -10,6 +10,7 @@ from actstream import follow,action
 from actstream.models import Action
 from mks.models import Member, Party, Membership, MemberAltname, Knesset
 from mks.views import MemberListView
+from mks.managers import KnessetManager
 from laws.models import Law,Bill,PrivateProposal,Vote,VoteAction
 from committees.models import CommitteeMeeting,Committee
 from knesset.utils import RequestFactory
@@ -24,6 +25,7 @@ from backlinks.pingback.server import PingbackServer
 from django import template
 from mks.mock import PINGABLE_MEMBER_ID, NON_PINGABLE_MEMBER_ID
 from persons.models import Person, PersonAlias
+from mmm.models import Document
 
 TRACKBACK_CONTENT_TYPE = 'application/x-www-form-urlencoded; charset=utf-8'
 
@@ -434,14 +436,50 @@ class MemberAPITests(ResourceTestCase):
         self.knesset = Knesset.objects.create(
             number=1,
             start_date=d-datetime.timedelta(10))
+        KnessetManager._current_knesset = self.knesset
         self.party_1 = Party.objects.create(name='party 1',
                                             knesset=self.knesset)
+
+        matches = [ {
+            "entity_id": 10012 + i,
+            "docid": "m00079",
+            "entity_name": "bbbb",
+            "entity_type": "COMM",
+            "url": "http://knesset.gov.il/mmm/data/pdf/m00079.pdf" + str(i),
+            "title": "aaaaaa" + str(i),
+            "authors": [
+              "mk_1"
+            ],
+            "pub_date": "2000-01-01",
+            "session_date": None,
+            "heading": "bbbb",
+          } for i in xrange(10)]
+
+	for match in matches:
+            match['date'] = datetime.datetime.strptime(match['pub_date'], '%Y-%m-%d').date()
+
+        self.mmm_docs = [Document.objects.create(
+            url = match['url'],
+            title = match['title'],
+            publication_date = match['pub_date'],
+            author_names = match['authors'],
+        ) for match in matches]
+
+
+
         self.mk_1 = Member.objects.create(name='mk_1',
                                           start_date=datetime.date(2010,1,1),
                                           current_party=self.party_1,
-                                          backlinks_enabled=True)
+                                          backlinks_enabled=True,
+                                          bills_stats_first = 2,
+                                          bills_stats_proposed = 5,
+                                          average_weekly_presence_hours = 3.141)
+        for mmm_doc in self.mmm_docs:
+            mmm_doc.req_mks = [self.mk_1, ]
         PersonAlias.objects.create(name="mk_1_alias",
                                    person=Person.objects.get(mk=self.mk_1))
+
+
     def testSimpleGet(self):
         res1 = self.api_client.get('/api/v2/member/', data={'name': 'mk_1'})
         self.assertValidJSONResponse(res1)
@@ -455,8 +493,23 @@ class MemberAPITests(ResourceTestCase):
         self.assertValidJSONResponse(res2)
         self.assertEqual(self.deserialize(res1), self.deserialize(res2))
 
+    def testMemberList(self):
+        res1 = self.api_client.get('/api/v2/member/', format = 'json')
+        self.assertEqual(res1.status_code, 200)
+        data = json.loads(res1.content)
+
+        self.assertEqual(len(data['objects']), 1)
+        rmks = data['objects'][0]
+        self.assertEqual(rmks['mmms_count'], 10)
+        self.assertEqual(rmks['bills_stats_first'], 2)
+        self.assertEqual(rmks['bills_stats_proposed'], 5)
+        self.assertEqual(rmks['average_weekly_presence_hours'], 3.141)
+
     def tearDown(self):
+        for mmm_doc in self.mmm_docs:
+            mmm_doc.delete()
         self.mk_1.delete()
+        KnessetManager._current_knesset = None
 
 class MemberModelsTests(TestCase):
 

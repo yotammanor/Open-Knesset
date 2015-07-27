@@ -197,7 +197,7 @@ class MemberResource(BaseResource):
         )
 
         excludes = ['website', 'backlinks_enabled', 'area_of_residence']
-        list_fields = ['name', 'id', 'img_url', 'is_current']
+        list_fields = ['name', 'id', 'img_url', 'is_current', 'average_weekly_presence_hours', 'mmms_count', 'bills_stats_first', 'bills_stats_proposed',]
         include_absolute_url = True
 
     party_name = fields.CharField()
