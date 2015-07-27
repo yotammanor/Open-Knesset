@@ -518,27 +518,43 @@ class TagDetail(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super(TagDetail, self).get_context_data(**kwargs)
+        knesset_id = self.get_knesset_id()
+        context['knesset_id'] = knesset_id
         tag = context['object']
         bills_ct = ContentType.objects.get_for_model(Bill)
         bill_ids = TaggedItem.objects.filter(
             tag=tag,
             content_type=bills_ct).values_list('object_id', flat=True)
-        bills = Bill.objects.filter(id__in=bill_ids)
+        knesset_bills = Bill.objects.filter_and_order(knesset_id=knesset_id)
+        bills = knesset_bills.filter(id__in=bill_ids)
+
+        #bills = bills.filter(knesset_id=knesset_id)
+
         context['bills'] = bills
         votes_ct = ContentType.objects.get_for_model(Vote)
         vote_ids = TaggedItem.objects.filter(
             tag=tag, content_type=votes_ct).values_list('object_id', flat=True)
         votes = Vote.objects.filter(id__in=vote_ids)
+
+        knesset_bills_ids = knesset_bills.values_list('id', flat=True)
+        votes = votes.filter(bills__id__in=knesset_bills_ids)
+
         context['votes'] = votes
         cm_ct = ContentType.objects.get_for_model(CommitteeMeeting)
         cm_ids = TaggedItem.objects.filter(
             tag=tag, content_type=cm_ct).values_list('object_id', flat=True)
         cms = CommitteeMeeting.objects.filter(id__in=cm_ids)
+        cms = cms.filter(committee__pk=knesset_id)
         context['cms'] = cms
         (context['members'],
          context['past_members']) = self.create_tag_cloud(tag)
         return context
+    def get_knesset_id(self):
+        return Knesset.objects.current_knesset()
 
+class TagDetailKnessetId(TagDetail):
+    def get_knesset_id(self):
+        return self.request.knesset_id
 
 class CsvView(BaseListView):
     """A view which generates CSV files with information for a model queryset.
