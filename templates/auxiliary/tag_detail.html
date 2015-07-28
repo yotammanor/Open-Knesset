@@ -6,7 +6,7 @@
 {% block nav-tags %}class="selected"{% endblock %}
 {% block breadcrumbs %}
         <li><a href="{% url 'tags-list' %}">{% trans "Tags" %}</a> <span class="divider">/</span></li>
-        <li class="active">{{tag}}</li>
+        <li class="active">{{tag}} ({{knesset_id}})</li>
 {% endblock %}
 {% block divcontent %}
 {% if members %}

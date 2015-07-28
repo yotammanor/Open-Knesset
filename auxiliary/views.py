@@ -1,3 +1,4 @@
+
 import csv, random, tagging, logging
 import json
 from actstream import action
@@ -8,6 +9,7 @@ from django.contrib.comments.models import Comment
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
+from django.db.models import Q
 from django.http import (
     HttpResponseForbidden, HttpResponseRedirect, HttpResponse,
     HttpResponseNotAllowed, HttpResponseBadRequest, Http404, HttpResponsePermanentRedirect)
@@ -528,8 +530,6 @@ class TagDetail(DetailView):
         knesset_bills = Bill.objects.filter_and_order(knesset_id=knesset_id)
         bills = knesset_bills.filter(id__in=bill_ids)
 
-        #bills = bills.filter(knesset_id=knesset_id)
-
         context['bills'] = bills
         votes_ct = ContentType.objects.get_for_model(Vote)
         vote_ids = TaggedItem.objects.filter(
@@ -537,14 +537,25 @@ class TagDetail(DetailView):
         votes = Vote.objects.filter(id__in=vote_ids)
 
         knesset_bills_ids = knesset_bills.values_list('id', flat=True)
-        votes = votes.filter(bills__id__in=knesset_bills_ids)
+        knesset_bills_approval_vote = knesset_bills.values_list('approval_vote', flat=True)
+                
+        votes = votes.filter(
+            Q(bills_pre_votes__in=knesset_bills_ids) 
+            | Q(bills_first__in=knesset_bills_ids) 
+            | Q(id__in=knesset_bills_approval_vote)
+        )
 
         context['votes'] = votes
         cm_ct = ContentType.objects.get_for_model(CommitteeMeeting)
         cm_ids = TaggedItem.objects.filter(
             tag=tag, content_type=cm_ct).values_list('object_id', flat=True)
-        cms = CommitteeMeeting.objects.filter(id__in=cm_ids)
-        cms = cms.filter(committee__pk=knesset_id)
+            
+        if knesset_id.end_date is not None:
+            cms = CommitteeMeeting.objects.filter(date__gte=knesset_id.start_date, date__lte=knesset_id.end_date)
+        else:
+            cms = CommitteeMeeting.objects.filter(date__gte=knesset_id.start_date)
+            
+        cms = cms.filter(id__in=cm_ids)
         context['cms'] = cms
         (context['members'],
          context['past_members']) = self.create_tag_cloud(tag)
@@ -554,7 +565,7 @@ class TagDetail(DetailView):
 
 class TagDetailKnessetId(TagDetail):
     def get_knesset_id(self):
-        return self.request.knesset_id
+        return Knesset.objects.filter(id=self.request.knesset_id)
 
 class CsvView(BaseListView):
     """A view which generates CSV files with information for a model queryset.

@@ -12,6 +12,7 @@ from django.core.cache import cache
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib.comments.models import Comment
+from django.db.models import Q
 
 from tagging.models import Tag, TaggedItem
 from tagging.forms import TagField
@@ -534,7 +535,7 @@ class BillManager(models.Manager):
                 qs = qs.exclude(id__in=filter_tagged)
             elif kwargs['tagged'] != 'all':
                 qs = TaggedItem.objects.get_by_model(qs,get_tag(kwargs['tagged']))
-
+        filtered = False
         if pp_id:
             pps = PrivateProposal.objects.filter(proposal_id=pp_id)
             if knesset_id:
@@ -544,6 +545,7 @@ class BillManager(models.Manager):
                 qs = qs.filter(proposals__in=pps)
             else:
                 qs = qs.none()
+            filtered = True
         if knesset_booklet:
             kps = KnessetProposal.objects.filter(booklet_number=knesset_booklet)
             if knesset_id:
@@ -553,11 +555,9 @@ class BillManager(models.Manager):
                 qs = qs.filter(knesset_proposal__in=kps)
             else:
                 qs = qs.none()
-
+            filtered = True
         if gov_booklet:
-            gps = GovProposal.objects.filter(
-                    booklet_number=gov_booklet)
-
+            gps = GovProposal.objects.filter(booklet_number=gov_booklet)
             if knesset_id:
                 gps = gps.filter(knesset_id=knesset_id)
             gps = gps.values_list('id', flat=True)
@@ -565,7 +565,27 @@ class BillManager(models.Manager):
                 qs = qs.filter(gov_proposal__in=gps)
             else:
                 qs = qs.none()
-
+            filtered = True
+            
+        if not filtered and knesset_id:
+            if knesset_id.end_date is not None:
+                qs = qs.filter(
+                    Q(stage_date__gte=knesset_id.start_date, stage_date__lte=knesset_id.end_date)
+                    | Q(pre_votes__time__gte=knesset_id.start_date, pre_votes__time__lte=knesset_id.end_date)
+                    | Q(first_committee_meetings__date__gte=knesset_id.start_date, first_committee_meetings__date__lte=knesset_id.end_date)
+                    | Q(first_vote__time__gte=knesset_id.start_date, first_vote__time__lte=knesset_id.end_date)
+                    | Q(second_committee_meetings__date__gte=knesset_id.start_date, second_committee_meetings__date__lte=knesset_id.end_date)
+                    | Q(approval_vote__time__gte=knesset_id.start_date, approval_vote__time__lte=knesset_id.end_date)
+                )
+            else:
+                qs = qs.filter(
+                    Q(stage_date__gte=knesset_id.start_date)
+                    | Q(pre_votes__time__gte=knesset_id.start_date)
+                    | Q(first_committee_meetings__date__gte=knesset_id.start_date)
+                    | Q(first_vote__time__gte=knesset_id.start_date)
+                    | Q(second_committee_meetings__date__gte=knesset_id.start_date)
+                    | Q(approval_vote__time__gte=knesset_id.start_date)
+                )            
         if changed_after:
             qs = qs.filter(stage_date__gte=changed_after)
 
