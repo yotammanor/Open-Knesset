@@ -565,7 +565,7 @@ class TagDetail(DetailView):
 
 class TagDetailKnessetId(TagDetail):
     def get_knesset_id(self):
-        return Knesset.objects.filter(id=self.request.knesset_id)
+        return Knesset.objects.filter(number=int(self.kwargs['knesset_id']))[0]
 
 class CsvView(BaseListView):
     """A view which generates CSV files with information for a model queryset.
