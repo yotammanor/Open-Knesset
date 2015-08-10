@@ -9,6 +9,11 @@
         <li class="active">{{tag}} ({{knesset_id}})</li>
 {% endblock %}
 {% block divcontent %}
+    <div class="row">
+        <div class="span4">
+            {% selection page_obj paginator request %}
+        </div>
+    </div>
 {% if members %}
     <div class="card card-main">
         <div class="row">
