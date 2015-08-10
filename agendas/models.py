@@ -330,6 +330,8 @@ class Agenda(models.Model):
     image = models.ImageField(blank=True, null=True, upload_to='agendas')
     category_id = models.ForeignKey(Tag, related_name='agendas', blank=True, null=True)
     number_knesset = models.ForeignKey(Knesset, related_name='agendas', blank=True, null=True)
+    infogram_external_identifier = models.CharField(null=True, blank=True, max_length=300)
+    infogram_src = models.CharField(null=True, blank=True, max_length=300)
 
     objects = AgendaManager()
 
