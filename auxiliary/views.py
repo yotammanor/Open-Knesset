@@ -561,11 +561,11 @@ class TagDetail(DetailView):
          context['past_members']) = self.create_tag_cloud(tag)
         return context
     def get_knesset_id(self):
-        return Knesset.objects.current_knesset()
-
-class TagDetailKnessetId(TagDetail):
-    def get_knesset_id(self):
-        return Knesset.objects.filter(number=int(self.kwargs['knesset_id']))[0]
+        try:
+            knesset_id = Knesset.objects.filter(number = self.request.GET['knesset_id'])[0]
+        except (KeyError, IndexError), e:
+            knesset_id = Knesset.objects.current_knesset()
+        return knesset_id
 
 class CsvView(BaseListView):
     """A view which generates CSV files with information for a model queryset.
