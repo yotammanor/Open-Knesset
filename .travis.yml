@@ -21,7 +21,8 @@ python:
   - "2.7"
 # command to install dependencies, e.g. pip install -r requirements.txt --use-mirrors
 install:
-  - pip install -r requirements.txt --timeout 30 --download-cache $HOME/.cache/pip
+  - pip install --upgrade pip
+  - pip install -r requirements.txt --timeout 30
 # command to run tests, e.g. python setup.py test
 script:
   - ./manage.py test
