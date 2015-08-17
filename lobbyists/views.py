@@ -57,7 +57,7 @@ class LobbyistCorporationsListView(TemplateView):
             corporations = []
         fcs = []
         private_lobbyists_count = 0
-        private_corporation = {}
+        private_corporation = None
         for corporation in corporations:
             if not corporation['name'] and not corporation['source_id']:
                 private_corporation = corporation
@@ -67,9 +67,10 @@ class LobbyistCorporationsListView(TemplateView):
                 fcs.append(corporation)
             #else:
             #    private_lobbyists_count = private_lobbyists_count + corporation['combined_lobbyists_count']
-        private_corporation['is_private_lobbyists'] = True
-        fcs.insert(0, private_corporation)
-        private_corporation['combined_lobbyists_count'] = private_lobbyists_count
+        if private_corporation is not None:
+            private_corporation['is_private_lobbyists'] = True
+            fcs.insert(0, private_corporation)
+            private_corporation['combined_lobbyists_count'] = private_lobbyists_count
         return {
             'corporations': fcs
         }
