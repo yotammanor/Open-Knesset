@@ -1,5 +1,8 @@
 language: python
 sudo: false
+cache:
+  pip: true
+  apt: true
 addons:
   sauce_connect: true
   apt:
