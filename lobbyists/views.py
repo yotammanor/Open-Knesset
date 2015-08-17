@@ -47,9 +47,14 @@ class LobbyistCorporationsListView(TemplateView):
     template_name = 'lobbyists/lobbyistcorporation_list.html'
 
     def get_context_data(self):
-        corporations = [c.cached_data for c in LobbyistHistory.objects.latest().main_corporations.order_by('name')]
-        if not self.request.GET.get('order_by_name', ''):
-            corporations = sorted(corporations, key=lambda c: c['combined_lobbyists_count'], reverse=True)
+        try:
+            corporations = [c.cached_data for c in LobbyistHistory.objects.latest().main_corporations.order_by('name')]
+            if not self.request.GET.get('order_by_name', ''):
+                corporations = sorted(corporations, key=lambda c: c['combined_lobbyists_count'], reverse=True)
+        except ObjectDoesNotExist:
+            # this is meant to support case where lobbyists history data doesn't exist
+            # it shouldn't happen in normal cases, only during testing or when starting from empty DB
+            corporations = []
         fcs = []
         private_lobbyists_count = 0
         private_corporation = {}
