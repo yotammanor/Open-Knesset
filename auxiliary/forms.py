@@ -1,6 +1,7 @@
 from django import forms
 from django.forms.widgets import HiddenInput
 from django.utils.translation import ugettext_lazy as _
+from django.utils.safestring import mark_safe
 
 from .models import ICON_CHOICES, Tidbit, Feedback, TagSuggestion
 from suggestions.forms import InstanceCreateSuggestionForm
@@ -54,7 +55,8 @@ class TagSuggestionForm(InstanceCreateSuggestionForm):
 class FeedbackSuggestionForm(InstanceCreateSuggestionForm):
 
     content = forms.CharField(label=_('Content'),
-                              widget=forms.Textarea(attrs={'rows': 3}))
+                              widget=forms.Textarea(attrs={'rows': 7, 'cols': 120}),
+                              help_text=mark_safe(_('Content of your suggestion will be available to the public.<br/>If you want to send us sensitive information please send it via email:<br/><a href="mail@oknesset.org">mail@oknesset.org</a>')))
     url = forms.CharField(widget=forms.HiddenInput, max_length=400)
 
     class Meta:

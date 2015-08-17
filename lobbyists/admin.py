@@ -1,13 +1,19 @@
 from django.contrib import admin
-from models import Lobbyist, LobbyistCorporation, LobbyistsChange
+from models import Lobbyist, LobbyistCorporation, LobbyistsChange, LobbyistCorporationAlias
 from django.contrib.contenttypes import generic
 from links.models import Link
+from django.utils.text import mark_safe
 
 
 class LinksInline(generic.GenericTabularInline):
     model = Link
     ct_fk_field = 'object_pk'
     extra = 1
+
+
+class CorporationAliasInline(admin.TabularInline):
+    model = LobbyistCorporationAlias
+    fk_name = 'main_corporation'
 
 
 class LobbyistAdmin(admin.ModelAdmin):
@@ -17,9 +23,15 @@ class LobbyistAdmin(admin.ModelAdmin):
 
 
 class LobbyistCorporationAdmin(admin.ModelAdmin):
-    fields = ('name', 'description',)
-    readonly_fields = ('name',)
-    inlines = (LinksInline,)
+    fields = ('name', 'description', 'lobbyists')
+    readonly_fields = ('name', 'lobbyists')
+    inlines = (LinksInline, CorporationAliasInline)
+    list_display = ('name', 'alias_corporations')
+
+    def lobbyists(self, obj):
+        return mark_safe(', '.join([
+            u'<a href="/admin/lobbyists/lobbyist/'+unicode(lobbyist.pk)+'/">'+unicode(lobbyist)+u'</a>' for lobbyist in obj.latest_data.lobbyists.all()
+        ]))
 
 
 class LobbyistsChangeAdmin(admin.ModelAdmin):

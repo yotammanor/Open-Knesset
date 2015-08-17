@@ -6770,7 +6770,7 @@ input.tobecopied {
   margin-bottom: 0;
 }
 #app-header .nav-pills li {
-  width: 16.5%;
+  width: 14%;
   margin-left: -1px;
   border-left: 1px solid #f1f1f1;
 }
@@ -8052,6 +8052,9 @@ div#tidbitCarousel .btn-suggest:hover {
 .btn-floating.btn-dec {
   border-radius: 20%;
   width: 1.5em;
+}
+#suggest-feedback-modal textarea {
+  width: 95%;
 }
 .vote_input {
   width: 75%;
