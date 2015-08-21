@@ -25,8 +25,7 @@ import parse_presence, parse_laws, mk_roles_parser, parse_remote
 from parse_gov_legislation_comm import ParseGLC
 
 from syncdata_globals import p_explanation,strong_explanation,explanation
-from plenum.management.commands.parse_plenum_protocols_subcommands.download \
-    import _antiword
+from simple.management.utils import antiword
 
 ENCODING = 'utf8'
 
@@ -940,12 +939,14 @@ class Command(NoArgsCommand):
             return self.handle_doc_protocol(file_str)
 
     def handle_doc_protocol(self, file_str):
-        fname = DATA_ROOT + 'comm_p/comm_p.doc'
+        directory = os.path.join(DATA_ROOT, 'comm_p')
+        if not os.path.exists(directory): os.makedirs(directory)
+        fname = os.path.join(directory, 'comm_p.doc')
         f = open(fname, 'wb')
         file_str.seek(0)
         f.write(file_str.read())
         f.close()
-        x = _antiword(fname)
+        x = antiword(fname)
         return re.sub('[\n ]{2,}', '\n\n', re.sub('<.*?>','',x))
 
     def handle_rtf_protocol(self, file_str):

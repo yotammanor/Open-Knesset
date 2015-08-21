@@ -4,6 +4,8 @@ import urllib,urllib2,re,datetime,traceback,sys,os,subprocess
 from BeautifulSoup import BeautifulSoup
 from django.conf import settings
 from committees.models import Committee, CommitteeMeeting
+from simple.management.utils import antiword
+import logging
 
 URL="http://www.knesset.gov.il/plenum/heb/plenum_queue.aspx"
 ROBOTS_URL="http://www.knesset.gov.il/robots.txt"
@@ -13,11 +15,7 @@ WORDS_OF_THE_KNESSET=u"דברי הכנסת"
 WORDS_OF_THE_KNESSET_FULL=u"כל הפרוטוקול"
 DISCUSSIONS_ON_DATE=u"הדיונים בתאריך"
 
-verbosity=1
-
-def _debug(str):
-    global verbosity
-    if verbosity>1: print str
+logger = logging.getLogger('open-knesset')
 
 def _get_committees_index_page(full):
     if full:
@@ -28,35 +26,30 @@ def _get_committees_index_page(full):
         # encoding='utf8'
         # the encoding of this page used to be utf-8 but looks like they reverted back to iso-8859-8
         encoding='iso_8859_8'
-    _debug('getting the html from '+url)
+    logger.info('getting index page html from '+url)
     try:
-        return unicode(urllib2.urlopen(url).read(),encoding)
-    except Exception, e:
-        print 'could not fetch committees_index_page, exception: '+str(e)
-        traceback.print_exc(file=sys.stdout)
+        return unicode(urllib2.urlopen(url).read(), encoding)
+    except:
+        logger.error('could not fetch committees_index_page, exception: '+traceback.format_exc())
         return ''
 
-def _copy(url,to):
-    #_debug("copying from "+url+" to "+to)
+def _copy(url, to, recopy=False):
+    # logger.debug("copying from "+url+" to "+to)
     d=os.path.dirname(to)
     if not os.path.exists(d):
         os.makedirs(d)
-    if not os.path.exists(to):
-        urllib.urlretrieve(url,to+".tmp")
-        os.rename(to+'.tmp',to)
+    if not os.path.exists(to) or recopy:
+        urllib.urlretrieve(url, to+".tmp")
+        os.rename(to+'.tmp', to)
     else:
-        _debug('already downloaded')
+        logger.debug('already downloaded')
 
 def _antiword(filename):
-    cmd='antiword -x db '+filename+' > '+filename+'.awdb.xml'
-    _debug(cmd)
-    _debug(subprocess.check_output(cmd,stderr=subprocess.STDOUT,shell=True))
-    xmldata=''
-    with open(filename+'.awdb.xml','r') as f:
-        xmldata=f.read()
-    _debug('len(xmldata) = '+str(len(xmldata)))
-    os.remove(filename+'.awdb.xml')
-    return xmldata
+    try:
+        return antiword(filename, logger)
+    except:
+        logger.error('antiword failure '+traceback.format_exc())
+        return ''
 
 def _urlAlreadyDownloaded(url):
     plenum=Committee.objects.filter(type='plenum')[0]
@@ -65,7 +58,8 @@ def _urlAlreadyDownloaded(url):
     else:
         return False
 
-def _updateDb(xmlData,url,year,mon,day):
+def _updateDb(xmlData, url, year, mon, day):
+    logger.debug('update db %s, %s, %s, %s, %s'%(len(xmlData), url, year, mon, day))
     plenum=Committee.objects.filter(type='plenum')[0]
     cms=CommitteeMeeting.objects.filter(committee=plenum,src_url=url)
     if cms.count()>0:
@@ -97,7 +91,7 @@ def _downloadLatest(full,redownload):
         else:
             url=FILE_BASE_URL+href
         filename=re.search(r"[^/]*$",url).group()
-        _debug(filename)
+        logger.debug(filename)
         m=re.search(r"\((.*)/(.*)/(.*)\)",selt)
         if m is None:
             selt=selt.findNext()
@@ -107,20 +101,20 @@ def _downloadLatest(full,redownload):
             mon=m.group(2)
             year=m.group(3)
             url=url.replace('/heb/..','')
-            _debug(url)
+            logger.debug(url)
             if not redownload and _urlAlreadyDownloaded(url):
-                _debug('url already downloaded')
+                logger.debug('url already downloaded')
             else:
                 DATA_ROOT = getattr(settings, 'DATA_ROOT')
-                _copy(url.replace('/heb/..',''),DATA_ROOT+'plenum_protocols/'+year+'_'+mon+'_'+day+'_'+filename)
+                _copy(url.replace('/heb/..',''), DATA_ROOT+'plenum_protocols/'+year+'_'+mon+'_'+day+'_'+filename, recopy=redownload)
                 xmlData=_antiword(DATA_ROOT+'plenum_protocols/'+year+'_'+mon+'_'+day+'_'+filename)
                 os.remove(DATA_ROOT+'plenum_protocols/'+year+'_'+mon+'_'+day+'_'+filename)
-                _updateDb(xmlData,url,year,mon,day)
-                
+                if xmlData != '':
+                    _updateDb(xmlData,url,year,mon,day)
 
-def Download(verbosity_level,redownload):
-    global verbosity
-    verbosity=int(verbosity_level)
+def Download(redownload, _logger):
+    global logger
+    logger = _logger
     _downloadLatest(False,redownload)
     _downloadLatest(True,redownload)
 
@@ -131,4 +125,3 @@ def download_for_existing_meeting(meeting):
     os.remove(DATA_ROOT+'plenum_protocols/tmp')
     meeting.protocol_text=xmlData
     meeting.save()
-
