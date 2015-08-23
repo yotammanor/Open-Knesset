@@ -18,6 +18,8 @@ from django.views.generic import TemplateView, DetailView, ListView
 from django.views.generic.list import BaseListView
 from django.views.decorators.http import require_http_methods
 from tagging.models import Tag, TaggedItem
+from django.utils import timezone
+from datetime import timedelta
 
 from .forms import TidbitSuggestionForm, FeedbackSuggestionForm, TagSuggestionForm
 from .models import Tidbit, TagSuggestion
@@ -91,7 +93,7 @@ class BaseTagMemberListView(ListView):
 
 
 class MainScraperStatusView(ListView):
-    queryset = ScraperRun.objects.all().order_by('-start_time')
+    queryset = ScraperRun.objects.all().filter(start_time__gt=timezone.now()-timedelta(days=30)).order_by('-start_time')
     template_name = 'auxiliary/main_scraper_status.html'
 
     def get_context_data(self, *args, **kwargs):

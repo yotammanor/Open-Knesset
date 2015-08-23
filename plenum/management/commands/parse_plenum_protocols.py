@@ -1,13 +1,14 @@
 # encoding: utf-8
-
-from django.core.management.base import NoArgsCommand
 from optparse import make_option
 from plenum.management.commands.parse_plenum_protocols_subcommands.download import Download
 from plenum.management.commands.parse_plenum_protocols_subcommands.parse import Parse
+from okscraper_django.management.base_commands import NoArgsDbLogCommand
 
-class Command(NoArgsCommand):
 
-    option_list = NoArgsCommand.option_list + (
+class Command(NoArgsDbLogCommand):
+    BASE_LOGGER_NAME = 'open-knesset'
+
+    option_list = NoArgsDbLogCommand.option_list + (
         make_option('--download',action='store_true',dest='download',
             help="download the latest protocols from the knesset, convert them to xml and store in db"),
         make_option('--parse',action='store_true',dest='parse',
@@ -17,14 +18,14 @@ class Command(NoArgsCommand):
         make_option('--reparse',action='store_true',dest='reparse',
             help="like the parse stage but parses all the existing data again"),
     )
-
-    def handle_noargs(self, **options):
+    
+    def _handle_noargs(self, **options):
         didSomething=False
         if options.get('download',False) or options.get('redownload',False):
-            Download(options.get('verbosity',1),options.get('redownload',False))
+            Download(options.get('redownload',False), self._logger)
             didSomething=True
         if options.get('parse',False) or options.get('reparse',False):
-            Parse(options.get('verbosity',1),options.get('reparse',False))
+            Parse(options.get('reparse',False), self._logger)
             didSomething=True
         if not didSomething==True:
-            print 'invalid options, try --help for help'
+            self._log_error('invalid options, try --help for help')

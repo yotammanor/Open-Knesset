@@ -24,6 +24,7 @@ from mks.models import Knesset
 from lobbyists.models import LobbyistHistory, LobbyistCorporation
 from itertools import groupby
 from hebrew_numbers import gematria_to_int
+from mks.utils import get_all_mk_names
 
 COMMITTEE_PROTOCOL_PAGINATE_BY = 120
 
@@ -308,15 +309,23 @@ class CommitteeMeeting(models.Model):
         # don't forget the last section
         ProtocolPart(meeting=self, order=i, header=header, body='\n'.join(section)).save()
 
-    def redownload_plenum_protocol(self):
-        """utility method to redownload plenum meeting protocol"""
-        from plenum.management.commands.parse_plenum_protocols_subcommands.download import download_for_existing_meeting
-        download_for_existing_meeting(self)
+    def redownload_protocol(self):
+        if self.committee.type == 'plenum':
+            from plenum.management.commands.parse_plenum_protocols_subcommands.download import download_for_existing_meeting
+            download_for_existing_meeting(self)
+        else:
+            from simple.management.commands.syncdata import Command as SyncdataCommand
+            self.protocol_text = SyncdataCommand().get_committee_protocol_text(self.src_url)
+            self.save()
 
-    def reparse_plenum_protocol(self):
-        self.redownload_plenum_protocol()
-        from plenum.management.commands.parse_plenum_protocols_subcommands.parse import parse_for_existing_meeting
-        parse_for_existing_meeting(self)
+    def reparse_protocol(self, redownload=True):
+        if redownload: self.redownload_protocol()
+        if self.committee.type == 'plenum':
+            from plenum.management.commands.parse_plenum_protocols_subcommands.parse import parse_for_existing_meeting
+            parse_for_existing_meeting(self)
+        else:
+            self.create_protocol_parts(delete_existing=True)
+            self.find_attending_members()
 
     @property
     def plenum_meeting_number(self):
@@ -374,7 +383,9 @@ class CommitteeMeeting(models.Model):
         return Link.objects.filter(object_pk=self.id,
                     content_type=ContentType.objects.get_for_model(CommitteeMeeting).id)
 
-    def find_attending_members(self, mks, mk_names):
+    def find_attending_members(self, mks=None, mk_names=None):
+        if mks is None and mk_names is None:
+            mks, mk_names = get_all_mk_names()
         try:
             r = re.search("חברי הו?ועדה(.*?)(\n[^\n]*(ייעוץ|יועץ|רישום|רש(מים|מות|מו|מ|מת|ם|מה)|קצר(נים|ניות|ן|נית))[\s|:])".decode('utf8'), self.protocol_text, re.DOTALL).group(1)
             s = r.split('\n')
