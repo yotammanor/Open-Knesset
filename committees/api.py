@@ -34,6 +34,12 @@ class CommitteeResource(BaseResource):
             {'title': x.what, 'date': x.when}
             for x in bundle.obj.future_meetings()]
 
+    def get_object_list(self, request):
+        committees = super(CommitteeResource, self).get_object_list(request)
+        if not request.GET.get('with_hidden'):
+            committees = committees.exclude(hide=True)
+        return committees
+
 
 class CommitteeMeetingResource(BaseResource):
     ''' Committee Meeting API
