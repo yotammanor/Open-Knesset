@@ -42,8 +42,8 @@ logger = logging.getLogger("open-knesset.committees.views")
 
 class CommitteeListView(ListView):
     context_object_name = 'committees'
-    queryset = Committee.objects.exclude(type='plenum')
-    paginate_by = 20
+    queryset = Committee.objects.exclude(type='plenum').exclude(hide=True)
+    # paginate_by = 20
     INITIAL_TOPICS = 10
 
     def get_context_data(self, **kwargs):
