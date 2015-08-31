@@ -1,9 +1,7 @@
 # This includes parts which requires compiling or scraping related, etc
 -r requirements.txt
 
---find-links http://download.savannah.gnu.org/releases/mimms/
-
-mimms>=3.2
+-e git://github.com/itayperl/mimms2.git#egg=mimms2
 
 # Using yairchu's fork with a fix to ignore bad unicode characters in rtf reader
 # see this PR: https://github.com/hasadna/Open-Knesset/pull/326

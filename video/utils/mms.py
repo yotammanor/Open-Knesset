@@ -1,5 +1,5 @@
 import sys
-from libmimms import libmms,core as mimms
+from libmimms2 import libmms,core as mimms
 
 class _options():
     def __init__(self,url,filename,time_limit,resume=False):
