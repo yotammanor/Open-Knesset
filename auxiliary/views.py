@@ -562,22 +562,27 @@ class TagDetail(DetailView):
 
         knesset_bills_ids = knesset_bills.values_list('id', flat=True)
         knesset_bills_approval_vote = knesset_bills.values_list('approval_vote', flat=True)
+
+        if knesset_id.end_date is not None:
+            cms_date_filter = Q(date__gte=knesset_id.start_date, date__lte=knesset_id.end_date)
+            vote_date_filter = Q(time__gte=knesset_id.start_date, time__lte=knesset_id.end_date)
+        else:
+            cms_date_filter = Q(date__gte=knesset_id.start_date)
+            vote_date_filter = Q(time__gte=knesset_id.start_date)
                 
         votes = votes.filter(
             Q(bills_pre_votes__in=knesset_bills_ids) 
             | Q(bills_first__in=knesset_bills_ids) 
             | Q(id__in=knesset_bills_approval_vote)
+            | vote_date_filter
         )
 
         context['votes'] = votes
         cm_ct = ContentType.objects.get_for_model(CommitteeMeeting)
         cm_ids = TaggedItem.objects.filter(
             tag=tag, content_type=cm_ct).values_list('object_id', flat=True)
-            
-        if knesset_id.end_date is not None:
-            cms = CommitteeMeeting.objects.filter(date__gte=knesset_id.start_date, date__lte=knesset_id.end_date)
-        else:
-            cms = CommitteeMeeting.objects.filter(date__gte=knesset_id.start_date)
+
+        cms = CommitteeMeeting.objects.filter(cms_date_filter)
             
         cms = cms.filter(id__in=cm_ids)
         context['cms'] = cms

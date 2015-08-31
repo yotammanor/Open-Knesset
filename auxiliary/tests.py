@@ -11,13 +11,189 @@ from tagging.models import Tag,TaggedItem
 from laws.models import Vote, VoteAction, Bill, Law
 from mks.models import Member,Party,WeeklyPresence,Knesset
 from committees.models import Committee
+from committees.models import CommitteeMeeting
 from agendas.models import Agenda
 from knesset.sitemap import sitemaps
 from auxiliary.views import CsvView
 from django.core import cache
+from django.contrib.auth.models import User,Group,Permission
 
 from tag_suggestions.tests import TestApprove, TestForm
 
+class TagDetailViewTest(TestCase):
+
+    def setUp(self):
+        self.knesset1 = Knesset.objects.create(number=1,
+							start_date=datetime.datetime.today()-datetime.timedelta(days=3),
+                            end_date=datetime.datetime.today()-datetime.timedelta(days=1))
+        self.knesset2 = Knesset.objects.create(number=2,
+                            start_date=datetime.datetime.today()-datetime.timedelta(days=1))
+        self.committee_1 = Committee.objects.create(name='c1')
+        self.committee_2 = Committee.objects.create(name='c2')
+        self.meeting_1 = self.committee_1.meetings.create(date=datetime.datetime.now(),
+                                 topics = "django",
+                                 protocol_text='''jacob:
+I am a perfectionist
+adrian:
+I have a deadline''')
+        self.meeting_1.create_protocol_parts()
+        self.meeting_3 = self.committee_1.meetings.create(date=datetime.datetime.now(),
+                                 topics = "untagged2",
+                                 protocol_text='untagged')
+        self.meeting_3.create_protocol_parts()
+        self.meeting_4 = self.committee_1.meetings.create(date=datetime.datetime.now(),
+                                 topics = "tagged_as_2",
+                                 protocol_text='untagged')
+        self.meeting_4.create_protocol_parts()
+        self.meeting_2 = self.committee_1.meetings.create(date=datetime.datetime.now()-datetime.timedelta(days=2),
+                                                         topics = "python",
+                                                         protocol_text='m2')
+        self.meeting_2.create_protocol_parts()
+        self.jacob = User.objects.create_user('jacob', 'jacob@example.com',
+                                              'JKM')
+        self.adrian = User.objects.create_user('adrian', 'adrian@example.com',
+                                              'ADRIAN')
+        (self.group, created) = Group.objects.get_or_create(name='Valid Email')
+        if created:
+            self.group.save()
+        self.group.permissions.add(Permission.objects.get(name='Can add annotation'))
+        self.jacob.groups.add(self.group)
+
+        ct = ContentType.objects.get_for_model(Tag)
+        self.adrian.user_permissions.add(Permission.objects.get(codename='add_tag', content_type=ct))
+
+        self.bill_1 = Bill.objects.create(stage='1', title='bill 1', stage_date=datetime.date.today())
+        self.bill_2 = Bill.objects.create(stage='1', title='bill 2', stage_date=datetime.date.today()-datetime.timedelta(days=2))
+        self.bill_3 = Bill.objects.create(stage='1', title='bill 3', stage_date=datetime.date.today())
+        self.bill_4 = Bill.objects.create(stage='1', title='bill 4', stage_date=datetime.date.today())
+        
+        self.mk_1 = Member.objects.create(name='mk 1')
+        self.topic = self.committee_1.topic_set.create(creator=self.jacob,
+                                                title="hello", description="hello world")
+                                                
+        cm_ct = ContentType.objects.get_for_model(CommitteeMeeting)
+        self.tag_1 = Tag.objects.create(name='tag1')
+        self.tag_2 = Tag.objects.create(name='tag2')        
+        
+        self.meeting_1.mks_attended.add(self.mk_1)
+        
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=cm_ct, object_id=self.meeting_1.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=cm_ct, object_id=self.meeting_2.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=cm_ct, object_id=self.meeting_4.id)
+        
+        Tag.objects.add_tag(self.bill_1, 'tag1')
+        Tag.objects.add_tag(self.bill_2, 'tag1')
+        Tag.objects.add_tag(self.bill_4, 'tag2')
+        
+        
+        self.vote_time_1 = Vote.objects.create(title="vote time 1", time=datetime.datetime.now())
+        self.vote_time_2 = Vote.objects.create(title="vote time 2", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_time_3 = Vote.objects.create(title="vote time 3", time=datetime.datetime.now())
+        self.vote_time_4 = Vote.objects.create(title="vote time 4", time=datetime.datetime.now())
+        
+        self.vote_pre_vote_1 = Vote.objects.create(title="vote pre vote 1", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_pre_vote_2 = Vote.objects.create(title="vote pre vote 2", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_pre_vote_3 = Vote.objects.create(title="vote pre vote 3", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_pre_vote_4 = Vote.objects.create(title="vote pre vote 4", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        
+        self.vote_first_1 = Vote.objects.create(title="vote first 1", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_first_2 = Vote.objects.create(title="vote first 2", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_first_3 = Vote.objects.create(title="vote first 3", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_first_4 = Vote.objects.create(title="vote first 4", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        
+        self.vote_approval_1 = Vote.objects.create(title="vote approval 1", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_approval_2 = Vote.objects.create(title="vote approval 2", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_approval_3 = Vote.objects.create(title="vote approval 3", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        self.vote_approval_4 = Vote.objects.create(title="vote approval 4", time=datetime.datetime.now()-datetime.timedelta(days=2))
+        
+        vote_ct = ContentType.objects.get_for_model(Vote)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_time_1.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_time_2.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=vote_ct, object_id=self.vote_time_4.id)
+
+        self.pre_bill_1 = Bill.objects.create(stage='1', title='bill pre 1', stage_date=datetime.date.today())
+        self.pre_bill_1.pre_votes.add(self.vote_pre_vote_1)
+        self.pre_bill_2 = Bill.objects.create(stage='1', title='bill pre 2', stage_date=datetime.date.today()-datetime.timedelta(days=2))
+        self.pre_bill_2.pre_votes.add(self.vote_pre_vote_2)
+        self.pre_bill_3 = Bill.objects.create(stage='1', title='bill pre 3', stage_date=datetime.date.today())
+        self.pre_bill_3.pre_votes.add(self.vote_pre_vote_3)
+        self.pre_bill_4 = Bill.objects.create(stage='1', title='bill pre 4', stage_date=datetime.date.today())
+        self.pre_bill_4.pre_votes.add(self.vote_pre_vote_4)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_pre_vote_1.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_pre_vote_2.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=vote_ct, object_id=self.vote_pre_vote_4.id)
+
+        self.first_bill_1 = Bill.objects.create(stage='1', title='bill first 1', stage_date=datetime.date.today(), first_vote=self.vote_first_1)
+        self.first_bill_2 = Bill.objects.create(stage='1', title='bill first 2', stage_date=datetime.date.today()-datetime.timedelta(days=2), first_vote=self.vote_first_2)
+        self.first_bill_3 = Bill.objects.create(stage='1', title='bill first 3', stage_date=datetime.date.today(), first_vote=self.vote_first_3)
+        self.first_bill_4 = Bill.objects.create(stage='1', title='bill first 4', stage_date=datetime.date.today(), first_vote=self.vote_first_4)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_first_1.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_first_2.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=vote_ct, object_id=self.vote_first_4.id)
+
+        self.approval_bill_1 = Bill.objects.create(stage='1', title='bill approval 1', stage_date=datetime.date.today(), approval_vote=self.vote_approval_1)
+        self.approval_bill_2 = Bill.objects.create(stage='1', title='bill approval 2', stage_date=datetime.date.today()-datetime.timedelta(days=2), approval_vote=self.vote_approval_2)
+        self.approval_bill_3 = Bill.objects.create(stage='1', title='bill approval 3', stage_date=datetime.date.today(), approval_vote=self.vote_approval_3)
+        self.approval_bill_4 = Bill.objects.create(stage='1', title='bill approval 4', stage_date=datetime.date.today(), approval_vote=self.vote_approval_4)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_approval_1.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_approval_2.id)
+        TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=vote_ct, object_id=self.vote_approval_4.id)
+
+    def testDefaultKnessetId(self):
+        res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}))
+        self.assertEqual(res.status_code, 200)
+        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        knesset_id = res.context['knesset_id'].number
+        self.assertEqual(knesset_id,2)
+
+    def testInvalidKnessetId(self):
+        res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}), {'page':10})
+        self.assertEqual(res.status_code, 404)
+        
+    def testCurrentSelectedKnessetId(self):
+        res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}), {'page':2})
+        self.assertEqual(res.status_code, 200)
+        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        knesset_id = res.context['knesset_id'].number
+        self.assertEqual(knesset_id,2)
+    def testPrevSelectedKnessetId(self):
+        res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}), {'page':1})
+        self.assertEqual(res.status_code, 200)
+        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        knesset_id = res.context['knesset_id'].number
+        self.assertEqual(knesset_id,1)
+        
+    def testVisibleCommitteeMeetings(self):
+        res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}), {'page':2})
+        self.assertEqual(res.status_code, 200)
+        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        cms = res.context['cms']
+        self.assertEqual(len(cms),1)
+        self.assertEqual(cms[0].topics, "django")
+        
+    def testVisibleBills(self):
+        res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}), {'page':2})
+        self.assertEqual(res.status_code, 200)
+        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        bills = res.context['bills']
+        self.assertEqual(len(bills),1)
+        self.assertEqual(bills[0].title, "bill 1")
+		
+
+    def testVisibleVotes(self):
+        res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}), {'page':2})
+        self.assertEqual(res.status_code, 200)
+        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        votes = res.context['votes']
+        print [v.title for v in votes]
+        self.assertEqual(len(votes),4)
+        self.assertEqual(set([v.title for v in votes]), set([
+			"vote time 1",
+			"vote pre vote 1",
+			"vote first 1",
+			"vote approval 1",
+		]))
+		
 class TagResourceTest(TestCase):
 
     def setUp(self):
