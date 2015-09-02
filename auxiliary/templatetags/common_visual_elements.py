@@ -17,7 +17,8 @@ def bar(quantity, start, end, bar_class=None, show_label=True):
     :param show_label: Show the descriptive label ?
     """
 
-    assert quantity <= end, "bar: quantity > end"
+    if quantity > end:
+        return {'applicable': False}
 
     try:
         value = (quantity - start) * 100 / (end - start)
