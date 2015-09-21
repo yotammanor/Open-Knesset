@@ -91,53 +91,10 @@ I have a deadline''')
         self.vote_time_3 = Vote.objects.create(title="vote time 3", time=datetime.datetime.now())
         self.vote_time_4 = Vote.objects.create(title="vote time 4", time=datetime.datetime.now())
         
-        self.vote_pre_vote_1 = Vote.objects.create(title="vote pre vote 1", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        self.vote_pre_vote_2 = Vote.objects.create(title="vote pre vote 2", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        self.vote_pre_vote_3 = Vote.objects.create(title="vote pre vote 3", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        self.vote_pre_vote_4 = Vote.objects.create(title="vote pre vote 4", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        
-        self.vote_first_1 = Vote.objects.create(title="vote first 1", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        self.vote_first_2 = Vote.objects.create(title="vote first 2", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        self.vote_first_3 = Vote.objects.create(title="vote first 3", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        self.vote_first_4 = Vote.objects.create(title="vote first 4", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        
-        self.vote_approval_1 = Vote.objects.create(title="vote approval 1", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        self.vote_approval_2 = Vote.objects.create(title="vote approval 2", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        self.vote_approval_3 = Vote.objects.create(title="vote approval 3", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        self.vote_approval_4 = Vote.objects.create(title="vote approval 4", time=datetime.datetime.now()-datetime.timedelta(days=2))
-        
         vote_ct = ContentType.objects.get_for_model(Vote)
         TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_time_1.id)
         TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_time_2.id)
         TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=vote_ct, object_id=self.vote_time_4.id)
-
-        self.pre_bill_1 = Bill.objects.create(stage='1', title='bill pre 1', stage_date=datetime.date.today())
-        self.pre_bill_1.pre_votes.add(self.vote_pre_vote_1)
-        self.pre_bill_2 = Bill.objects.create(stage='1', title='bill pre 2', stage_date=datetime.date.today()-datetime.timedelta(days=2))
-        self.pre_bill_2.pre_votes.add(self.vote_pre_vote_2)
-        self.pre_bill_3 = Bill.objects.create(stage='1', title='bill pre 3', stage_date=datetime.date.today())
-        self.pre_bill_3.pre_votes.add(self.vote_pre_vote_3)
-        self.pre_bill_4 = Bill.objects.create(stage='1', title='bill pre 4', stage_date=datetime.date.today())
-        self.pre_bill_4.pre_votes.add(self.vote_pre_vote_4)
-        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_pre_vote_1.id)
-        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_pre_vote_2.id)
-        TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=vote_ct, object_id=self.vote_pre_vote_4.id)
-
-        self.first_bill_1 = Bill.objects.create(stage='1', title='bill first 1', stage_date=datetime.date.today(), first_vote=self.vote_first_1)
-        self.first_bill_2 = Bill.objects.create(stage='1', title='bill first 2', stage_date=datetime.date.today()-datetime.timedelta(days=2), first_vote=self.vote_first_2)
-        self.first_bill_3 = Bill.objects.create(stage='1', title='bill first 3', stage_date=datetime.date.today(), first_vote=self.vote_first_3)
-        self.first_bill_4 = Bill.objects.create(stage='1', title='bill first 4', stage_date=datetime.date.today(), first_vote=self.vote_first_4)
-        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_first_1.id)
-        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_first_2.id)
-        TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=vote_ct, object_id=self.vote_first_4.id)
-
-        self.approval_bill_1 = Bill.objects.create(stage='1', title='bill approval 1', stage_date=datetime.date.today(), approval_vote=self.vote_approval_1)
-        self.approval_bill_2 = Bill.objects.create(stage='1', title='bill approval 2', stage_date=datetime.date.today()-datetime.timedelta(days=2), approval_vote=self.vote_approval_2)
-        self.approval_bill_3 = Bill.objects.create(stage='1', title='bill approval 3', stage_date=datetime.date.today(), approval_vote=self.vote_approval_3)
-        self.approval_bill_4 = Bill.objects.create(stage='1', title='bill approval 4', stage_date=datetime.date.today(), approval_vote=self.vote_approval_4)
-        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_approval_1.id)
-        TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_approval_2.id)
-        TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=vote_ct, object_id=self.vote_approval_4.id)
 
     def testDefaultKnessetId(self):
         res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}))
@@ -186,13 +143,10 @@ I have a deadline''')
         self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
         votes = res.context['votes']
         print [v.title for v in votes]
-        self.assertEqual(len(votes),4)
-        self.assertEqual(set([v.title for v in votes]), set([
+        expected_votes = set([
 			"vote time 1",
-			"vote pre vote 1",
-			"vote first 1",
-			"vote approval 1",
-		]))
+		])
+        self.assertEqual(set([v.title for v in votes]), expected_votes)
 		
 class TagResourceTest(TestCase):
 

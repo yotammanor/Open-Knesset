@@ -555,26 +555,24 @@ class TagDetail(DetailView):
         bills = knesset_bills.filter(id__in=bill_ids)
 
         context['bills'] = bills
+        
         votes_ct = ContentType.objects.get_for_model(Vote)
         vote_ids = TaggedItem.objects.filter(
             tag=tag, content_type=votes_ct).values_list('object_id', flat=True)
         votes = Vote.objects.filter(id__in=vote_ids)
-
-        knesset_bills_ids = knesset_bills.values_list('id', flat=True)
-        knesset_bills_approval_vote = knesset_bills.values_list('approval_vote', flat=True)
-
-        if knesset_id.end_date is not None:
-            cms_date_filter = Q(date__gte=knesset_id.start_date, date__lte=knesset_id.end_date)
-            vote_date_filter = Q(time__gte=knesset_id.start_date, time__lte=knesset_id.end_date)
+        
+        knesset_end_date = knesset_id.end_date
+        knesset_start_date = knesset_id.start_date
+        
+        if knesset_end_date is not None:
+            cms_date_filter = Q(date__gte=knesset_start_date, date__lte=knesset_end_date)
+            vote_date_filter = Q(time__gte=knesset_start_date, time__lte=knesset_end_date)
         else:
-            cms_date_filter = Q(date__gte=knesset_id.start_date)
-            vote_date_filter = Q(time__gte=knesset_id.start_date)
+            cms_date_filter = Q(date__gte=knesset_start_date)
+            vote_date_filter = Q(time__gte=knesset_start_date)
                 
         votes = votes.filter(
-            Q(bills_pre_votes__in=knesset_bills_ids) 
-            | Q(bills_first__in=knesset_bills_ids) 
-            | Q(id__in=knesset_bills_approval_vote)
-            | vote_date_filter
+            vote_date_filter
         )
 
         context['votes'] = votes
