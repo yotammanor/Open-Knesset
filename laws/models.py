@@ -564,8 +564,7 @@ class BillManager(models.Manager):
         if knesset_id:
             if knesset_id.end_date is not None:
                 qs = qs.filter(
-                    Q(stage_date__gte=knesset_id.start_date, stage_date__lte=knesset_id.end_date)
-                    | Q(pre_votes__time__gte=knesset_id.start_date, pre_votes__time__lte=knesset_id.end_date)
+                    Q(pre_votes__time__gte=knesset_id.start_date, pre_votes__time__lte=knesset_id.end_date)
                     | Q(first_committee_meetings__date__gte=knesset_id.start_date, first_committee_meetings__date__lte=knesset_id.end_date)
                     | Q(first_vote__time__gte=knesset_id.start_date, first_vote__time__lte=knesset_id.end_date)
                     | Q(second_committee_meetings__date__gte=knesset_id.start_date, second_committee_meetings__date__lte=knesset_id.end_date)
@@ -573,8 +572,7 @@ class BillManager(models.Manager):
                 )
             else:
                 qs = qs.filter(
-                    Q(stage_date__gte=knesset_id.start_date)
-                    | Q(pre_votes__time__gte=knesset_id.start_date)
+                    Q(pre_votes__time__gte=knesset_id.start_date)
                     | Q(first_committee_meetings__date__gte=knesset_id.start_date)
                     | Q(first_vote__time__gte=knesset_id.start_date)
                     | Q(second_committee_meetings__date__gte=knesset_id.start_date)
