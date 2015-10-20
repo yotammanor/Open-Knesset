@@ -31,11 +31,8 @@ class TagDetailViewTest(TestCase):
         self.committee_1 = Committee.objects.create(name='c1')
         self.committee_2 = Committee.objects.create(name='c2')
         self.meeting_1 = self.committee_1.meetings.create(date=datetime.datetime.now(),
-                                 topics = "django",
-                                 protocol_text='''jacob:
-I am a perfectionist
-adrian:
-I have a deadline''')
+                                 topics = "tagged meeting",
+                                 protocol_text="tm1")
         self.meeting_1.create_protocol_parts()
         self.meeting_3 = self.committee_1.meetings.create(date=datetime.datetime.now(),
                                  topics = "untagged2",
@@ -244,9 +241,13 @@ I have a deadline''')
         self.assertEqual(res.status_code, 200)
         self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
         cms = res.context['cms']
-        self.assertEqual(len(cms),1)
-        self.assertEqual(cms[0].topics, "django")
-        
+        expected_cms = set([
+            "meeting first 1",
+            "meeting second 1",
+            "tagged meeting",
+        ])
+        self.assertEqual(set([cm.topics for cm in cms]), expected_cms)
+
     def testVisibleBills(self):
         res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}), {'page':2})
         self.assertEqual(res.status_code, 200)
@@ -269,6 +270,8 @@ I have a deadline''')
 #        print [v.title for v in votes]
         expected_votes = set([
             "vote time 1",
+            "vote approval time 1",
+            "vote first time 1",
         ])
         self.assertEqual(set([v.title for v in votes]), expected_votes)
 
@@ -321,8 +324,6 @@ class TagVoteBillTagOrderTest(TestCase):
         self.bill_tag_after_vote_ctor = Bill.objects.create(stage='1', title='bill tag after vote ctor', approval_vote=self.vote_tag_after_vote_ctor)
         self.vote_tag_after_vote_ctor.save()
         Tag.objects.add_tag(self.bill_tag_after_vote_ctor, 'tag1')
-
-
         
         self.vote_with_tag = Vote.objects.create(title="vote with tag", time=datetime.datetime.now())
         

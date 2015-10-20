@@ -26,7 +26,8 @@ from tagvotes.models import TagVote
 from knesset.utils import slugify_name, trans_clean
 from laws.vote_choices import (TYPE_CHOICES, BILL_STAGE_CHOICES,
                                BILL_AGRR_STAGES)
-
+from auxiliary.models import add_tags_to_related_objects
+from django.db.models.signals import post_save, post_delete
 logger = logging.getLogger("open-knesset.laws.models")
 VOTE_ACTION_TYPE_CHOICES = (
         (u'for', _('For')),
@@ -883,7 +884,11 @@ class Bill(models.Model):
     @property
     def frozen(self):
         return self.stage == u'0'
-
+def add_tags_to_bill_related_objects(sender, instance, **kwargs):
+    bill_ct = ContentType.objects.get_for_model(instance)
+    for ti in TaggedItem.objects.filter(content_type=bill_ct, object_id=instance.id):
+        add_tags_to_related_objects(sender, ti, **kwargs)
+post_save.connect(add_tags_to_bill_related_objects, sender=Bill)
 
 def get_n_debated_bills(n=None):
     """Returns n random bills that have an active debate in the site.
