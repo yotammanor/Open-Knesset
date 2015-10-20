@@ -59,7 +59,8 @@ class TagDetailViewTest(TestCase):
         ct = ContentType.objects.get_for_model(Tag)
         self.adrian.user_permissions.add(Permission.objects.get(codename='add_tag', content_type=ct))
         self.tag_1 = Tag.objects.create(name='tag1')
-        self.tag_2 = Tag.objects.create(name='tag2')        
+        self.tag_2 = Tag.objects.create(name='tag2')
+        self.tag_3 = Tag.objects.create(name='tag3')
 
         self.vote_pre_time_1 = Vote.objects.create(title="vote pre time 1", time=datetime.datetime.now())
         self.vote_pre_time_2 = Vote.objects.create(title="vote pre time 2", time=datetime.datetime.now()-datetime.timedelta(days=2))
@@ -178,16 +179,6 @@ class TagDetailViewTest(TestCase):
         self.bill_second_meeting_3.save()
         self.bill_second_meeting_4.save()
 
-
-
-
-
-
-
-
-
-
-
         self.mk_1 = Member.objects.create(name='mk 1')
         self.topic = self.committee_1.topic_set.create(creator=self.jacob,
                                                 title="hello", description="hello world")
@@ -211,6 +202,18 @@ class TagDetailViewTest(TestCase):
         TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_time_1.id)
         TaggedItem._default_manager.get_or_create(tag=self.tag_1, content_type=vote_ct, object_id=self.vote_time_2.id)
         TaggedItem._default_manager.get_or_create(tag=self.tag_2, content_type=vote_ct, object_id=self.vote_time_4.id)
+        
+        self.bill_dup_second_meeting = Bill.objects.create(stage='1', title='bill dup second meeting')
+        self.meeting_dup_second_time_1 = self.committee_1.meetings.create(date=datetime.datetime.now(),
+                                                         topics = "meeting second 1", protocol_text='ms1'
+                                                         );self.meeting_dup_second_time_1.create_protocol_parts()
+        self.meeting_dup_second_time_2 = self.committee_1.meetings.create(date=datetime.datetime.now(),
+                                                         topics = "meeting second 2", protocol_text='ms2'
+                                                         );self.meeting_dup_second_time_2.create_protocol_parts()
+        Tag.objects.add_tag(self.bill_dup_second_meeting, 'tag3')
+        self.bill_dup_second_meeting.first_committee_meetings.add(self.meeting_dup_second_time_1)
+        self.bill_dup_second_meeting.first_committee_meetings.add(self.meeting_dup_second_time_2)
+        self.bill_dup_second_meeting.save()
 
     def testDefaultKnessetId(self):
         res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}))
@@ -261,6 +264,15 @@ class TagDetailViewTest(TestCase):
             "bill second meeting 1",
         ])
         self.assertEqual(set([b.title for b in bills]), expected_bills)
+
+    def testUniqueBills(self):
+        res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag3'}), {'page':2})
+        self.assertEqual(res.status_code, 200)
+        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        bills = res.context['bills']
+        print bills
+        self.assertEqual(len(bills), 1)
+        self.assertEqual(bills[0], "bill dup second meeting")
 
     def testVisibleVotes(self):
         res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}), {'page':2})
