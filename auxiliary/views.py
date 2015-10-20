@@ -550,29 +550,51 @@ class TagDetail(DetailView):
         
         knesset_end_date = knesset_id.end_date
         knesset_start_date = knesset_id.start_date
-        
         if knesset_end_date is not None:
             cms_date_filter = Q(date__gte=knesset_start_date, date__lte=knesset_end_date)
             vote_date_filter = Q(time__gte=knesset_start_date, time__lte=knesset_end_date)
+            proposal_date_filter = Q(proposals__date__gte=knesset_start_date, proposals__date__lte=knesset_end_date)
+            # stage_date_filter = Q(stage_date__gte=knesset_start_date, stage_date__lte=knesset_end_date)
         else:
             cms_date_filter = Q(date__gte=knesset_start_date)
             vote_date_filter = Q(time__gte=knesset_start_date)
+            proposal_date_filter = Q(proposals__date__gte=knesset_start_date)
+            # stage_date_filter = Q(stage_date__gte=knesset_start_date)
 
         votes = Vote.objects.filter(vote_date_filter)
         cms = CommitteeMeeting.objects.filter(cms_date_filter)
-        #knesset_bills = Bill.objects.filter_and_order(knesset_id=knesset_id)
+        
         knesset_bills = Bill.objects.filter(
 			Q(pre_votes__in = votes)
 			| Q(first_committee_meetings__in = cms)
 			| Q(first_vote__in = votes)
 			| Q(second_committee_meetings__in = cms)
 			| Q(approval_vote__in = votes)
+            | proposal_date_filter
+            # | stage_date_filter
 		)
         
         bills_ct = ContentType.objects.get_for_model(Bill)
         bill_ids = TaggedItem.objects.filter(
             tag=tag, content_type=bills_ct).values_list('object_id', flat=True)
         bills = knesset_bills.filter(id__in=bill_ids)
+        # with open("stage_date_filter_with_proposal.txt", "wt") as f:
+            # print >>f, "id,stage_date,first_vote,approval_vote"
+            # for knesset_bill in bills:
+                # print >>f, knesset_bill.id, knesset_bill.stage_date, knesset_bill.first_vote.time if knesset_bill.first_vote is not None else None, knesset_bill.approval_vote.time if knesset_bill.approval_vote is not None else None
+                # print >>f, "\tfirst_committee_meetings"
+                # for first_committee_meeting in knesset_bill.first_committee_meetings.all():
+                    # print >>f, "\t\t", first_committee_meeting.date
+                # print >>f, "\tsecond_committee_meetings"
+                # for second_committee_meeting in knesset_bill.second_committee_meetings.all():
+                    # print >>f, "\t\t", second_committee_meeting.date
+                # print >>f, "\tfirst_committee_meetings"
+                # for pre_vote in knesset_bill.pre_votes.all():
+                    # print >>f, "\t\t", pre_vote.time
+                # print >>f, "\tproposals"
+                # for proposal in knesset_bill.proposals.all():
+                    # print >>f, "\t\t", proposal.date
+                
         context['bills'] = bills
         
         votes_ct = ContentType.objects.get_for_model(Vote)
