@@ -1,6 +1,7 @@
 import difflib
 from django.core.cache import cache
 from django.db import models, connection
+from django.db.models import Q
 
 class KnessetManager(models.Manager):
     """This is a manager for Knesset class"""
@@ -83,24 +84,30 @@ class MembershipManager(models.Manager):
     def membership_in_range(self, ranges=None):
         if not ranges:
             return
-        filter_list = []
-        query_parameters = []
-        for r in ranges:
-            if not r[0] and not r[1]:
-                return None  # might as well not filter at all
-            query_fields = []
+        if len(ranges) == 1 and ranges[0][0] and not ranges[0][1]:
+            from mks.models import Knesset, Membership
+            # common case of searching for range from certain date to any date in future
+            # do it using ORM because the raw sql code below seems to have some bugs
+            return Membership.objects.filter(end_date=None).exclude(end_date__lt=ranges[0][0]).values_list('member_id', flat=True)
+        else:
+            filter_list = []
             query_parameters = []
-            if r[0]:
-                query_fields.append("coalesce(end_date, '2037-01-01') < %s")
-                query_parameters.append(r[0])
-            if r[1]:
-                query_fields.append("coalesce(start_date, '1947-01-01') >= %s")
-                query_parameters.append(r[1])
-            filter_list.append(' OR '.join(query_fields))
+            for r in ranges:
+                if not r[0] and not r[1]:
+                    return None  # might as well not filter at all
+                query_fields = []
+                query_parameters = []
+                if r[0]:
+                    query_fields.append("coalesce(end_date, '2037-01-01') < %s")
+                    query_parameters.append(r[0])
+                if r[1]:
+                    query_fields.append("coalesce(start_date, '1947-01-01') >= %s")
+                    query_parameters.append(r[1])
+                filter_list.append(' OR '.join(query_fields))
 
-        filters_folded = ' AND '.join(filter_list)
-        query = "SELECT member_id FROM mks_membership WHERE NOT (%s)" % filters_folded
-        cursor = connection.cursor()
-        cursor.execute(query, query_parameters)
-        results = cursor.fetchall()
-        return [c[0] for c in results]
+            filters_folded = ' AND '.join(filter_list)
+            query = "SELECT member_id FROM mks_membership WHERE NOT (%s)" % filters_folded
+            cursor = connection.cursor()
+            cursor.execute(query, query_parameters)
+            results = cursor.fetchall()
+            return [c[0] for c in results]
