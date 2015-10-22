@@ -120,7 +120,7 @@ MS Windows
 
 .. _Download distribute: http://www.lfd.uci.edu/~gohlke/pythonlibs/#distribute- 
 .. _2.7.3: http://www.python.org/download/releases/2.7.3/
-.. _Download the latest Python 2.7: http://python.org/download/releases/
+.. _Download the latest Python 2.7: https://www.python.org/downloads/
 .. _PIL: http://www.lfd.uci.edu/~gohlke/pythonlibs/#pil
 .. _lxml: http://www.lfd.uci.edu/~gohlke/pythonlibs/#lxml
 .. _GitHub for Windows: http://windows.github.com
