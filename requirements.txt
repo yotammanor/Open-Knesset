@@ -34,7 +34,7 @@ django-ratings
 django-avatar==2.0
 -e git://github.com/hasadna/django-backlinks.git@df00163eee41cc2c090e6a703c03610cc7979f66#egg=django-backlinks
 -e git://github.com/spreeker/django-voting2.git#egg=django-voting2
-django-debug-toolbar>=1.0
+django-debug-toolbar<1.4
 nose
 django-nose
 django-devserver==0.8.0
