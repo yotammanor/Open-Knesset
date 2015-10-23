@@ -13,16 +13,26 @@ Before first run, and only once, you'll need::
     git submodule init
     git submodule update
 
+We recommend to use nvm to install the correct node version (so that all the developers get consistent css results)::
 
-You'll need to have `Node.js`_ installed. After that make sure you have less
-installed::
+    install nvm, see: https://github.com/creationix/nvm
+    then, run:
+    $ cd OpenKnesset
+    OpenKnesset$ nvm use
 
-    sudo npm install -g less
+If you encounter problems using nvm, you can install the node another way, you need node in the version specified in .nvmrc file
+
+Install less using the version specified in package.json::
+
+    $ cd OpenKnesset
+    OpenKnesset$ nvm use
+    OpenKnesset$ npm install
 
 Make your changes to the files in the ``less`` directory, and compile the using
 (assuming you're in the ``Open-Knesset`` directory)::
 
-    lessc less/app.less static/css/app.css
+    $ cd OpenKnsset
+    OpenKnesset$ npm run less
 
 .. _Node.js: http://nodejs.org/
 .. _LESS: http://lesscss.org/#-server-side-usage
