@@ -81,14 +81,12 @@ class CurrentKnessetMembersManager(models.Manager):
         return qs
 
 class MembershipManager(models.Manager):
-    def membership_in_range(self, ranges=None):
-        if not ranges:
-            return
-        if len(ranges) == 1 and ranges[0][0] and not ranges[0][1]:
+    def membership_in_range(self, ranges=None, only_current_mks=False):
+        if only_current_mks:
             from mks.models import Knesset, Membership
-            # common case of searching for range from certain date to any date in future
-            # do it using ORM because the raw sql code below seems to have some bugs
-            return Membership.objects.filter(end_date=None).exclude(end_date__lt=ranges[0][0]).values_list('member_id', flat=True)
+            return Membership.objects.filter(member__is_current=True).values_list('member_id', flat=True)
+        elif not ranges:
+            return
         else:
             filter_list = []
             query_parameters = []
