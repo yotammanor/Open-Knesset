@@ -278,7 +278,6 @@ class TagDetailViewTest(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
         votes = res.context['votes']
-#        print [v.title for v in votes]
         expected_votes = set([
             "vote time 1",
             "vote approval time 1",
@@ -346,16 +345,12 @@ class TagVoteBillTagOrderTest(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
         votes = res.context['votes']
-#        print [v.title for v in votes]
         expected_votes = set([
             "vote with tag",
             "vote tag before vote",
             "vote tag after vote",
             "vote tag after vote ctor",
         ]) 
-        # the bug tags also the vote_tag_after_vote_ctor because the bill was tagged after the vote was done, when the vote was given in the CTOR. 
-        # tagging the bill should tag the also future votes:
-        # in this example "vote tag before vote" should be tagged.
         self.assertEqual(set([v.title for v in votes]), expected_votes)
 
 
