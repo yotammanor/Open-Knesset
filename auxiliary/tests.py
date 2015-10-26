@@ -270,9 +270,8 @@ class TagDetailViewTest(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
         bills = res.context['bills']
-        print bills
         self.assertEqual(len(bills), 1)
-        self.assertEqual(bills[0], "bill dup second meeting")
+        self.assertEqual(bills[0].title, "bill dup second meeting")
 
     def testVisibleVotes(self):
         res = self.client.get(reverse('tag-detail',kwargs={'slug':'tag1'}), {'page':2})

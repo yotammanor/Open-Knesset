@@ -572,7 +572,7 @@ class TagDetail(DetailView):
 			| Q(approval_vote__in = votes)
             | proposal_date_filter
             # | stage_date_filter
-		)
+		).distinct()
         
         bills_ct = ContentType.objects.get_for_model(Bill)
         bill_ids = TaggedItem.objects.filter(
