@@ -134,6 +134,9 @@ class InternalLinksTest(TestCase):
 
         redirects = [
             reverse('party-list'), reverse('member-list'),
+        ]
+
+        temp_redirects = [
             reverse('parties-members-index'),
         ]
 
@@ -167,7 +170,9 @@ class InternalLinksTest(TestCase):
                 link = links_to_visit.pop()
                 res0 = self.client.get(link)
 
-                if link in redirects:
+                if link in temp_redirects:
+                    self.assertEqual(res0.status_code, 302, msg="internal (temporary) redirect %s from page %s seems to be broken" % (link,page))
+                elif link in redirects:
                     self.assertEqual(res0.status_code, 301, msg="internal redirect %s from page %s seems to be broken" % (link,page))
                 else:
                     self.assertEqual(res0.status_code, 200, msg="internal link %s from page %s seems to be broken" % (link,page))
