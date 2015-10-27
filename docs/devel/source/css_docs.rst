@@ -18,7 +18,7 @@ We recommend to use nvm to install the correct node version (so that all the dev
     install nvm, see: https://github.com/creationix/nvm
     then, run:
     $ cd OpenKnesset
-    OpenKnesset$ nvm use
+    OpenKnesset$ nvm install
 
 If you encounter problems using nvm, you can install the node another way, you need node in the version specified in .nvmrc file
 
@@ -28,10 +28,11 @@ Install less using the version specified in package.json::
     OpenKnesset$ nvm use
     OpenKnesset$ npm install
 
-Make your changes to the files in the ``less`` directory, and compile the using
+Make your changes to the files in the ``less`` directory, and compile
 (assuming you're in the ``Open-Knesset`` directory)::
 
     $ cd OpenKnsset
+    OpenKnesset$ nvm use
     OpenKnesset$ npm run less
 
 .. _Node.js: http://nodejs.org/
