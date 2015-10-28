@@ -10,6 +10,8 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Max,Count
 
+from okscraper_django.management.base_commands import NoArgsDbLogCommand
+
 from mks.models import Member, Party, Membership, WeeklyPresence, Knesset
 from persons.models import Person,PersonAlias
 from laws.models import (Vote, VoteAction, Bill, Law, PrivateProposal,
@@ -25,8 +27,7 @@ import parse_presence, parse_laws, mk_roles_parser, parse_remote
 from parse_gov_legislation_comm import ParseGLC
 
 from syncdata_globals import p_explanation,strong_explanation,explanation
-from plenum.management.commands.parse_plenum_protocols_subcommands.download \
-    import _antiword
+from simple.management.utils import antiword
 
 ENCODING = 'utf8'
 
@@ -42,8 +43,8 @@ except:
     logger.warn("can't find special committees")
     SPECIAL_COMMITTEES = {}
 
-class Command(NoArgsCommand):
-    option_list = NoArgsCommand.option_list + (
+class Command(NoArgsDbLogCommand):
+    option_list = NoArgsDbLogCommand.option_list + (
         make_option('--all', action='store_true', dest='all',
             help="runs all the syncdata sub processes (like --download --load --process --dump)"),
         make_option('--download', action='store_true', dest='download',
@@ -66,6 +67,8 @@ class Command(NoArgsCommand):
     help = "Downloads data from sources, parses it and loads it to the Django DB."
 
     requires_model_validation = False
+
+    BASE_LOGGER_NAME = 'open-knesset'
 
     last_downloaded_vote_id = 0
     last_downloaded_member_id = 0
@@ -219,7 +222,7 @@ class Command(NoArgsCommand):
         logger.info("update votes")
         current_max_src_id = Vote.objects.aggregate(Max('src_id'))['src_id__max']
         if current_max_src_id == None: # the db contains no votes, meaning its empty
-            print "DB is empty. --update can only be used to update, not for first time loading. \ntry --all, or get some data using initial_data.json\n"
+            logger.warning("DB is empty. --update can only be used to update, not for first time loading. \ntry --all, or get some data using initial_data.json\n")
             return
         vote_id = start_from_id or current_max_src_id+1 # first vote to look for is the max_src_id we have plus 1, if not manually set
         limit_src_id = current_max_src_id + 100 # look for next 100 votes. if results are found, this value will be incremented.
@@ -940,12 +943,14 @@ class Command(NoArgsCommand):
             return self.handle_doc_protocol(file_str)
 
     def handle_doc_protocol(self, file_str):
-        fname = DATA_ROOT + 'comm_p/comm_p.doc'
+        directory = os.path.join(DATA_ROOT, 'comm_p')
+        if not os.path.exists(directory): os.makedirs(directory)
+        fname = os.path.join(directory, 'comm_p.doc')
         f = open(fname, 'wb')
         file_str.seek(0)
         f.write(file_str.read())
         f.close()
-        x = _antiword(fname)
+        x = antiword(fname)
         return re.sub('[\n ]{2,}', '\n\n', re.sub('<.*?>','',x))
 
     def handle_rtf_protocol(self, file_str):
@@ -1541,7 +1546,9 @@ class Command(NoArgsCommand):
                 except PrivateProposal.MultipleObjectsReturned:
                     logger.warn('More than 1 PrivateProposal with proposal_id=%d' % pp_id)
 
-    def handle_noargs(self, **options):
+    def _handle_noargs(self, **options):
+        global logger
+        logger = self._logger
 
         all_options = options.get('all', False)
         download = options.get('download', False)
@@ -1552,17 +1559,6 @@ class Command(NoArgsCommand):
         laws = options.get('laws',False)
         committees = options.get('committees', False)
 
-        verbosity = int(options.get('verbosity', '0'))
-        if verbosity > 0:
-            levels = {
-                1: logging.WARN,
-                2: logging.INFO,
-                3: logging.DEBUG
-            }
-            handler = logging.StreamHandler()
-            handler.setLevel(levels[verbosity])
-            logger.addHandler(handler)
-
         if all_options:
             download = True
             load = True
@@ -1571,20 +1567,20 @@ class Command(NoArgsCommand):
 
         if (all([not(all_options),not(download),not(load),not(process),
                  not(dump_to_file),not(update),not(laws), not(committees)])):
-            print "no arguments found. doing nothing. \ntry -h for help.\n--all to run the full syncdata flow.\n--update for an online dynamic update."
+            logger.error("no arguments found. doing nothing. \ntry -h for help.\n--all to run the full syncdata flow.\n--update for an online dynamic update.")
 
         if download:
-            print "beginning download phase"
+            logger.info("beginning download phase")
             self.download_all()
             #self.get_laws_data()
 
         if load:
-            print "beginning load phase"
+            logger.info("beginning load phase")
             self.update_members_from_file()
             self.update_db_from_files()
 
         if process:
-            print "beginning process phase"
+            logger.info("beginning process phase")
             self.calculate_votes_importances()
             #self.calculate_correlations()
 
@@ -1595,7 +1591,7 @@ class Command(NoArgsCommand):
             self.correct_votes_matching()
 
         if dump_to_file:
-            print "writing votes to tsv file"
+            logger.info("writing votes to tsv file")
             self.dump_to_file()
 
         if update:
@@ -1621,7 +1617,7 @@ class Command(NoArgsCommand):
                 # in case update_run_only is none, we run all stages
                 if (update_run_only is None) or (func in update_run_only):
                     try:
-                        logger.debug('update: running %s', func)
+                        logger.info('update: running %s', func)
                         self.__getattribute__(func).__call__()
                     except:
                         exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
@@ -1630,11 +1626,11 @@ class Command(NoArgsCommand):
                                      ''.join(traceback.format_exception(exceptionType,
                                                                         exceptionValue,
                                                                         exceptionTraceback)))
-            logger.debug('finished update')
+            logger.info('finished update')
 
         if committees:
             self.get_protocols()
-            logger.debug('finished committees update')
+            logger.info('finished committees update')
 
 
 def iso_year_start(iso_year):

@@ -19,6 +19,8 @@ from laws.models import VoteAction, Vote
 from mks.models import Party, Member, Knesset, Membership
 import queries
 
+from tagging.models import Tag
+
 AGENDAVOTE_SCORE_CHOICES = (
     ('',_("Not selected")),
     (-1.0, _("Opposes fully")),
@@ -326,6 +328,10 @@ class Agenda(models.Model):
     is_public = models.BooleanField(default=False)
     num_followers = models.IntegerField(default=0)
     image = models.ImageField(blank=True, null=True, upload_to='agendas')
+    category_id = models.ForeignKey(Tag, related_name='agendas', blank=True, null=True)
+    number_knesset = models.ForeignKey(Knesset, related_name='agendas', blank=True, null=True)
+    infogram_external_identifier = models.CharField(null=True, blank=True, max_length=300)
+    infogram_src = models.CharField(null=True, blank=True, max_length=300)
 
     objects = AgendaManager()
 

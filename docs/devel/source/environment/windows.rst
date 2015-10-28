@@ -34,7 +34,7 @@ Python
 (32 or 64 bit). As of this writing, the latest one is `2.7.8`_.
 
 .. _2.7.8: http://www.python.org/download/releases/2.7.8/
-.. _Download the latest Python 2.7: http://python.org/download/releases/
+.. _Download the latest Python 2.7: https://www.python.org/downloads/
 
 Once downloaded, run the installer, and accept defaults.
 

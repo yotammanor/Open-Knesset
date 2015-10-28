@@ -1,18 +1,11 @@
 # encoding: utf-8
-
-import datetime,traceback,sys,os,re,subprocess,json,io,logging
-import xml.etree.ElementTree as ET
-from django.conf import settings
 from django.db.models import Count
 from committees.models import Committee, CommitteeMeeting
 from plenum import create_protocol_parts
+import logging
 
-verbosity=1
-
-def Parse(verbosity_level,reparse, meeting_pks=None):
-    global verbosity
-    verbosity=int(verbosity_level)
-    #DATA_ROOT = getattr(settings, 'DATA_ROOT')
+def Parse(reparse, logger, meeting_pks=None):
+    logger.debug('Parse (reparse=%s, meeting_pks=%s)'%(reparse, meeting_pks))
     if meeting_pks is not None:
         meetings = CommitteeMeeting.objects.filter(pk__in=meeting_pks)
     else:
@@ -20,13 +13,12 @@ def Parse(verbosity_level,reparse, meeting_pks=None):
         meetings=CommitteeMeeting.objects.filter(committee=plenum).exclude(protocol_text='')
     if not reparse:
         meetings=meetings.annotate(Count('parts')).filter(parts__count=0)
-    if verbosity>1:
-        console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG)
-        logging.getLogger('').addHandler(console)
     (mks,mk_names)=create_protocol_parts.get_all_mk_names()
+    logger.debug('got mk names: %s, %s'%(mks, mk_names))
     for meeting in meetings:
+        logger.debug('creating protocol parts for meeting %s'%(meeting,))
         meeting.create_protocol_parts(delete_existing=reparse,mks=mks,mk_names=mk_names)
 
 def parse_for_existing_meeting(meeting):
-    Parse(1, True, [meeting.pk])
+    logger = logging.getLogger('open-knesset')
+    Parse(True, logger, [meeting.pk])

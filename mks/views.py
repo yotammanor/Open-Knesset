@@ -738,9 +738,9 @@ def member_auto_complete(request):
     if not 'query' in request.GET:
         raise Http404
 
-    suggestions = map(lambda member: member.name, Member.objects.filter(name__icontains=request.GET['query'])[:30])
+    members = Member.objects.filter(name__icontains=request.GET['query'], is_current=True)[:30]
 
-    result = { 'query': request.GET['query'], 'suggestions':suggestions }
+    result = {'query': request.GET['query'], 'suggestions': [member.name for member in members]}
 
     return HttpResponse(json.dumps(result), mimetype='application/json')
 

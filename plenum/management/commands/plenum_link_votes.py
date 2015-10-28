@@ -27,5 +27,5 @@ class Command(NoArgsCommand):
             if int(options.get('verbosity', '1')) > 1:
                 print 'meeting %s'%meeting.pk
             if options.get('reparse', False):
-                meeting.reparse_plenum_protocol()
+                meeting.reparse_protocol()
             meeting.plenum_link_votes()
