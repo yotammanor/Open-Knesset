@@ -517,7 +517,6 @@ class BillManager(models.Manager):
         gov_booklet = kwargs.get('gov_booklet', None)
         changed_after = kwargs.get('changed_after', None)
         changed_before = kwargs.get('changed_before', None)
-        knesset_id = kwargs.get('knesset_id', None)
 
         filter_kwargs = {}
         if stage and stage != 'all':
@@ -561,24 +560,7 @@ class BillManager(models.Manager):
                 qs = qs.filter(gov_proposal__in=gps)
             else:
                 qs = qs.none()
-            
-        if knesset_id:
-            if knesset_id.end_date is not None:
-                qs = qs.filter(
-                    Q(pre_votes__time__gte=knesset_id.start_date, pre_votes__time__lte=knesset_id.end_date)
-                    | Q(first_committee_meetings__date__gte=knesset_id.start_date, first_committee_meetings__date__lte=knesset_id.end_date)
-                    | Q(first_vote__time__gte=knesset_id.start_date, first_vote__time__lte=knesset_id.end_date)
-                    | Q(second_committee_meetings__date__gte=knesset_id.start_date, second_committee_meetings__date__lte=knesset_id.end_date)
-                    | Q(approval_vote__time__gte=knesset_id.start_date, approval_vote__time__lte=knesset_id.end_date)
-                )
-            else:
-                qs = qs.filter(
-                    Q(pre_votes__time__gte=knesset_id.start_date)
-                    | Q(first_committee_meetings__date__gte=knesset_id.start_date)
-                    | Q(first_vote__time__gte=knesset_id.start_date)
-                    | Q(second_committee_meetings__date__gte=knesset_id.start_date)
-                    | Q(approval_vote__time__gte=knesset_id.start_date)
-                )            
+                 
         if changed_after:
             qs = qs.filter(stage_date__gte=changed_after)
 
