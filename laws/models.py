@@ -26,6 +26,7 @@ from tagvotes.models import TagVote
 from knesset.utils import slugify_name, trans_clean
 from laws.vote_choices import (TYPE_CHOICES, BILL_STAGE_CHOICES,
                                BILL_AGRR_STAGES)
+
 from auxiliary.models import add_tags_to_related_objects
 from django.db.models.signals import post_save, post_delete
 logger = logging.getLogger("open-knesset.laws.models")
@@ -544,6 +545,7 @@ class BillManager(models.Manager):
                 qs = qs.filter(proposals__in=pps)
             else:
                 qs = qs.none()
+
         if knesset_booklet:
             kps = KnessetProposal.objects.filter(
                     booklet_number=knesset_booklet).values_list(
@@ -554,13 +556,12 @@ class BillManager(models.Manager):
                 qs = qs.none()
         if gov_booklet:
             gps = GovProposal.objects.filter(
-                    booklet_number=gov_booklet).values_list(
-                            'id', flat=True)
+                    booklet_number=gov_booklet).values_list('id', flat=True)
             if gps:
                 qs = qs.filter(gov_proposal__in=gps)
             else:
                 qs = qs.none()
-                 
+
         if changed_after:
             qs = qs.filter(stage_date__gte=changed_after)
 
@@ -866,6 +867,7 @@ class Bill(models.Model):
     @property
     def frozen(self):
         return self.stage == u'0'
+
 def add_tags_to_bill_related_objects(sender, instance, **kwargs):
     bill_ct = ContentType.objects.get_for_model(instance)
     for ti in TaggedItem.objects.filter(content_type=bill_ct, object_id=instance.id):

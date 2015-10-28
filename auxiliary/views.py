@@ -565,24 +565,25 @@ class TagDetail(DetailView):
         cms = CommitteeMeeting.objects.filter(cms_date_filter)
         
         knesset_bills = Bill.objects.filter(
-			Q(pre_votes__in = votes)
-			| Q(first_committee_meetings__in = cms)
-			| Q(first_vote__in = votes)
-			| Q(second_committee_meetings__in = cms)
-			| Q(approval_vote__in = votes)
+            Q(pre_votes__in = votes)
+            | Q(first_committee_meetings__in = cms)
+            | Q(first_vote__in = votes)
+            | Q(second_committee_meetings__in = cms)
+            | Q(approval_vote__in = votes)
             | proposal_date_filter
-		).distinct()
+        ).distinct()
         
         bills_ct = ContentType.objects.get_for_model(Bill)
         bill_ids = TaggedItem.objects.filter(
-            tag=tag, content_type=bills_ct).values_list('object_id', flat=True)
+            tag=tag, 
+            content_type=bills_ct).values_list('object_id', flat=True)
         bills = knesset_bills.filter(id__in=bill_ids)
     
         context['bills'] = bills
         
         votes_ct = ContentType.objects.get_for_model(Vote)
         vote_ids = TaggedItem.objects.filter(
-            tag=tag, content_type=votes_ct).values_list('object_id', flat=True)        
+            tag=tag, content_type=votes_ct).values_list('object_id', flat=True)
         votes = votes.filter(id__in=vote_ids)
         context['votes'] = votes
         
@@ -600,6 +601,7 @@ class TagDetail(DetailView):
         context['request'] = None
 
         return context
+
     def get_knesset_id(self):
         try:
             needed_knesset_id = self.request.GET['page']
