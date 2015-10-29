@@ -1,3 +1,4 @@
+
 import csv, random, tagging, logging
 import json
 from actstream import action
@@ -8,6 +9,7 @@ from django.contrib.comments.models import Comment
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
+from django.db.models import Q
 from django.http import (
     HttpResponseForbidden, HttpResponseRedirect, HttpResponse,
     HttpResponseNotAllowed, HttpResponseBadRequest, Http404, HttpResponsePermanentRedirect)
@@ -17,6 +19,7 @@ from django.utils.translation import ugettext as _
 from django.views.generic import TemplateView, DetailView, ListView
 from django.views.generic.list import BaseListView
 from django.views.decorators.http import require_http_methods
+from django.core.paginator import Paginator
 from tagging.models import Tag, TaggedItem
 from django.utils import timezone
 from datetime import timedelta
@@ -453,6 +456,29 @@ class TagList(ListView):
         context['tags_cloud'] = tags_cloud
         return context
 
+class SelectorPaginator(Paginator): 
+    def __init__(self, knessets):
+        super(SelectorPaginator, self).__init__(sorted(list(knessets)), 1)
+    def validate_number(self, number):
+        try:
+            number = int(number)
+        except (TypeError, ValueError):
+            raise PageNotAnInteger('That page number is not an integer')
+        if number not in self.object_list:
+            raise EmptyPage('That page contains no result')
+        return number
+
+    def page(self, number):
+        number = self.validate_number(number)
+        return self._get_page([number,], self.object_list.index(number), self)
+
+    def _get_count(self):
+        return len(self.object_list)
+    def _get_num_pages(self):
+        return len(self.object_list)
+    def _get_page_range(self):
+        return self.object_list
+
 class TagDetail(DetailView):
     """Tags index view"""
 
@@ -520,27 +546,72 @@ class TagDetail(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super(TagDetail, self).get_context_data(**kwargs)
+        knesset_id = self.get_knesset_id()
+        context['knesset_id'] = knesset_id
         tag = context['object']
+        
+        knesset_end_date = knesset_id.end_date
+        knesset_start_date = knesset_id.start_date
+        if knesset_end_date is not None:
+            cms_date_filter = Q(date__gte=knesset_start_date, date__lte=knesset_end_date)
+            vote_date_filter = Q(time__gte=knesset_start_date, time__lte=knesset_end_date)
+            proposal_date_filter = Q(proposals__date__gte=knesset_start_date, proposals__date__lte=knesset_end_date)
+        else:
+            cms_date_filter = Q(date__gte=knesset_start_date)
+            vote_date_filter = Q(time__gte=knesset_start_date)
+            proposal_date_filter = Q(proposals__date__gte=knesset_start_date)
+
+        votes = Vote.objects.filter(vote_date_filter)
+        cms = CommitteeMeeting.objects.filter(cms_date_filter)
+        
+        knesset_bills = Bill.objects.filter(
+            Q(pre_votes__in = votes)
+            | Q(first_committee_meetings__in = cms)
+            | Q(first_vote__in = votes)
+            | Q(second_committee_meetings__in = cms)
+            | Q(approval_vote__in = votes)
+            | proposal_date_filter
+        ).distinct()
+        
         bills_ct = ContentType.objects.get_for_model(Bill)
         bill_ids = TaggedItem.objects.filter(
-            tag=tag,
+            tag=tag, 
             content_type=bills_ct).values_list('object_id', flat=True)
-        bills = Bill.objects.filter(id__in=bill_ids)
+        bills = knesset_bills.filter(id__in=bill_ids)
+    
         context['bills'] = bills
+        
         votes_ct = ContentType.objects.get_for_model(Vote)
         vote_ids = TaggedItem.objects.filter(
             tag=tag, content_type=votes_ct).values_list('object_id', flat=True)
-        votes = Vote.objects.filter(id__in=vote_ids)
+        votes = votes.filter(id__in=vote_ids)
         context['votes'] = votes
+        
         cm_ct = ContentType.objects.get_for_model(CommitteeMeeting)
         cm_ids = TaggedItem.objects.filter(
             tag=tag, content_type=cm_ct).values_list('object_id', flat=True)
-        cms = CommitteeMeeting.objects.filter(id__in=cm_ids)
+        cms = cms.filter(id__in=cm_ids)
         context['cms'] = cms
+        
         (context['members'],
          context['past_members']) = self.create_tag_cloud(tag)
+
+        context['paginator'] = paginator = SelectorPaginator(Knesset.objects.values_list('number', flat=True))
+        context['page_obj'] = paginator.page(knesset_id.number)
+        context['request'] = None
+
         return context
 
+    def get_knesset_id(self):
+        try:
+            needed_knesset_id = self.request.GET['page']
+            try:
+                knesset_id = Knesset.objects.filter(number = needed_knesset_id)[0]
+            except IndexError, e:
+                raise Http404('Invalid knesset number (page=%s)' % (needed_knesset_id,))
+        except KeyError, e:
+            knesset_id = Knesset.objects.current_knesset()
+        return knesset_id
 
 class CsvView(BaseListView):
     """A view which generates CSV files with information for a model queryset.

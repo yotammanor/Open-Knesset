@@ -87,7 +87,7 @@ urlpatterns = patterns('',
     #url(r'^tags/(?P<app>\w+)/(?P<object_type>\w+)/(?P<object_id>\d+)/create-tag/$', create_tag_and_add_to_item, name='create-tag'),
     url(r'^add_tag_synonym/(?P<parent_tag_id>\d+)/(?P<synonym_tag_id>\d+)/$', add_tag_synonym),
     url(r'^tags/$', TagList.as_view(), name='tags-list'),
-    url(r'^tags/(?P<slug>.*)/$', TagDetail.as_view(), name='tag-detail'),
+    url(r'^tags/(?P<slug>.*?)/$', TagDetail.as_view(), name='tag-detail'),
     url(r'^suggest-tag-post/$', suggest_tag_post, name='suggest-tag-post'),
     url(r'^uservote/bill/(?P<object_id>\d+)/(?P<direction>\-?\d+)/?$',
         vote_on_object, dict(
