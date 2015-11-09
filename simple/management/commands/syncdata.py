@@ -817,7 +817,11 @@ class Command(NoArgsDbLogCommand):
                     comittee = ''
                     subject = ''
                 if (link.find(r'html')>0)or(link.find(r'rtf')>0):
-                    html_url = FILES_BASE_URL + re.search(r"'\.\./([^']*)'", link).group(1)
+                    re_res = re.search(r"'\.\./([^']*)'", link)
+                    if re_res:
+                        html_url = FILES_BASE_URL + re_res.group(1)
+                    else:
+                        html_url = re.search(r"'([^']*)'", link).group(1)
                     res.append([date_text, comittee, subject, html_url]) # this is the last info we need, so add data to results
                     date_text = ''
                     comittee = ''
@@ -864,7 +868,12 @@ class Command(NoArgsDbLogCommand):
             params = "__EVENTTARGET=gvProtocol&__EVENTARGUMENT=Page%%24%d&__LASTFOCUS=&__VIEWSTATE=%s&ComId=-1&knesset_id=-1&DtFrom=24%%2F02%%2F2009&DtTo=&subj=&__EVENTVALIDATION=%s" % (page_num, view_state, event_validation)
             page = urllib2.urlopen(SEARCH_URL,params).read().decode('windows-1255').encode('utf-8')
             # update EV and VS
-            event_validation = urllib2.quote(re.search(r'id="__EVENTVALIDATION" value="([^"]*)"', page).group(1)).replace('/','%2F')
+            re_res = re.search(r'id="__EVENTVALIDATION" value="([^"]*)"', page)
+            if re_res:
+                event_validation = urllib2.quote(re_res.group(1)).replace('/','%2F')
+            else:
+                logger.warning('skipping page %s'%page_num)
+                continue
             view_state = urllib2.quote(re.search(r'id="__VIEWSTATE" value="([^"]*)"', page).group(1)).replace('/','%2F')
             # parse the page
             (last_page, page_res) = self.get_protocols_page(page, page_num)
@@ -873,53 +882,55 @@ class Command(NoArgsDbLogCommand):
         logger.debug('res contains %d entries' % len(res))
 
         for (date_string, com, topic, link) in res:
-            (c, created) = Committee.objects.get_or_create(name=com)
-            if created:
-                c.save()
-            r = re.search("(\d\d)/(\d\d)/(\d\d\d\d)", date_string)
-            d = datetime.date(int(r.group(3)), int(r.group(2)), int(r.group(1)))
-            if CommitteeMeeting.objects.filter(committee=c, date=d, topics=topic, date_string=date_string).count():
-                cm = CommitteeMeeting.objects.filter(committee=c, date=d, topics=topic, date_string=date_string)[0]
-                logger.debug('cm %d already exists' % cm.id)
-                if not cm.bg_material: #committee meeting still has no bg - hack to get old bg material into db
-                    self.get_bg_material(cm)
+            cm = None
+            try:
+                (c, created) = Committee.objects.get_or_create(name=com)
+                if created:
+                    c.save()
+                r = re.search("(\d\d)/(\d\d)/(\d\d\d\d)", date_string)
+                d = datetime.date(int(r.group(3)), int(r.group(2)), int(r.group(1)))
+                if CommitteeMeeting.objects.filter(committee=c, date=d, topics=topic, date_string=date_string).count():
+                    cm = CommitteeMeeting.objects.filter(committee=c, date=d, topics=topic, date_string=date_string)[0]
+                    logger.debug('cm %d already exists' % cm.id)
+                    if not cm.bg_material: #committee meeting still has no bg - hack to get old bg material into db
+                        self.get_bg_material(cm)
+                    continue
+                elif CommitteeMeeting.objects.filter(src_url=link).count():
+                    cm = CommitteeMeeting.objects.get(src_url=link)
+                    logger.debug('cm %d is being updated' % cm.id)
+                    if date_string != cm.date_string:
+                        cm.date_string = date_string
+                        logger.debug('updated date_string')
+                    if d != cm.date:
+                        cm.date = d
+                        logger.debug('updated date')
+                    if topic != cm.topics:
+                        cm.topics=topic
+                        logger.debug('updated topics')
+                    if link != cm.src_url:
+                        cm.src_url = link
+                        logger.debug('updated src_url')
+                else:
+                    cm = CommitteeMeeting.objects.create(committee=c, date=d, topics=topic, date_string=date_string, src_url=link)
+                    logger.debug('cm %d created' % cm.id)
+                updated_protocol = False
+                if not cm.protocol_text:
+                    cm.protocol_text = self.get_committee_protocol_text(link)
+                    # check if the protocol is from the wrong commitee
+                    for i in committees_aliases:
+                        if i[1] in cm.protocol_text[:300]:
+                            cm.committee = i[0]
+                            break
+                    updated_protocol = True
+                cm.save()
+                if updated_protocol:
+                    cm.create_protocol_parts()
+            except Exception, e:
+                logger.error(traceback.format_exc())
                 continue
-            elif CommitteeMeeting.objects.filter(src_url=link).count():
-                cm = CommitteeMeeting.objects.get(src_url=link)
-                logger.debug('cm %d is being updated' % cm.id)
-                if date_string != cm.date_string:
-                    cm.date_string = date_string
-                    logger.debug('updated date_string')
-                if d != cm.date:
-                    cm.date = d
-                    logger.debug('updated date')
-                if topic != cm.topics:
-                    cm.topics=topic
-                    logger.debug('updated topics')
-                if link != cm.src_url:
-                    cm.src_url = link
-                    logger.debug('updated src_url')
-            else:
-                cm = CommitteeMeeting.objects.create(committee=c, date=d, topics=topic, date_string=date_string, src_url=link)
-                logger.debug('cm %d created' % cm.id)
-            updated_protocol = False
-            if not cm.protocol_text:
-                cm.protocol_text = self.get_committee_protocol_text(link)
-                # check if the protocol is from the wrong commitee
-                for i in committees_aliases:
-                    if i[1] in cm.protocol_text[:300]:
-                        cm.committee = i[0]
-                        break
-                updated_protocol = True
-
-            cm.save()
-
-            if updated_protocol:
-                cm.create_protocol_parts()
-
-            cm.find_attending_members(mks, mk_names)
-
-            self.get_bg_material(cm)
+            if cm is not None:
+                cm.find_attending_members(mks, mk_names)
+                self.get_bg_material(cm)
 
     def get_committee_protocol_text(self, url):
         logger.debug('get_committee_protocol_text. url=%s' % url)
