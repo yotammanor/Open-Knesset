@@ -831,6 +831,7 @@ class MemeberMoreMMMView(MemeberMoreActionsView):
 
 class PartiesMembersRedirctView(RedirectView):
     "Redirect old url to listing of current knesset"
+    permanent = False
 
     def get_redirect_url(self):
         knesset = Knesset.objects.current_knesset()
