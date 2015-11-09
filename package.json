@@ -1,0 +1,19 @@
+{
+  "name": "oknesset",
+  "version": "1.0.0",
+  "dependencies": {
+    "less": "^2.5.3"
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hasadna/Open-Knesset.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hasadna/Open-Knesset/issues"
+  },
+  "homepage": "https://github.com/hasadna/Open-Knesset#readme",
+  "scripts": {
+    "less": "lessc less/app.less static/css/app.css"
+  }
+}
