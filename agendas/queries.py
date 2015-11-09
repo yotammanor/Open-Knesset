@@ -3,11 +3,66 @@ from itertools import groupby
 from operator import itemgetter
 
 def getAllAgendaPartyVotes():
+    from mks.models import Knesset
     cursor = connection.cursor()
-    cursor.execute(PARTY_QUERY)
+    cursor.execute(CURRENT_KNESSET_PARTY_QUERY.format(current_knesset_id=Knesset.objects.current_knesset().pk))
     results = dict(map(lambda (key,group):(key,map(lambda g:(g[1],float(g[2]),float(g[3])),list(group))),
                        groupby(cursor.fetchall(),key=itemgetter(0))))
     return results
+
+CURRENT_KNESSET_PARTY_QUERY = """
+SELECT a.agendaid,
+       a.partyid,
+       round(coalesce(cast(coalesce(v.totalvotevalue,0.0)/(case when a.totalscore = 0 then 1 else a.totalscore end)*100.0 as numeric),0.0),2) score,
+       round(coalesce(cast(coalesce(v.numvotes,0.0)/a.totalvolume*100.0 as numeric),0.0),2) volume
+FROM   (SELECT agid                   agendaid,
+               m.id                   partyid,
+               sc * m.number_of_seats totalscore,
+               numvotes * m.number_of_seats totalvolume
+        FROM   (SELECT agenda_id               agid,
+                       SUM(abs(score * importance)) sc,
+                       COUNT(*) numvotes
+                FROM   agendas_agendavote
+                GROUP  BY agenda_id) agendavalues
+               left outer join (select * from mks_party where knesset_id={current_knesset_id}) m
+                 on 1=1) a
+       left outer join (SELECT agenda_id,
+                          partyid,
+                          SUM(forvotes) - SUM(againstvotes) totalvotevalue ,
+                          SUM(numvotes) numvotes
+                   FROM   (SELECT a.agenda_id,
+                                  p.partyid,
+                                  CASE p.vtype
+                                    WHEN 'for' THEN p.numvotes * a.VALUE
+                                    ELSE 0
+                                  END forvotes,
+                                  CASE p.vtype
+                                    WHEN 'against' THEN p.numvotes * a.VALUE
+                                    ELSE 0
+                                  END againstvotes,
+                                  p.numvotes numvotes
+                           FROM   (SELECT m.current_party_id      partyid,
+                                          v.vote_id voteid,
+                                          v.TYPE    vtype,
+                                          COUNT(*)  numvotes
+                                   FROM   laws_voteaction v
+                                          inner join mks_member m
+                                            ON v.member_id = m.id
+                                   WHERE  v.TYPE IN ( 'for', 'against' )
+                                   GROUP  BY m.current_party_id,
+                                             v.vote_id,
+                                             v.TYPE) p
+                                  inner join (SELECT vote_id,
+                                                     agenda_id,
+                                                     score * importance as VALUE
+                                              FROM   agendas_agendavote) a
+                                    ON p.voteid = a.vote_id) b
+                   GROUP  BY agenda_id,
+                             partyid
+                             ) v
+         ON a.agendaid = v.agenda_id
+            AND a.partyid = v.partyid
+ORDER BY agendaid,score desc"""
 
 PARTY_QUERY = """
 SELECT a.agendaid,

@@ -486,7 +486,10 @@ class Agenda(models.Model):
 
     def get_mks_values(self, ranges=None, mks=None):
         if ranges is None:
+            only_current_mks = True
             ranges = [[dateMonthTruncate(Knesset.objects.current_knesset().start_date),None]]
+        else:
+            only_current_mks = False
         mks_values = False
         mk_ids = [mk.id for mk in mks] if mks else []
 
@@ -500,7 +503,7 @@ class Agenda(models.Model):
 
         if not mks_values:
             # get list of mk ids
-            mk_ids = mk_ids or Membership.objects.membership_in_range(ranges)
+            mk_ids = mk_ids or Membership.objects.membership_in_range(ranges, only_current_mks=only_current_mks)
 
             # generate summary query
             filters_folded = self.generateSummaryFilters(ranges, 'month', 'month')
