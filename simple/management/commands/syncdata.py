@@ -29,6 +29,8 @@ from parse_gov_legislation_comm import ParseGLC
 from syncdata_globals import p_explanation,strong_explanation,explanation
 from simple.management.utils import antiword
 
+import socket
+
 ENCODING = 'utf8'
 
 DATA_ROOT = getattr(settings, 'DATA_ROOT',
@@ -881,7 +883,13 @@ class Command(NoArgsDbLogCommand):
 
         logger.debug('res contains %d entries' % len(res))
 
+        default_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(10)
+        num_exceptions = 0
         for (date_string, com, topic, link) in res:
+            if num_exceptions > 15:
+                logger.error('too many exception in get_protocols')
+                break
             cm = None
             try:
                 (c, created) = Committee.objects.get_or_create(name=com)
@@ -892,9 +900,6 @@ class Command(NoArgsDbLogCommand):
                 if CommitteeMeeting.objects.filter(committee=c, date=d, topics=topic, date_string=date_string).count():
                     cm = CommitteeMeeting.objects.filter(committee=c, date=d, topics=topic, date_string=date_string)[0]
                     logger.debug('cm %d already exists' % cm.id)
-                    if not cm.bg_material: #committee meeting still has no bg - hack to get old bg material into db
-                        self.get_bg_material(cm)
-                    continue
                 elif CommitteeMeeting.objects.filter(src_url=link).count():
                     cm = CommitteeMeeting.objects.get(src_url=link)
                     logger.debug('cm %d is being updated' % cm.id)
@@ -913,24 +918,51 @@ class Command(NoArgsDbLogCommand):
                 else:
                     cm = CommitteeMeeting.objects.create(committee=c, date=d, topics=topic, date_string=date_string, src_url=link)
                     logger.debug('cm %d created' % cm.id)
-                updated_protocol = False
-                if not cm.protocol_text:
-                    cm.protocol_text = self.get_committee_protocol_text(link)
-                    # check if the protocol is from the wrong commitee
-                    for i in committees_aliases:
-                        if i[1] in cm.protocol_text[:300]:
-                            cm.committee = i[0]
-                            break
-                    updated_protocol = True
-                cm.save()
-                if updated_protocol:
-                    cm.create_protocol_parts()
-            except Exception, e:
+            except Exception:
+                num_exceptions += 1
                 logger.error(traceback.format_exc())
-                continue
             if cm is not None:
-                cm.find_attending_members(mks, mk_names)
-                self.get_bg_material(cm)
+                # TODO: remove all the try except
+                # currently, code is very fragile and causes a lot of exceptions which prevent later stages from running
+                updated_protocol = False
+                try:
+                    if not cm.protocol_text:
+                        cm.protocol_text = self.get_committee_protocol_text(link)
+                        # check if the protocol is from the wrong commitee
+                        for i in committees_aliases:
+                            if i[1] in cm.protocol_text[:300]:
+                                cm.committee = i[0]
+                                break
+                        updated_protocol = True
+                except Exception:
+                    num_exceptions += 1
+                    logger.error(traceback.format_exc())
+
+                try:
+                    cm.save()
+                except Exception:
+                    num_exceptions += 1
+                    logger.error(traceback.format_exc())
+
+                try:
+                    if updated_protocol:
+                        cm.create_protocol_parts()
+                except Exception:
+                    num_exceptions += 1
+                    logger.error(traceback.format_exc())
+
+                try:
+                    cm.find_attending_members(mks, mk_names)
+                except Exception:
+                    num_exceptions += 1
+                    logger.error(traceback.format_exc())
+
+                try:
+                    self.get_bg_material(cm)
+                except Exception:
+                    num_exceptions += 1
+                    logger.error(traceback.format_exc())
+        socket.setdefaulttimeout(default_timeout)
 
     def get_committee_protocol_text(self, url):
         logger.debug('get_committee_protocol_text. url=%s' % url)
