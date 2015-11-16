@@ -43,6 +43,7 @@ class Committee(models.Model):
     portal_knesset_broadcasts_url = models.URLField(max_length=1000, blank=True)
     type = models.CharField(max_length=10, default='committee')
     hide = models.BooleanField(default=False)
+    protocol_not_published = models.BooleanField(default=False)
 
     @property
     def gender_presence(self):

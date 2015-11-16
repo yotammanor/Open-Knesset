@@ -109,9 +109,12 @@
                     {{committee_presence.committee}}
                     ({% trans 'Presence:' %} {{committee_presence.presence}}%)
                 </a>
+                {% if committee_presence.committee.protocol_not_published %}*{% endif %}
                 {% endfor %}
                 {% endif %}
             </p>
+
+          {% if has_protocols_not_published %} <p>* {% trans "Warning: presence data is not provided for this committee" %}</p> {% endif %}
 			<p>
 				{% if object.awards|length > 0 %}
 				<strong>{% trans "Awards" %}:</strong>

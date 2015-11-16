@@ -36,7 +36,6 @@ from mks.utils import get_all_mk_names
 from mmm.models import Document
 from lobbyists.models import Lobbyist
 
-
 logger = logging.getLogger("open-knesset.committees.views")
 
 
@@ -67,7 +66,6 @@ class TopicsMoreView(GetMoreView):
 
 
 class CommitteeDetailView(DetailView):
-
     model = Committee
 
     def get_context_data(self, *args, **kwargs):
@@ -81,13 +79,13 @@ class CommitteeDetailView(DetailView):
             cached_context['members'] = cm.members_by_presence()
             recent_meetings = cm.recent_meetings()
             cached_context['meetings_list'] = recent_meetings
-            ref_date = recent_meetings[0].date+datetime.timedelta(1) \
-                    if recent_meetings.count() > 0 \
-                    else datetime.datetime.now()
+            ref_date = recent_meetings[0].date + datetime.timedelta(1) \
+                if recent_meetings.count() > 0 \
+                else datetime.datetime.now()
             cached_context['future_meetings_list'] = cm.future_meetings()
             cur_date = datetime.datetime.now()
             cached_context['protocol_not_yet_published_list'] = \
-                    cm.events.filter(when__gt = ref_date, when__lte = cur_date)
+                cm.events.filter(when__gt=ref_date, when__lte=cur_date)
             # cache.set('committee_detail_%d' % cm.id, cached_context,
             #           settings.LONG_CACHE_TIME)
         context.update(cached_context)
@@ -97,7 +95,6 @@ class CommitteeDetailView(DetailView):
 
 
 class MeetingDetailView(DetailView):
-
     model = CommitteeMeeting
 
     def get_queryset(self):
@@ -107,16 +104,17 @@ class MeetingDetailView(DetailView):
         context = super(MeetingDetailView, self).get_context_data(*args, **kwargs)
         cm = context['object']
         colors = {}
-        speakers = cm.parts.order_by('speaker__mk').values_list('header','speaker__mk').distinct()
+        speakers = cm.parts.order_by('speaker__mk').values_list('header', 'speaker__mk').distinct()
         n = speakers.count()
-        for (i,(p,mk)) in enumerate(speakers):
-            (r,g,b) = colorsys.hsv_to_rgb(float(i)/n, 0.5 if mk else 0.3, 255)
+        for (i, (p, mk)) in enumerate(speakers):
+            (r, g, b) = colorsys.hsv_to_rgb(float(i) / n, 0.5 if mk else 0.3, 255)
             colors[p] = 'rgb(%i, %i, %i)' % (r, g, b)
-        context['title'] = _('%(committee)s meeting on %(date)s') % {'committee':cm.committee.name, 'date':cm.date_string}
+        context['title'] = _('%(committee)s meeting on %(date)s') % {'committee': cm.committee.name,
+                                                                     'date': cm.date_string}
         context['description'] = _('%(committee)s meeting on %(date)s on topic %(topic)s') \
-                                   % {'committee':cm.committee.name,
-                                      'date':cm.date_string,
-                                      'topic':cm.topics}
+                                 % {'committee': cm.committee.name,
+                                    'date': cm.date_string,
+                                    'topic': cm.topics}
         context['description'] = clean_string(context['description']).replace('"', '')
         page = self.request.GET.get('page', None)
         if page:
@@ -132,13 +130,14 @@ class MeetingDetailView(DetailView):
             context['members'] = cm.mks_attended.order_by('name')
             context['hide_member_presence'] = True
         else:
-            #get meeting members with presence calculation
+            # get meeting members with presence calculation
             meeting_members_ids = set(m.id for m in cm.mks_attended.all())
             context['members'] = cm.committee.members_by_presence(ids=meeting_members_ids)
             context['hide_member_presence'] = False
 
         meeting_text = [cm.topics] + [part.body for part in cm.parts.all()]
-        context['tag_suggestions'] = auxiliary.tag_suggestions.extract_suggested_tags(cm.tags, meeting_text)
+        context['tag_suggestions'] = auxiliary.tag_suggestions.extract_suggested_tags(cm.tags,
+                                                                                      meeting_text)
 
         context['mentioned_lobbyists'] = cm.main_lobbyists_mentioned
         context['mentioned_lobbyist_corporations'] = cm.main_lobbyist_corporations_mentioned
@@ -148,33 +147,34 @@ class MeetingDetailView(DetailView):
     @hashnav_method_decorator(login_required)
     def post(self, request, **kwargs):
         cm = get_object_or_404(CommitteeMeeting, pk=kwargs['pk'])
-        bill = None
         request = self.request
         user_input_type = request.POST.get('user_input_type')
         if user_input_type == 'bill':
             bill_id = request.POST.get('bill_id')
             if bill_id.isdigit():
                 bill = get_object_or_404(Bill, pk=bill_id)
-            else: # not a number, maybe its p/1234
-                m = re.findall('\d+',bill_id)
-                if len(m)!=1:
+            else:  # not a number, maybe its p/1234
+                m = re.findall('\d+', bill_id)
+                if len(m) != 1:
                     raise ValueError("didn't find exactly 1 number in bill_id=%s" % bill_id)
                 pp = PrivateProposal.objects.get(proposal_id=m[0])
                 bill = pp.bill
 
-            if bill.stage in ['1','2','-2','3']: # this bill is in early stage, so cm must be one of the first meetings
+            if bill.stage in ['1', '2', '-2',
+                              '3']:  # this bill is in early stage, so cm must be one of the first meetings
                 bill.first_committee_meetings.add(cm)
-            else: # this bill is in later stages
-                v = bill.first_vote # look for first vote
-                if v and v.time.date() < cm.date:          # and check if the cm is after it,
-                    bill.second_committee_meetings.add(cm) # if so, this is a second committee meeting
-                else: # otherwise, assume its first cms.
+            else:  # this bill is in later stages
+                v = bill.first_vote  # look for first vote
+                if v and v.time.date() < cm.date:  # and check if the cm is after it,
+                    bill.second_committee_meetings.add(
+                        cm)  # if so, this is a second committee meeting
+                else:  # otherwise, assume its first cms.
                     bill.first_committee_meetings.add(cm)
             bill.update_stage()
             action.send(request.user, verb='added-bill-to-cm',
-                description=cm,
-                target=bill,
-                timestamp=datetime.datetime.now())
+                        description=cm,
+                        target=bill,
+                        timestamp=datetime.datetime.now())
 
         if user_input_type == 'mk':
             mk_names = Member.objects.values_list('name', flat=True)
@@ -222,6 +222,7 @@ class MeetingDetailView(DetailView):
 
         return HttpResponseRedirect(".")
 
+
 _('added-bill-to-cm')
 _('added-mk-to-cm')
 _('removed-mk-from-cm')
@@ -245,7 +246,6 @@ class TopicListView(ListView):
 
 
 class TopicDetailView(DetailView):
-
     model = Topic
     context_object_name = 'topic'
 
@@ -264,6 +264,7 @@ class TopicDetailView(DetailView):
         context['watched_object'] = watched
         return context
 
+
 @login_required
 def edit_topic(request, committee_id, topic_id=None):
     if request.method == 'POST':
@@ -279,7 +280,7 @@ def edit_topic(request, committee_id, topic_id=None):
             topic = edit_form.save(commit=False)
             if topic_id:
                 topic.id = topic_id
-            else: # new topic
+            else:  # new topic
                 topic.creator = request.user
             topic.save()
             edit_form.save_m2m()
@@ -292,10 +293,10 @@ def edit_topic(request, committee_id, topic_id=None):
 
             messages.add_message(request, messages.INFO, 'Topic has been updated')
             return HttpResponseRedirect(
-                reverse('topic-detail',args=[topic.id]))
+                reverse('topic-detail', args=[topic.id]))
 
     if request.method == 'GET':
-        if topic_id: # editing existing topic
+        if topic_id:  # editing existing topic
             t = Topic.objects.get(pk=topic_id)
             if not t.can_edit(request.user):
                 return HttpResponseForbidden()
@@ -303,15 +304,16 @@ def edit_topic(request, committee_id, topic_id=None):
             ct = ContentType.objects.get_for_model(t)
             links_formset = LinksFormset(queryset=Link.objects.filter(
                 content_type=ct, object_pk=t.id))
-        else: # create new topic for given committee
+        else:  # create new topic for given committee
             c = Committee.objects.get(pk=committee_id)
-            edit_form = EditTopicForm(initial={'committees':[c]})
+            edit_form = EditTopicForm(initial={'committees': [c]})
             links_formset = LinksFormset(queryset=Link.objects.none())
     return render_to_response('committees/edit_topic.html',
-        context_instance=RequestContext(request,
-            {'edit_form': edit_form,
-             'links_formset': links_formset,
-            }))
+                              context_instance=RequestContext(request,
+                                                              {'edit_form': edit_form,
+                                                               'links_formset': links_formset,
+                                                               }))
+
 
 @login_required
 def delete_topic(request, pk):
@@ -327,15 +329,14 @@ def delete_topic(request, pk):
         # Render a form on GET
         else:
             return render_to_response('committees/delete_topic.html',
-                {'topic': topic},
-                RequestContext(request)
-            )
+                                      {'topic': topic},
+                                      RequestContext(request)
+                                      )
     else:
         raise Http404
 
 
 class MeetingsListView(ListView):
-
     allow_empty = False
     paginate_by = 20
 
@@ -393,12 +394,12 @@ def meeting_list_by_date(request, *args, **kwargs):
             qs = CommitteeMeeting.objects.filter(committee_id=committee_id)
             context['title'] = _(
                 'Meetings by %(committee)s on date %(date)s') % {
-                    'committee': committee, 'date': date}
+                                   'committee': committee, 'date': date}
             context['committee_id'] = committee_id
     else:
         context['title'] = _(
             'Parliamentary committees meetings on date %(date)s') % {
-                'date': date}
+                               'date': date}
         qs = CommitteeMeeting.objects.all()
     qs = qs.filter(date=date)
 
@@ -412,7 +413,6 @@ def meeting_list_by_date(request, *args, **kwargs):
 
 
 class MeetingTagListView(BaseTagMemberListView):
-
     template_name = 'committees/committeemeeting_list_by_tag.html'
     url_to_reverse = 'committeemeeting-tag'
 
@@ -440,15 +440,16 @@ class MeetingTagListView(BaseTagMemberListView):
 
         context['title'] = ugettext_lazy(
             'Committee Meetings tagged %(tag)s') % {
-                'tag': self.tag_instance.name}
+                               'tag': self.tag_instance.name}
 
         context['members'] = self.get_mks_cloud()
         return context
 
+
 # TODO: This has be replaced by the class based view above for Django 1.5.
 # Remove once working
 #
-#def meeting_tag(request, tag):
+# def meeting_tag(request, tag):
 #    tag_instance = get_tag(tag)
 #    if tag_instance is None:
 #        raise Http404(_('No Tag found matching "%s".') % tag)
@@ -474,8 +475,8 @@ class MeetingTagListView(BaseTagMemberListView):
 #        template_name='committees/committeemeeting_list_by_tag.html', extra_context=extra_context)
 
 def delete_topic_rating(request, object_id):
-    if request.method=='POST':
-        topic= get_object_or_404(Topic, pk=object_id)
+    if request.method == 'POST':
+        topic = get_object_or_404(Topic, pk=object_id)
         topic.rating.delete(request.user, request.META['REMOTE_ADDR'])
         return HttpResponse('Vote deleted.')
 
@@ -492,11 +493,13 @@ class CommitteeMMMDocuments(ListView):
             try:
                 date = parse_date(date)
                 documents = Document.objects.filter(req_committee__id=self.c_id,
-                                                    publication_date=date).order_by('-publication_date')
+                                                    publication_date=date).order_by(
+                    '-publication_date')
             except:
                 raise
         else:
-            documents = Document.objects.filter(req_committee__id=self.c_id).order_by('-publication_date')
+            documents = Document.objects.filter(req_committee__id=self.c_id).order_by(
+                '-publication_date')
         return documents
 
     def get_context_data(self, **kwargs):
