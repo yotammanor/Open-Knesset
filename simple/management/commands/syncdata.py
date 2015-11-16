@@ -227,7 +227,7 @@ class Command(NoArgsDbLogCommand):
             logger.warning("DB is empty. --update can only be used to update, not for first time loading. \ntry --all, or get some data using initial_data.json\n")
             return
         vote_id = start_from_id or current_max_src_id+1 # first vote to look for is the max_src_id we have plus 1, if not manually set
-        limit_src_id = current_max_src_id + 100 # look for next 100 votes. if results are found, this value will be incremented.
+        limit_src_id = vote_id + 100 # look for next 100 votes. if results are found, this value will be incremented.
         while vote_id < limit_src_id:
             if not force_download and Vote.objects.filter(src_id=vote_id).count(): # we already have this vote
                 logger.debug('skipping reading vote with src_id %d, because we already have it' % vote_id)
