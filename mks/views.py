@@ -35,7 +35,6 @@ from auxiliary.serializers import PromiseAwareJSONEncoder
 
 from actstream import Action
 
-
 logger = logging.getLogger("open-knesset.mks")
 
 
@@ -47,7 +46,6 @@ class MemberRedirectView(RedirectView):
 
 
 class MemberListView(ListView):
-
     pages = (
         ('abc', _('By ABC')),
         ('bills_proposed', _('By number of bills proposed')),
@@ -83,7 +81,8 @@ class MemberListView(ListView):
         context['friend_pages'] = self.pages
         context['stat_type'] = info
         context['title'] = dict(self.pages)[info]
-        context['csv_path'] = 'api/v2/member' + '?' + self.request.GET.urlencode() + '&format=csv&limit=0'
+        context[
+            'csv_path'] = 'api/v2/member' + '?' + self.request.GET.urlencode() + '&format=csv&limit=0'
         context['past_mks'] = Member.current_knesset.filter(is_current=False)
 
         # We make sure qs are lists so that the template can get min/max
@@ -92,49 +91,49 @@ class MemberListView(ListView):
         elif info == 'bills_proposed':
             qs = list(
                 qs.order_by('-bills_stats_proposed')
-                .select_related('current_party')
-                .extra(select={'extra': 'bills_stats_proposed'})
+                    .select_related('current_party')
+                    .extra(select={'extra': 'bills_stats_proposed'})
             )
             context['past_mks'] = list(
                 context['past_mks'].order_by('-bills_stats_proposed')
-                .select_related('current_party')
-                .extra(select={'extra': 'bills_stats_proposed'})
+                    .select_related('current_party')
+                    .extra(select={'extra': 'bills_stats_proposed'})
             )
             context['bill_stage'] = 'proposed'
         elif info == 'bills_pre':
             qs = list(
                 qs.order_by('-bills_stats_pre')
-                .select_related('current_party')
-                .extra(select={'extra': 'bills_stats_pre'})
+                    .select_related('current_party')
+                    .extra(select={'extra': 'bills_stats_pre'})
             )
             context['past_mks'] = list(
                 context['past_mks'].order_by('-bills_stats_pre')
-                .select_related('current_party')
-                .extra(select={'extra': 'bills_stats_pre'})
+                    .select_related('current_party')
+                    .extra(select={'extra': 'bills_stats_pre'})
             )
             context['bill_stage'] = 'pre'
         elif info == 'bills_first':
             qs = list(
                 qs.order_by('-bills_stats_first')
-                .select_related('current_party')
-                .extra(select={'extra': 'bills_stats_first'})
+                    .select_related('current_party')
+                    .extra(select={'extra': 'bills_stats_first'})
             )
             context['past_mks'] = list(
                 context['past_mks'].order_by('-bills_stats_first')
-                .select_related('current_party')
-                .extra(select={'extra': 'bills_stats_first'})
+                    .select_related('current_party')
+                    .extra(select={'extra': 'bills_stats_first'})
             )
             context['bill_stage'] = 'first'
         elif info == 'bills_approved':
             qs = list(
                 qs.order_by('-bills_stats_approved')
-                .select_related('current_party')
-                .extra(select={'extra': 'bills_stats_approved'})
+                    .select_related('current_party')
+                    .extra(select={'extra': 'bills_stats_approved'})
             )
             context['past_mks'] = list(
                 context['past_mks'].order_by('-bills_stats_approved')
-                .select_related('current_party')
-                .extra(select={'extra': 'bills_stats_approved'})
+                    .select_related('current_party')
+                    .extra(select={'extra': 'bills_stats_approved'})
             )
             context['bill_stage'] = 'approved'
         elif info == 'votes':
@@ -153,7 +152,7 @@ class MemberListView(ListView):
                           ).order_by('-extra')
             context['past_mks'] = context['past_mks'].extra(
                 select={'extra': 'average_weekly_presence_hours'}).order_by(
-                    '-extra')
+                '-extra')
             # sort again because db sort freaks when some values are None.
             qs = list(qs)
             qs.sort(key=lambda x: x.extra or 0, reverse=True)
@@ -214,14 +213,13 @@ class MemberCsvView(CsvView):
 
 
 class MemberDetailView(DetailView):
-
-    queryset = Member.objects.exclude(current_party__isnull=True)\
-                             .select_related('current_party',
-                                             'current_party__knesset',
-                                             'voting_statistics',
-                                             'awards',
-                                             'awards__award_type')\
-                             .prefetch_related('parties')
+    queryset = Member.objects.exclude(current_party__isnull=True) \
+        .select_related('current_party',
+                        'current_party__knesset',
+                        'voting_statistics',
+                        'awards',
+                        'awards__award_type') \
+        .prefetch_related('parties')
 
     MEMBER_INITIAL_DATA = 2
 
@@ -229,7 +227,7 @@ class MemberDetailView(DetailView):
     def dispatch(self, *args, **kwargs):
         return super(MemberDetailView, self).dispatch(*args, **kwargs)
 
-    def calc_percentile(self,member,outdict,inprop,outvalprop,outpercentileprop):
+    def calc_percentile(self, member, outdict, inprop, outvalprop, outpercentileprop):
         # store in instance var if needed, no need to access cache for each
         # call.
         #
@@ -246,14 +244,14 @@ class MemberDetailView(DetailView):
                 cache.set('all_members', all_members, settings.LONG_CACHE_TIME)
 
         member_count = float(len(all_members))
-        member_val = getattr(member,inprop) or 0
+        member_val = getattr(member, inprop) or 0
 
         avg = sum(x[inprop] or 0 for x in all_members) / member_count
 
         var = sum(((x[inprop] or 0) - avg) ** 2 for x in all_members) / member_count
 
         outdict[outvalprop] = member_val
-        outdict[outpercentileprop] = percentile(avg,var,member_val) if var != 0 else 0
+        outdict[outpercentileprop] = percentile(avg, var, member_val) if var != 0 else 0
 
     def calc_bill_stats(self, member, bills_statistics, stattype):
         self.calc_percentile(member,
@@ -375,21 +373,25 @@ class MemberDetailView(DetailView):
                 if committee_type in ['plenum', 'committee']:
                     if len(committee_actions[committee_type]) == self.MEMBER_INITIAL_DATA:
                         committee_actions_more[committee_type] = True
-                        if committee_actions_more['plenum'] == True and committee_actions_more['committee'] == True:
+                        if committee_actions_more['plenum'] == True and committee_actions_more[
+                            'committee'] == True:
                             break
                     else:
                         committee_actions[committee_type].append(action)
 
             committees_presence = []
+            has_protocols_not_published = False
             committees = chain(member.committees.all(),
                                member.chaired_committees.all(),
-                              )
+                               )
             for committee in committees:
                 committee_member = committee.members_by_presence(ids=[member.id])[0]
                 committees_presence.append({"committee": committee,
-                    "presence": committee_member.meetings_percentage})
+                                            "presence": committee_member.meetings_percentage})
+                if committee.protocol_not_published:
+                    has_protocols_not_published = True
 
-            committees_presence.sort(cmp=lambda x,y: y["presence"] - x["presence"])
+            committees_presence.sort(cmp=lambda x, y: y["presence"] - x["presence"])
 
             mmm_documents = member.mmm_documents.order_by('-publication_date')
 
@@ -399,7 +401,8 @@ class MemberDetailView(DetailView):
                 content_type=content_type).count()
 
             protocol_part_annotation_actions = Action.objects.filter(
-                actor_content_type=ContentType.objects.get_for_model(Person), actor_object_id__in=member.person.values_list('pk', flat=True),
+                actor_content_type=ContentType.objects.get_for_model(Person),
+                actor_object_id__in=member.person.values_list('pk', flat=True),
                 verb='got annotation for protocol part'
             )
 
@@ -433,6 +436,7 @@ class MemberDetailView(DetailView):
                 'previous_parties': previous_parties,
                 'committees_presence': committees_presence,
                 'protocol_part_annotation_actions': protocol_part_annotation_actions,
+                'has_protocols_not_published': has_protocols_not_published,
             }
 
             if not self.request.user.is_authenticated():
@@ -442,12 +446,14 @@ class MemberDetailView(DetailView):
         context.update(cached_context)
         return context
 
+
 class MemberEmbedView(MemberDetailView):
     template_name = 'mks/member_embed.html'
 
     def get_agenda_data(self, member):
         ''' we don't need this data is too speed things up we return nothing '''
         return {}
+
 
 class PartyRedirectView(RedirectView):
     "Redirect to first stats view"
@@ -457,7 +463,6 @@ class PartyRedirectView(RedirectView):
 
 
 class PartyListView(ListView):
-
     model = Party
 
     def get_queryset(self):
@@ -492,8 +497,10 @@ class PartyListView(ListView):
         context['stat_type'] = info
 
         if info == 'seats':
-            context['coalition']  =  context['coalition'].annotate(extra=Sum('number_of_seats')).order_by('-extra')
-            context['opposition'] = context['opposition'].annotate(extra=Sum('number_of_seats')).order_by('-extra')
+            context['coalition'] = context['coalition'].annotate(
+                extra=Sum('number_of_seats')).order_by('-extra')
+            context['opposition'] = context['opposition'].annotate(
+                extra=Sum('number_of_seats')).order_by('-extra')
             context['norm_factor'] = 1
             context['baseline'] = 0
 
@@ -516,10 +523,10 @@ class PartyListView(ListView):
                 p.extra = p.voting_statistics.discipline()
                 if p.extra < m:
                     m = p.extra
-            context['norm_factor'] = (100.0-m)/15
+            context['norm_factor'] = (100.0 - m) / 15
             context['baseline'] = m - 2
 
-        if info=='coalition-discipline':
+        if info == 'coalition-discipline':
             m = 100
             for p in context['coalition']:
                 p.extra = p.voting_statistics.coalition_discipline()
@@ -529,50 +536,54 @@ class PartyListView(ListView):
                 p.extra = p.voting_statistics.coalition_discipline()
                 if p.extra < m:
                     m = p.extra
-            context['norm_factor'] = (100.0-m)/15
+            context['norm_factor'] = (100.0 - m) / 15
             context['baseline'] = m - 2
 
-        if info=='residence-centrality':
+        if info == 'residence-centrality':
             m = 10
             for p in context['coalition']:
-                rc = [member.residence_centrality for member in p.members.all() if member.residence_centrality]
+                rc = [member.residence_centrality for member in p.members.all() if
+                      member.residence_centrality]
                 if rc:
-                    p.extra = round(float(sum(rc))/len(rc),1)
+                    p.extra = round(float(sum(rc)) / len(rc), 1)
                 else:
                     p.extra = 0
                 if p.extra < m:
                     m = p.extra
             for p in context['opposition']:
-                rc = [member.residence_centrality for member in p.members.all() if member.residence_centrality]
+                rc = [member.residence_centrality for member in p.members.all() if
+                      member.residence_centrality]
                 if rc:
-                    p.extra = round(float(sum(rc))/len(rc),1)
+                    p.extra = round(float(sum(rc)) / len(rc), 1)
                 else:
                     p.extra = 0
                 if p.extra < m:
                     m = p.extra
-            context['norm_factor'] = (10.0-m)/15
-            context['baseline'] = m-1
+            context['norm_factor'] = (10.0 - m) / 15
+            context['baseline'] = m - 1
 
-        if info=='residence-economy':
+        if info == 'residence-economy':
             m = 10
             for p in context['coalition']:
-                rc = [member.residence_economy for member in p.members.all() if member.residence_economy]
+                rc = [member.residence_economy for member in p.members.all() if
+                      member.residence_economy]
                 if rc:
-                    p.extra = round(float(sum(rc))/len(rc),1)
+                    p.extra = round(float(sum(rc)) / len(rc), 1)
                 else:
                     p.extra = 0
                 if p.extra < m:
                     m = p.extra
             for p in context['opposition']:
-                rc = [member.residence_economy for member in p.members.all() if member.residence_economy]
+                rc = [member.residence_economy for member in p.members.all() if
+                      member.residence_economy]
                 if rc:
-                    p.extra = round(float(sum(rc))/len(rc),1)
+                    p.extra = round(float(sum(rc)) / len(rc), 1)
                 else:
                     p.extra = 0
                 if p.extra < m:
                     m = p.extra
-            context['norm_factor'] = (10.0-m)/15
-            context['baseline'] = m-1
+            context['norm_factor'] = (10.0 - m) / 15
+            context['baseline'] = m - 1
 
         if info == 'bills-proposed':
             m = 9999
@@ -680,7 +691,8 @@ class PartyListView(ListView):
 
         for opp_count, party in enumerate(context['opposition'], count + 1):
             opposition_data.append((opp_count, party.extra))
-            ticks.append((opp_count + 0.5, label % (party.extra, party.get_absolute_url(), party.name)))
+            ticks.append(
+                (opp_count + 0.5, label % (party.extra, party.get_absolute_url(), party.name)))
 
         graph_data = {
             'data': [
@@ -701,21 +713,23 @@ class PartyCsvView(CsvView):
                     ('number_of_seats', _('Number of Seats')),
                     ('get_affiliation', _('Affiliation')))
 
+
 class PartyDetailView(DetailView):
     model = Party
 
-    def get_context_data (self, **kwargs):
+    def get_context_data(self, **kwargs):
         context = super(PartyDetailView, self).get_context_data(**kwargs)
         party = context['object']
         context['maps_api_key'] = settings.GOOGLE_MAPS_API_KEY
 
         if self.request.user.is_authenticated():
-            agendas = Agenda.objects.get_selected_for_instance(party, user=self.request.user, top=10, bottom=10)
+            agendas = Agenda.objects.get_selected_for_instance(party, user=self.request.user,
+                                                               top=10, bottom=10)
         else:
             agendas = Agenda.objects.get_selected_for_instance(party, user=None, top=10, bottom=10)
         agendas = agendas['top'] + agendas['bottom']
         for agenda in agendas:
-            agenda.watched=False
+            agenda.watched = False
         if self.request.user.is_authenticated():
             watched_agendas = self.request.user.get_profile().agendas
             for watched_agenda in watched_agendas:
@@ -727,7 +741,7 @@ class PartyDetailView(DetailView):
                     agendas.append(watched_agenda)
         agendas.sort(key=attrgetter('score'), reverse=True)
 
-        context.update({'agendas':agendas})
+        context.update({'agendas': agendas})
         return context
 
 
@@ -746,17 +760,22 @@ def member_auto_complete(request):
 
 
 def object_by_name(request, objects):
-    name = urllib.unquote(request.GET.get('q',''))
+    name = urllib.unquote(request.GET.get('q', ''))
     results = objects.find(name)
     if results:
         return HttpResponseRedirect(results[0].get_absolute_url())
-    raise Http404(_('No %(object_type)s found matching "%(name)s".' % {'object_type':objects.model.__name__,'name':name}))
+    raise Http404(_(
+        'No %(object_type)s found matching "%(name)s".' % {'object_type': objects.model.__name__,
+                                                           'name': name}))
+
 
 def party_by_name(request):
     return object_by_name(request, Party.objects)
 
+
 def member_by_name(request):
     return object_by_name(request, Member.objects)
+
 
 def get_mk_entry(**kwargs):
     ''' in Django 1.3 the pony decided generic views get `pk` rather then
@@ -765,12 +784,15 @@ def get_mk_entry(**kwargs):
     i = kwargs.get('pk', kwargs.get('object_id', False))
     return Member.objects.get(pk=i) if i else None
 
+
 def mk_is_backlinkable(url, entry):
     if entry:
         return entry.backlinks_enabled
     return False
 
-mk_detail = default_server.register_view(MemberDetailView.as_view(), get_mk_entry, mk_is_backlinkable)
+
+mk_detail = default_server.register_view(MemberDetailView.as_view(), get_mk_entry,
+                                         mk_is_backlinkable)
 
 
 class MemeberMoreActionsView(GetMoreView):
@@ -801,9 +823,10 @@ class MemeberMoreCommitteeView(MemeberMoreActionsView):
         action_ids = []
         for action in qs.filter(verb='attended'):
             if (action.target and action.target.committee and
-                    action.target.committee.type == 'committee'):
+                        action.target.committee.type == 'committee'):
                 action_ids.append(action.id)
         return qs.filter(id__in=action_ids)
+
 
 class MemeberMorePlenumView(MemeberMoreActionsView):
     """Get partially rendered member plenum actions content for AJAX calls to 'More'"""
@@ -851,15 +874,16 @@ class PartiesMembersView(DetailView):
             number=self.object.number).order_by('-number')
         ctx['coalition'] = Party.objects.filter(
             is_coalition=True, knesset=self.object).annotate(
-                extra=Sum('number_of_seats')).order_by('-extra')
+            extra=Sum('number_of_seats')).order_by('-extra')
         ctx['opposition'] = Party.objects.filter(
             is_coalition=False, knesset=self.object).annotate(
-                extra=Sum('number_of_seats')).order_by('-extra')
-        ctx['parties'] = chain(ctx['coalition'],ctx['opposition'])
+            extra=Sum('number_of_seats')).order_by('-extra')
+        ctx['parties'] = chain(ctx['coalition'], ctx['opposition'])
         ctx['past_members'] = Member.objects.filter(
             is_current=False, current_party__knesset=self.object)
 
         return ctx
+
 
 def members_tooltips(request):
     ''' returns a javascript that adds a tooltip for all mk names in the file '''
@@ -867,11 +891,11 @@ def members_tooltips(request):
     if out:
         return out
     current = request.GET.get('current', 1)
-    mks = list(Member.objects.filter(is_current=current==1).values(
-            'name', 'id'))
-    mks += [{'id': i['person__mk__id'], u'name': unicode(i['name'])}\
+    mks = list(Member.objects.filter(is_current=current == 1).values(
+        'name', 'id'))
+    mks += [{'id': i['person__mk__id'], u'name': unicode(i['name'])} \
             for i in PersonAlias.objects.filter(person__mk__isnull=False).values(
-                'name', 'person__mk__id')]
+            'name', 'person__mk__id')]
 
     mks_by_name = {}
     for i in mks:
@@ -880,7 +904,6 @@ def members_tooltips(request):
         're': u'{}'.format(u'|'.join([u'({})'.format(i['name']) for i in mks])),
         'mks_by_name': json.dumps(mks_by_name),
         'site_url': request.get_host(),
-        })
+    })
     cache.set('members_tooltip', out, settings.LONG_CACHE_TIME)
     return out
-
