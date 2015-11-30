@@ -55,7 +55,8 @@ class PersonResource(BaseResource):
         filtering = {
                 'id': ALL,
                 'roles': ALL_WITH_RELATIONS,
-                'relations': ALL_WITH_RELATIONS,
+                # when followiwng line is uncommented it hangs the swagger api.. please don't uncomment it, thanks
+                # 'relations': ALL_WITH_RELATIONS,
                 'external_info': ALL_WITH_RELATIONS,
                 }
         list_fields = ['name', 'id']
