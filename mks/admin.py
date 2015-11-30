@@ -99,9 +99,9 @@ class MemberAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         # Delete the cache of the current member after updating:
         cache.delete('mk_%d' % obj.id)
-        # Delete the template cache
-        key = make_template_fragment_key('mks_detail', [obj.id])
-        cache.delete(key) # invalidates cached template fragment
+        # Delete the template key
+        #key = make_template_fragment_key('mks_detail', [obj.id])
+        #cache.delete(key) # invalidates cached template fragment
         super(MemberAdmin, self).save_model(request, obj, form, change)
 
 
