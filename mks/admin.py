@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.contrib.contenttypes import generic
 from django.db.models import Q
+from django.core.cache import cache
+from django.core.cache.utils import make_template_fragment_key
+import urllib
 
 from models import Member, Membership, MemberAltname
 from models import CoalitionMembership, Correlation, Party, \
@@ -93,6 +96,19 @@ class MemberAdmin(admin.ModelAdmin):
     def queryset(self, request):
         return super(MemberAdmin, self).queryset(
             request).select_related('current_party')
+
+    def save_model(self, request, obj, form, change):
+        super(MemberAdmin, self).save_model(request, obj, form, change)
+        # Delete the cache of the current member after updating:
+        cache.delete('mk_%d' % obj.id)
+        # Delete the template key
+        obj_url = urllib.unquote(obj.get_absolute_url())
+        if not isinstance(obj_url, unicode):
+            obj_url = obj_url.decode('utf-8')
+        key = make_template_fragment_key('mks_detail', [obj.id, 1, obj_url])
+        cache.delete(key)
+
+
 admin.site.register(Member, MemberAdmin)
 
 

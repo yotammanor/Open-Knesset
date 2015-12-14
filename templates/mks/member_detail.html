@@ -58,13 +58,14 @@
  {% endblock %}
 
 
+
 {% block divcontent %}
 {% cache 14400 mks_detail object.id request.page request.get_full_path %}
     <section class="card card-main with-min-height">
       <div class="row">
         <div class="span2">
             <div class="spacer"><img src="{{ object.highres_img_url }}" alt="{{object.name}}"/></div>
-            {% if object.current_party.logo %}            
+            {% if object.current_party.logo %}
             <div class="spacer">
                 <img src="{{ object.current_party.logo.url }}">
             </div>
@@ -104,7 +105,7 @@
                 {% if committee_presence|length > 0 %}
                 <strong>{% trans "Committees" %}:</strong>
                 {% for committee_presence in committees_presence %}
-                {% if not forloop.first %} | {% endif %} 
+                {% if not forloop.first %} | {% endif %}
                 <a href="{{ committee_presence.committee.get_absolute_url }}">
                     {{committee_presence.committee}}
                     ({% trans 'Presence:' %} {{committee_presence.presence}}%)
@@ -119,7 +120,7 @@
 				{% if object.awards|length > 0 %}
 				<strong>{% trans "Awards" %}:</strong>
 				{% for award in object.awards|slice:":2" %}
-                    {% if not forloop.first %} | {% endif %} 
+                    {% if not forloop.first %} | {% endif %}
                     <a href="{{ award.reference }}">{{ award.award_type.name }} ({{ award.date_given }})</a>
                 {% endfor %}
 				{% if object.awards|length > 2 %}
@@ -135,7 +136,7 @@
 				{% if object.convictions|length > 0 %}
 				<strong>{% trans "Convictions" %}:</strong>
 				{% for award in object.convictions|slice:":2" %}
-                    {% if not forloop.first %} | {% endif %} 
+                    {% if not forloop.first %} | {% endif %}
                     <a href="{{ award.reference }}">{{ award.award_type.name }} ({{ award.date_given }})</a>
                 {% endfor %}
 				{% if object.convictions|length > 2 %}
@@ -237,7 +238,7 @@
                 {% if actions_more %}
                 <button class="btn btn-mini btn-expand" data-provide="okmore"
                     data-loading-text="{% trans "Loading" %} ..."
-                    autocomplete="off" data-target="#recent-actions" 
+                    autocomplete="off" data-target="#recent-actions"
                     data-url="{% url 'member-more-actions' object.pk %}"
                     data-initial="{{INITIAL_DATA}}">{% trans "More" %} +</button>
                 {% endif %}
@@ -284,7 +285,7 @@
                 {% if committee_actions_more %}
                 <button class="btn btn-mini btn-expand" data-provide="okmore"
                     data-loading-text="{% trans "Loading" %} ..."
-                    autocomplete="off" data-target="#recent-committees" 
+                    autocomplete="off" data-target="#recent-committees"
                     data-url="{% url 'member-more-committees' object.pk %}"
                     data-initial="{{INITIAL_DATA}}">{% trans "More" %} +</button>
                 {% endif %}
@@ -332,7 +333,7 @@
                 {% if mmm_documents_more %}
                 <button class="btn btn-mini btn-expand" data-provide="okmore"
                     data-loading-text="{% trans "Loading" %} ..."
-                    autocomplete="off" data-target="#recent-mmm" 
+                    autocomplete="off" data-target="#recent-mmm"
                     data-url="{% url 'member-more-mmm' object.pk %}"
                     data-initial="{{INITIAL_DATA}}">{% trans "More" %} +</button>
                 {% endif %}
@@ -714,7 +715,7 @@
                         {% endif %}
 
 
-    
+
                         <div>
                             <h3>{% trans "Agendas" %}</h3>
                             <div class="list-wrap">
