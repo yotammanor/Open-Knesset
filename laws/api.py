@@ -168,7 +168,7 @@ class BillResource(BaseResource):
         queryset = Bill.objects.all()
         allowed_methods = ['get']
         ordering = ['stage_date', 'title']
-        filtering = dict(stage=ALL, proposer=ALL)
+        filtering = dict(stage=ALL, proposer=ALL, title=ALL, full_title=ALL)
         list_fields = [
             'title', 'full_title', 'popular_name', 'law', 'stage',
             'stage_date'
