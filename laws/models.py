@@ -1,5 +1,5 @@
 #encoding: utf-8
-import re, itertools, logging, random
+import re, itertools, logging, random, sys, traceback
 from datetime import date, timedelta
 
 from django.db import models, IntegrityError
@@ -29,6 +29,7 @@ from laws.vote_choices import (TYPE_CHOICES, BILL_STAGE_CHOICES,
 
 from auxiliary.models import add_tags_to_related_objects
 from django.db.models.signals import post_save, post_delete
+
 logger = logging.getLogger("open-knesset.laws.models")
 VOTE_ACTION_TYPE_CHOICES = (
         (u'for', _('For')),
@@ -430,7 +431,26 @@ class Vote(models.Model):
         self.vote_type = self._vote_type()
         self.save()
 
+    def redownload_votes_page(self):
+        from simple.management.commands.syncdata import Command as SyncdataCommand
+        (page, vote_src_url) = SyncdataCommand().read_votes_page(self.src_id)
+        return page
 
+    def reparse_members_from_votes_page(self, page=None):
+        from simple.management.commands.syncdata import Command as SyncdataCommand
+        page = self.redownload_votes_page() if page is None else page
+        syncdata = SyncdataCommand()
+        results = syncdata.read_member_votes(page, return_ids=True)
+        for (voter_id, voter_party, vote) in results:
+            try:
+                m = Member.objects.get(pk=int(voter_id))
+            except:
+                exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
+                logger.error("%svoter_id = %s", ''.join(traceback.format_exception(exceptionType, exceptionValue, exceptionTraceback)), str(voter_id))
+                continue
+            va,created = VoteAction.objects.get_or_create(vote = self, member = m, defaults={'type':vote, 'party':m.current_party})
+            if created:
+                va.save()
 
 class TagForm(forms.Form):
     tags = TagField()

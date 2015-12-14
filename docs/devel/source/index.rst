@@ -51,6 +51,7 @@ Contents:
     css_docs
     tips
     browsertests
+    scraping/index
 
 Indices and tables
 ==================

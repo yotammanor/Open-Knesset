@@ -189,27 +189,7 @@ class Command(NoArgsDbLogCommand):
                 l = Link(title=u'מסמך הצעת החוק באתר הכנסת', url=v.full_text_url, content_type=ContentType.objects.get_for_model(v), object_pk=str(v.id))
                 l.save()
 
-        results = self.read_member_votes(page, return_ids=True)
-        for (voter_id,voter_party,vote) in results:
-            #f.write("%d\t%s\t%s\t%s\n" % (id,voter,party,vote))
-
-            # transform party names to canonical form
-            if(voter_party in self.party_aliases):
-                voter_party = self.party_aliases[voter_party]
-
-            # get the member voting
-            try:
-                m = Member.objects.get(pk=int(voter_id))
-            except:
-                exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-                logger.error("%svoter_id = %s", ''.join(traceback.format_exception(exceptionType, exceptionValue, exceptionTraceback)), str(voter_id))
-                continue
-
-            # add the current member's vote
-            va,created = VoteAction.objects.get_or_create(vote = v, member = m, type = vote, party = m.current_party)
-            if created:
-                va.save()
-
+        v.reparse_members_from_votes_page(page)
         v.update_vote_properties()
         v = Vote.objects.get(src_id=vote_id)
         self.find_synced_protocol(v)
