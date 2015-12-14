@@ -1105,7 +1105,8 @@ class Command(NoArgsDbLogCommand):
             else:
                 end_timestamp = todays_timestamp
 
-            current_timestamp = (m.start_date + datetime.timedelta(7)).isocalendar()[:2] # start searching on the monday after member joined the knesset
+            start_date = m.start_date or datetime.datetime.utcnow()
+            current_timestamp = (start_date + datetime.timedelta(7)).isocalendar()[:2] # start searching on the monday after member joined the knesset
             if current_timestamp < min_timestamp: # we don't have info in the current file that goes back so far
                 current_timestamp = min_timestamp
 
