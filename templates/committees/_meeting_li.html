@@ -1,5 +1,6 @@
 {% load i18n %}
 {% if add_li %}<li>{% endif %}
+<div class="item-context"><span class="label">{% trans "day" %} {{o.date|date:"l, d/m/Y"}}</span></div>
 <a href="{{ o.get_absolute_url }}">  {% if show_committee_name %}
     {{ o.committee }}
   {% endif %}
@@ -17,4 +18,3 @@
     </p>
 </a>
 {% if add_li %}</li>{% endif %}
-
