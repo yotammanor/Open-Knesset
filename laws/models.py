@@ -888,6 +888,10 @@ class Bill(models.Model):
     def frozen(self):
         return self.stage == u'0'
 
+    @property
+    def latest_private_proposal(self):
+        return self.proposals.order_by('-date').first()
+
 def add_tags_to_bill_related_objects(sender, instance, **kwargs):
     bill_ct = ContentType.objects.get_for_model(instance)
     for ti in TaggedItem.objects.filter(content_type=bill_ct, object_id=instance.id):

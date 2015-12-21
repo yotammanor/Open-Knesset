@@ -86,7 +86,7 @@
             });
     </script>
 {% endblock %}
-{% block extratitle %}{% bill_full_name object %}{% endblock %}
+{% block extratitle %} {% if object.gov_proposal %}{% trans "Government Proposal" %}{% elif object.knesset_proposal %}{% trans "Knesset Proposal" %}{% else %}{% trans "Private Proposal" %}{% endif %} | {% bill_full_name object %}{% endblock %}
 {% block keywords %}{% bill_full_name object %},{{ keywords }}{% endblock %}
 {% block description %}{% bill_full_name object %} - {% trans 'Open Knesset - Opening the Knesset to the public' %}{% endblock %}
 {% block nav-laws %}class="active"{% endblock %}
@@ -158,6 +158,18 @@
               </p>
               <a class="btn btn-mini btn-question" href="#legislation-information-modal" data-toggle="modal">?</a>
               <h1>{% bill_full_name object %}</h1>
+                <div>
+                    <h3>
+                        {% if object.gov_proposal %}{% trans "Government Proposal" %},
+                        {% elif object.knesset_proposal %}{% trans "Knesset Proposal" %},
+                        {% else %}{% trans "Private Proposal" %},
+                        {% endif %}
+                        {% if object.gov_proposal %}{% trans "Booklet Number" %}: מ/{{ object.gov_proposal.booklet_number }}
+                        {% elif object.knesset_proposal %}{% trans "Booklet Number" %}: כ/{{ object.knesset_proposal.booklet_number }}
+                        {% else %}{% trans "Booklet Number" %}: פ/{{ object.latest_private_proposal.proposal_id }}
+                        {% endif %}
+                    </h3>
+                </div>
               {% if proposers %}
                 {% include "mks/member_photos.html" with members=proposers %}
               {%endif%}
@@ -171,7 +183,7 @@
             <section class="bill-stage {% if object.proposals.all or object.gov_proposal %}past-stage{% else %}future-stage{% endif %}">
               <h2>{% trans 'Bill initiation' %}</h2>
               <ul class="dates-list">
-              {% if object.gov_proposal %}
+                  {% if object.gov_proposal %}
                   <li>
                     <a rel="tooltip" title="{% trans 'Bill on knesset website' %}" href="{{ object.gov_proposal.source_url }}">
                       <p >{% trans 'Government Proposal' %}</p>
