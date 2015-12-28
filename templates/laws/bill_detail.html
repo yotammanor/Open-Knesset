@@ -86,7 +86,7 @@
             });
     </script>
 {% endblock %}
-{% block extratitle %} {% if object.gov_proposal %}{% trans "Government Proposal" %}{% elif object.knesset_proposal %}{% trans "Knesset Proposal" %}{% else %}{% trans "Private Proposal" %}{% endif %} | {% bill_full_name object %}{% endblock %}
+{% block extratitle %} {% bill_type_display object %} | {% bill_full_name object %}{% endblock %}
 {% block keywords %}{% bill_full_name object %},{{ keywords }}{% endblock %}
 {% block description %}{% bill_full_name object %} - {% trans 'Open Knesset - Opening the Knesset to the public' %}{% endblock %}
 {% block nav-laws %}class="active"{% endblock %}
@@ -159,16 +159,7 @@
               <a class="btn btn-mini btn-question" href="#legislation-information-modal" data-toggle="modal">?</a>
               <h1>{% bill_full_name object %}</h1>
                 <div>
-                    <h3>
-                        {% if object.gov_proposal %}{% trans "Government Proposal" %},
-                        {% elif object.knesset_proposal %}{% trans "Knesset Proposal" %},
-                        {% else %}{% trans "Private Proposal" %},
-                        {% endif %}
-                        {% if object.gov_proposal %}{% trans "Booklet Number" %}: מ/{{ object.gov_proposal.booklet_number }}
-                        {% elif object.knesset_proposal %}{% trans "Booklet Number" %}: כ/{{ object.knesset_proposal.booklet_number }}
-                        {% else %}{% trans "Booklet Number" %}: פ/{{ object.latest_private_proposal.proposal_id }}
-                        {% endif %}
-                    </h3>
+                    <h3>{% bill_type_display object %}, {% trans "Booklet Number" %}: {% bill_booklet_number object %}</h3>
                 </div>
               {% if proposers %}
                 {% include "mks/member_photos.html" with members=proposers %}
@@ -221,7 +212,7 @@
               </ul>
             </section>
 
-            <section id="pre-vote" class="bill-stage {% if object.pre_votes.all %}past-stage{% else %}future-stage{% endif %}">
+            <section id="pre-vote" class="bill-stage {% if object|bill_is_past_stage:"PRE_APPROVED" or object.pre_votes.all %}past-stage{% else %}future-stage{% endif %}">
                 <h2>{% trans 'Pre Vote' %}</h2>
                 <ul class="dates-list">
                 {% for v in object.pre_votes.all %}
@@ -261,7 +252,7 @@ var pre_vote_score = {{ v.for_votes_count}} - {{ v.against_votes_count }};
                 </ul>
             </section>
 
-            <section class="bill-stage {% if object.first_committee_meetings.all %}past-stage{% else %}future-stage{% endif %}">
+            <section class="bill-stage {% if object|bill_is_past_stage:"IN_COMMITTEE" or object.first_committee_meetings.all %}past-stage{% else %}future-stage{% endif %}">
                 <h2>{% trans 'Committee Meetings' %}</h2>
                 <ul class="dates-list">
                 {% for cm in object.first_committee_meetings.all %}

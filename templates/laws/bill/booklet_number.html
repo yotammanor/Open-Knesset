@@ -1,0 +1,9 @@
+{% load i18n %}{% spaceless %}
+    {% if bill.gov_proposal %}
+        מ/{{ bill.gov_proposal.booklet_number }}
+    {% elif bill.knesset_proposal %}
+        כ/{{ bill.knesset_proposal.booklet_number }}
+    {% elif bill.latest_private_proposal.proposal_id %}
+        פ/{{ bill.latest_private_proposal.proposal_id }}
+    {% endif %}
+{% endspaceless %}

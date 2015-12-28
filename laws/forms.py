@@ -150,6 +150,11 @@ class BillSelectForm(forms.Form):
 
     stage = forms.ChoiceField(label=_('Bill Stage'), choices=BILL_STAGE_CHOICES,
             required=False, initial='all')
+    bill_type = forms.ChoiceField(label=_('Bill type'), choices=(
+        ('all', _('All')),
+        ('knesset', _('Knesset Proposal')),
+        ('government', _('Government Proposal')),
+    ))
     tagged = forms.ChoiceField(label=_('Tags'), choices=BILL_TAGGED_CHOICES,
             required=False, initial='all')
     changed_after = forms.DateField(label=_('Stage Changed After:'), required=False,

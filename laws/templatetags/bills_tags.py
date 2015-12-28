@@ -141,3 +141,15 @@ def bill_inabox(bill):
         bill_inabox_dict['approval_vote'] = create_vote_dict(av)
 
     return bill_inabox_dict
+
+@register.inclusion_tag('laws/bill/booklet_number.html')
+def bill_booklet_number(bill):
+    return { 'bill': bill }
+
+@register.inclusion_tag('laws/bill/type_display.html')
+def bill_type_display(bill):
+    return { 'bill': bill }
+
+@register.filter
+def bill_is_past_stage(bill, stage_id):
+    return bill.is_past_stage(stage_id)

@@ -1,5 +1,6 @@
 from django.utils.translation import ugettext_lazy as _
 from django.db.models import Q
+from collections import OrderedDict
 
 TYPE_CHOICES = (
     ('all', _('All votes')),
@@ -30,19 +31,34 @@ ORDER_CHOICES = (
     ('votes', _('Number of votes')),
 )
 
+BILL_STAGES = OrderedDict((
+    ('UNKNOWN', u'?'),
+    ('FROZEN', u'0'),
+    ('PROPOSED', u'1'),
+    ('PRE_APPROVED', u'2'),
+    ('FAILED_PRE_APPROVAL', u'-2'),
+    ('CONVERTED_TO_DISCUSSION', u'-2.1'),
+    ('IN_COMMITTEE', u'3'),
+    ('FIRST_VOTE', u'4'),
+    ('FAILED_FIRST_VOTE', u'-4'),
+    ('COMMITTEE_CORRECTIONS', u'5'),
+    ('APPROVED', u'6'),
+    ('FAILED_APPROVAL', u'-6'),
+))
+
 BILL_STAGE_CHOICES = (
-        (u'?', _(u'Unknown')),
-        (u'0', _(u'Frozen in previous knesset')),
-        (u'1', _(u'Proposed')),
-        (u'2', _(u'Pre-Approved')),
-        (u'-2',_(u'Failed Pre-Approval')),
-        (u'-2.1', _(u'Converted to discussion')),
-        (u'3', _(u'In Committee')),
-        (u'4', _(u'First Vote')),
-        (u'-4',_(u'Failed First Vote')),
-        (u'5', _(u'Committee Corrections')),
-        (u'6', _(u'Approved')),
-        (u'-6',_(u'Failed Approval')),
+        (BILL_STAGES['UNKNOWN'], _(u'Unknown')),
+        (BILL_STAGES['FROZEN'], _(u'Frozen in previous knesset')),
+        (BILL_STAGES['PROPOSED'], _(u'Proposed')),
+        (BILL_STAGES['PRE_APPROVED'], _(u'Pre-Approved')),
+        (BILL_STAGES['FAILED_PRE_APPROVAL'],_(u'Failed Pre-Approval')),
+        (BILL_STAGES['CONVERTED_TO_DISCUSSION'], _(u'Converted to discussion')),
+        (BILL_STAGES['IN_COMMITTEE'], _(u'In Committee')),
+        (BILL_STAGES['FIRST_VOTE'], _(u'First Vote')),
+        (BILL_STAGES['FAILED_FIRST_VOTE'],_(u'Failed First Vote')),
+        (BILL_STAGES['COMMITTEE_CORRECTIONS'], _(u'Committee Corrections')),
+        (BILL_STAGES['APPROVED'], _(u'Approved')),
+        (BILL_STAGES['FAILED_APPROVAL'],_(u'Failed Approval')),
 )
 
 BILL_AGRR_STAGES = { 'proposed':Q(stage__isnull=False),

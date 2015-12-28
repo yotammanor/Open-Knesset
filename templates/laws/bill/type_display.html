@@ -1,0 +1,9 @@
+{% load i18n %}{% spaceless %}
+    {% if bill.gov_proposal %}
+        {% trans "Government Proposal" %}
+    {% elif bill.knesset_proposal %}
+        {% trans "Knesset Proposal" %}
+    {% else %}
+        {% trans "Private Proposal" %}
+    {% endif %}
+{% endspaceless %}

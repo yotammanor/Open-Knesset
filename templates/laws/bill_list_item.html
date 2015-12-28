@@ -3,7 +3,8 @@
 {% if add_li %}
      <li>
 {% endif %}
-        <p class="item-action{% if bill.frozen %} text-error{% endif %}">{% trans bill.get_stage_display %}</p>
+        <p class="item-action{% if bill.frozen %} text-error{% endif %}">
+            {% bill_type_display bill %} ({% bill_booklet_number bill %}) | {% trans bill.get_stage_display %}</p>
         <p class="item-title">
             <a href="{% url 'bill-detail' bill.id %}">{% bill_full_name bill %}</a>
         </p>

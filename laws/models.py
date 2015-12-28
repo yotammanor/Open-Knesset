@@ -25,7 +25,7 @@ from mks.models import Party, Knesset
 from tagvotes.models import TagVote
 from knesset.utils import slugify_name, trans_clean
 from laws.vote_choices import (TYPE_CHOICES, BILL_STAGE_CHOICES,
-                               BILL_AGRR_STAGES)
+                               BILL_AGRR_STAGES, BILL_STAGES)
 
 from auxiliary.models import add_tags_to_related_objects
 from django.db.models.signals import post_save, post_delete
@@ -538,6 +538,7 @@ class BillManager(models.Manager):
         gov_booklet = kwargs.get('gov_booklet', None)
         changed_after = kwargs.get('changed_after', None)
         changed_before = kwargs.get('changed_before', None)
+        bill_type = kwargs.get('bill_type', 'all')
 
         filter_kwargs = {}
         if stage and stage != 'all':
@@ -556,6 +557,11 @@ class BillManager(models.Manager):
                 qs = qs.exclude(id__in=filter_tagged)
             elif kwargs['tagged'] != 'all':
                 qs = TaggedItem.objects.get_by_model(qs,get_tag(kwargs['tagged']))
+
+        if bill_type == 'government':
+            qs = qs.exclude(gov_proposal=None)
+        elif bill_type == 'knesset':
+            qs = qs.exclude(knesset_proposal=None)
 
         if pp_id:
             pps = PrivateProposal.objects.filter(
@@ -891,6 +897,23 @@ class Bill(models.Model):
     @property
     def latest_private_proposal(self):
         return self.proposals.order_by('-date').first()
+
+    @property
+    def stage_id(self):
+        try:
+            return (key for key,value in BILL_STAGES.items() if value==self.stage).next()
+        except StopIteration:
+            return BILL_STAGES['UNKNOWN']
+
+    def is_past_stage(self, lookup_stage_id):
+        res = False
+        my_stage_id = self.stage_id
+        for iter_stage_id in BILL_STAGES.keys():
+            if lookup_stage_id == iter_stage_id:
+                res = True
+            if my_stage_id == iter_stage_id:
+                break
+        return res
 
 def add_tags_to_bill_related_objects(sender, instance, **kwargs):
     bill_ct = ContentType.objects.get_for_model(instance)
