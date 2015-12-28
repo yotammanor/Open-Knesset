@@ -58,7 +58,7 @@ class LobbyistScraperDictStorage(DictStorage):
         source_id = data['id']
         data['represents'] = self._get_represents_data(source_id)
         full_name = '%s %s' % (data['first_name'], data['family_name'])
-        q = Lobbyist.objects.filter(source_id=source_id, person__name=full_name)
+        q = Lobbyist.objects.filter(person__name=full_name)
         if q.count() > 0:
             lobbyist = q[0]
         else:
