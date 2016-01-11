@@ -11,13 +11,12 @@ def Parse(reparse, logger, meeting_pks=None):
     else:
         plenum=Committee.objects.filter(type='plenum')[0]
         meetings=CommitteeMeeting.objects.filter(committee=plenum).exclude(protocol_text='')
-    if not reparse:
-        meetings=meetings.annotate(Count('parts')).filter(parts__count=0)
     (mks,mk_names)=create_protocol_parts.get_all_mk_names()
     logger.debug('got mk names: %s, %s'%(mks, mk_names))
     for meeting in meetings:
-        logger.debug('creating protocol parts for meeting %s'%(meeting,))
-        meeting.create_protocol_parts(delete_existing=reparse,mks=mks,mk_names=mk_names)
+        if reparse or meeting.parts.count() == 0:
+            logger.debug('creating protocol parts for meeting %s'%(meeting,))
+            meeting.create_protocol_parts(delete_existing=reparse,mks=mks,mk_names=mk_names)
 
 def parse_for_existing_meeting(meeting):
     logger = logging.getLogger('open-knesset')
