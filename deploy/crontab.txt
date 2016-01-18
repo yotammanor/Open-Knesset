@@ -4,6 +4,7 @@
 45 03 * * * /oknesset_data/oknesset/Open-Knesset/manage.py parse_plenum_protocols --download --parse
 00 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py parse_future_plenum_meetings
 15 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py syncdata --update
+34 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py okscrape committees CommitteeMeetingsMultiPageScraper --dblog
 59 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py send_email_to_editors
 00 05 * * * /oknesset_data/oknesset/Open-Knesset/manage.py notify --daily
 01 05 * * 5 /oknesset_data/oknesset/Open-Knesset/manage.py notify --weekly
