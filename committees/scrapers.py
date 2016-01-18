@@ -85,7 +85,7 @@ class CommitteeScraper(scrapers.KnessetDataServiceSingleEntryScraper):
 
     def _scrape_from_api(self, id):
         self._getLogger().info('failed to get an up-to-date committee, will try to access knesset api')
-        self.storage.storeDict({'entry': self._handle_entry(self.source.fetch(entry_id=id))})
+        self.storage.storeDict({'entry': self._handle_entry(self.source.fetch(id=id))})
 
     def _scrape(self, id):
         qs = Committee.objects.filter(knesset_id=id)
