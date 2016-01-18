@@ -5,6 +5,17 @@ import datetime
 import locale
 
 
+def parse_time(value):
+    return datetime.datetime.strptime(value, '%H:%M')
+
+def parse_combined_datetime( date_value, time_value):
+    return datetime.datetime.combine(date_value.date(), parse_time(time_value).time())
+
+def hebrew_strftime(dt, fmt=u'%A %m %B %Y  %H:%M'):
+    locale.setlocale(locale.LC_ALL, 'he_IL.utf8')
+    return dt.strftime(fmt).decode('utf8')
+
+
 class BaseKnessetDataServiceScraper(BaseScraper):
 
     SERVICE_NAME = None
@@ -20,12 +31,12 @@ class BaseKnessetDataServiceScraper(BaseScraper):
         raise Exception('_getSourceClass must be implemented by extending classes')
 
     def _getStorage(self):
-        raise Exception('_getStorage must be implemented by extending classes')
+        return storages.DictStorage()
 
     def __init__(self):
         super(BaseKnessetDataServiceScraper, self).__init__()
         self.source = self._getSource()
-        self.storage = self._getStorage()
+        self.storage = storages.DictStorage()
 
     def _handle_entry(self, entry):
         raise Exception('extending classes must implement _handle_entry and return a value for storage')
@@ -33,40 +44,24 @@ class BaseKnessetDataServiceScraper(BaseScraper):
     def _scrape(self, *args, **kwargs):
         raise Exception('_scrape must be implemented by exntending classes')
 
-    ## utility functions - useful in _handle_entry
 
-    def _parse_time(self, value):
-        return datetime.datetime.strptime(value, '%H:%M')
-
-    def _parse_combined_datetime(self, date_value, time_value):
-        return datetime.datetime.combine(date_value.date(), self._parse_time(time_value).time())
-
-    def _hebrew_strftime(self, dt, fmt=u'%A %m %B %Y  %H:%M'):
-        locale.setlocale(locale.LC_ALL, 'he_IL.utf8')
-        return dt.strftime(fmt).decode('utf8')
-
-
-class BaseKnessetDataServiceDictScraper(BaseKnessetDataServiceScraper):
+class KnessetDataServiceSingleEntryScraper(BaseKnessetDataServiceScraper):
 
     def _getSourceClass(self):
         return KnessetDataServiceSingleEntrySource
 
-    def _getStorage(self):
-        return storages.DictStorage()
-
     def _scrape(self, id):
-        self.storage.storeDict(self._handle_entry(self.source.fetch(entry_id=id)))
+        self.storage.storeDict({
+            'entry': self._handle_entry(self.source.fetch(id))
+        })
 
 
-class BaseKnessetDataServiceListScraper(BaseKnessetDataServiceScraper):
+class KnessetDataServiceListScraper(BaseKnessetDataServiceScraper):
 
     ORDERBY_FIELD = None
 
     def _getSourceClass(self):
         return KnessetDataServiceListSource
-
-    def _getStorage(self):
-        return storages.ListStorage()
 
     def _getOrderBy(self):
         if not self.ORDERBY_FIELD:
@@ -75,11 +70,15 @@ class BaseKnessetDataServiceListScraper(BaseKnessetDataServiceScraper):
             return self.ORDERBY_FIELD, 'desc'
 
     def _scrape(self, page_num=1):
+        entries = []
         for entry in self.source.fetch(order_by=self._getOrderBy(), page_num=page_num):
-            self.storage.store(self._handle_entry(entry))
+            entries.append(self._handle_entry(entry))
+        self.storage.storeDict({
+            'entries': entries
+        })
 
 
-class BaseKnessetDataServiceMultiPageScraper(BaseScraper):
+class KnessetDataServiceMultiPageScraper(BaseScraper):
     """
     this scraper iteratively calls a list scraper (based on BaseKnessetDataServiceListScraper)
     it starts from page_num=1 and increments the page_num on each iteration
@@ -104,7 +103,7 @@ class BaseKnessetDataServiceMultiPageScraper(BaseScraper):
         return val is None
 
     def __init__(self):
-        super(BaseKnessetDataServiceMultiPageScraper, self).__init__()
+        super(KnessetDataServiceMultiPageScraper, self).__init__()
         self.source = sources.ScraperSource(self._getScraper())
         self.storage = storages.DictStorage()
 
@@ -112,14 +111,16 @@ class BaseKnessetDataServiceMultiPageScraper(BaseScraper):
         all_results = []
         num_of_empty = 0
         page_num = 0
+        total_num = 0
         while num_of_empty < self.MIN_NUM_OF_EMPTY_TO_STOP and page_num < self.MAX_ITERATIONS:
             page_num += 1
             self._getLogger().debug('page_num=%s'%page_num)
-            values = self.source.fetch(page_num)
+            values = self.source.fetch(page_num)['entries']
             all_results.append(values)
             num_of_empty = len([val for val in values if self._isEmpty(val)])
+            total_num += (len(values)-num_of_empty)
             self._getLogger().debug('num_of_empty=%s'%num_of_empty)
-        self._getLogger().debug('stopped on page %s'%page_num)
+        self._getLogger().info('scraped %s entries, stopped on page %s'%(total_num, page_num))
         self.storage.storeDict({
             'stopped_on_page': page_num,
             'all_results': all_results,

@@ -3,7 +3,7 @@ from okscraper.base import BaseScraper
 from okscraper import sources
 from okscraper import storages
 from laws.models import Vote
-from simple.scrapers import BaseKnessetDataServiceListScraper
+from simple import scrapers
 
 
 class VoteScraperHtml(BaseScraper):
@@ -23,7 +23,7 @@ class VoteScraperHtml(BaseScraper):
         self.storage.store('page', page)
 
 
-class VotesScraper(BaseKnessetDataServiceListScraper):
+class VotesScraper(scrapers.KnessetDataServiceListScraper):
 
     SERVICE_NAME = "VotesData"
     METHOD_NAME = "View_vote_rslts_hdr_Approved"
@@ -35,8 +35,8 @@ class VotesScraper(BaseKnessetDataServiceListScraper):
         vote_label = u'{vote} - {sess}'.format(vote=data['vote_item_dscr'], sess=data['sess_item_dscr'])
         vote_meeting_num = data['session_num']
         vote_num = data['vote_nbr_in_sess']
-        vote_datetime = self._parse_combined_datetime(data['vote_date'], data['vote_time'])
-        vote_datetime_string = u'יום '+self._hebrew_strftime(vote_datetime)
+        vote_datetime = scrapers.parse_combined_datetime(data['vote_date'], data['vote_time'])
+        vote_datetime_string = u'יום '+scrapers.hebrew_strftime(vote_datetime)
         v, created = Vote.objects.get_or_create(src_id=vote_id, defaults={
             'title': vote_label, 'time_string': vote_datetime_string, 'importance': 1, 'time': vote_datetime,
             'meeting_number': vote_meeting_num, 'vote_number': vote_num, 'src_url': entry['id']
