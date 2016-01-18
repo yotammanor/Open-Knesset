@@ -11,7 +11,7 @@ Scraping Tasks
     :maxdepth: 2
 
     votes
-    protocols
+    committees
 
 Where and how the tasks are run
 ===============================

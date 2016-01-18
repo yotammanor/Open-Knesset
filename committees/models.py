@@ -44,6 +44,20 @@ class Committee(models.Model):
     type = models.CharField(max_length=10, default='committee')
     hide = models.BooleanField(default=False)
     protocol_not_published = models.BooleanField(default=False)
+    knesset_id = models.IntegerField(null=True, blank=True)
+    knesset_type_id = models.IntegerField(null=True, blank=True)
+    knesset_parent_id = models.IntegerField(null=True, blank=True)
+    last_scrape_time = models.DateTimeField(null=True, blank=True)
+    name_eng = models.CharField(max_length=256, null=True, blank=True)
+    name_arb = models.CharField(max_length=256, null=True, blank=True)
+    start_date = models.DateTimeField(null=True, blank=True)
+    end_date = models.DateTimeField(null=True, blank=True)
+    knesset_description = models.TextField(null=True, blank=True)
+    knesset_description_eng = models.TextField(null=True, blank=True)
+    knesset_description_arb = models.TextField(null=True, blank=True)
+    knesset_note = models.TextField(null=True, blank=True)
+    knesset_note_eng = models.TextField(null=True, blank=True)
+    knesset_portal_link = models.TextField(null=True, blank=True)
 
     @property
     def gender_presence(self):
@@ -130,40 +144,6 @@ class Committee(models.Model):
         cur_date = datetime.now()
         return self.events.filter(when__gt=cur_date)
 
-    def get_knesset_id(self):
-        """
-            return the id of the committee on the knesset website,
-            update this if any committee id is changed in the db.
-            the knesset committee id list is fixed and includes all committes ever.
-        """
-
-        trans = {  #key is our id, val is knesset id
-            1: '1',  #כנסת
-            2: '3',  #כלכלה
-            3: '27',  #עליה
-            4: '5',  #הפנים
-            5: '6',  #החוקה
-            6: '8',  #החינוך
-            7: '10',  #ביקורת המדינה
-            8: '13',  #מדע
-            9: '2',  #כספים
-            10: '28',  #עבודה
-            11: '11',  #מעמד האישה
-            12: '15',  #עובדים זרים
-            13: '33',  #משנה סחר בנשים
-            14: '19',  #פניות הציבור
-            15: '25',  #זכויות הילד
-            16: '12',  #סמים
-            17: '266',  #עובדים ערבים
-            18: '321',  #משותפת סביבה ובריאות
-        }
-
-        try:
-            return trans[self.pk]
-        except KeyError:
-            logger.error('Committee %d missing knesset id' % self.pk)
-            return None
-
 not_header = re.compile(r'(^אני )|((אלה|אלו|יבוא|מאלה|ייאמר|אומר|אומרת|נאמר|כך|הבאים|הבאות):$)|(\(.\))|(\(\d+\))|(\d\.)'.decode('utf8'))
 def legitimate_header(line):
     """Returns true if 'line' looks like something should be a protocol part header"""
@@ -208,6 +188,8 @@ class CommitteeMeeting(models.Model):
                                            content_type_field="content_type")
     lobbyists_mentioned = models.ManyToManyField('lobbyists.Lobbyist', related_name='committee_meetings')
     lobbyist_corporations_mentioned = models.ManyToManyField('lobbyists.LobbyistCorporation', related_name='committee_meetings')
+    datetime = models.DateTimeField(db_index=True, null=True, blank=True)
+    knesset_id = models.IntegerField(null=True, blank=True)
 
     objects = CommitteeMeetingManager()
 
@@ -365,7 +347,7 @@ class CommitteeMeeting(models.Model):
 
         time = re.findall(r'(\d\d:\d\d)',self.date_string)[0]
         date = self.date.strftime('%d/%m/%Y')
-        cid = self.committee.get_knesset_id()
+        cid = self.committee.knesset_id
         if cid is None:  # missing this committee knesset id
             return []  # can't get bg material
 

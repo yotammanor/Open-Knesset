@@ -1630,7 +1630,7 @@ class Command(NoArgsDbLogCommand):
             for func in ['update_votes',
                          'update_laws_data',
                          'update_presence',
-                         'get_protocols',
+                         # 'get_protocols', - handled by the new okscraper
                          'parse_laws',
                          'find_proposals_in_other_data',
                          'merge_duplicate_laws',

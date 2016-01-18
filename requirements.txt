@@ -44,7 +44,7 @@ django-crispy-forms==1.2.3
 django-storages==1.1.8
 boto==2.20.1
 BeautifulSoup4
-okscraper-django==0.0.11
+okscraper-django==0.0.12
 ujson
 selenium
 sauceclient

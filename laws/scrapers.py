@@ -2,9 +2,8 @@
 from okscraper.base import BaseScraper
 from okscraper import sources
 from okscraper import storages
-from simple.scrapers.sources import KnessetDataServiceSource
-import time, locale, datetime
 from laws.models import Vote
+from simple import scrapers
 
 
 class VoteScraperHtml(BaseScraper):
@@ -24,12 +23,11 @@ class VoteScraperHtml(BaseScraper):
         self.storage.store('page', page)
 
 
-class VotesScraper(BaseScraper):
+class VotesScraper(scrapers.KnessetDataServiceListScraper):
 
-    def __init__(self):
-        super(VotesScraper, self).__init__()
-        self.source = KnessetDataServiceSource('VotesData', 'View_vote_rslts_hdr_Approved')
-        self.storage = storages.ListStorage()
+    SERVICE_NAME = "VotesData"
+    METHOD_NAME = "View_vote_rslts_hdr_Approved"
+    ORDERBY_FIELD = "vote_id"
 
     def _handle_entry(self, entry):
         data = entry['data']
@@ -37,11 +35,8 @@ class VotesScraper(BaseScraper):
         vote_label = u'{vote} - {sess}'.format(vote=data['vote_item_dscr'], sess=data['sess_item_dscr'])
         vote_meeting_num = data['session_num']
         vote_num = data['vote_nbr_in_sess']
-        vote_date = data['vote_date']
-        vote_time = datetime.datetime.strptime(data['vote_time'], '%H:%M')
-        vote_datetime = datetime.datetime.combine(vote_date.date(), vote_time.time())
-        locale.setlocale(locale.LC_ALL, 'he_IL.utf8')
-        vote_datetime_string = u'יום '+vote_datetime.strftime(u'%A %m %B %Y  %H:%M').decode('utf8')
+        vote_datetime = scrapers.parse_combined_datetime(data['vote_date'], data['vote_time'])
+        vote_datetime_string = u'יום '+scrapers.hebrew_strftime(vote_datetime)
         v, created = Vote.objects.get_or_create(src_id=vote_id, defaults={
             'title': vote_label, 'time_string': vote_datetime_string, 'importance': 1, 'time': vote_datetime,
             'meeting_number': vote_meeting_num, 'vote_number': vote_num, 'src_url': entry['id']
@@ -57,7 +52,3 @@ class VotesScraper(BaseScraper):
         # self.find_synced_protocol(v)
 
         return v
-
-    def _scrape(self, page_num):
-        for entry in self.source.fetch(order_by=('vote_id', 'desc'), page_num=page_num):
-            self.storage.store(self._handle_entry(entry))
