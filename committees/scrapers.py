@@ -48,7 +48,6 @@ def handle_committeemeeting_entry(logger, entry):
     link = data['protocol_link']
     committee = CommitteeScraper().scrape(committee_id)['entry']
     if CommitteeMeeting.objects.filter(Q(knesset_id=protocol_id) | Q(date=protocol_date), committee=committee).exists():
-        print protocol_date
         logger.debug('existing committee meeting most likely already exists in DB, will not create a new one')
         return data
     else:
