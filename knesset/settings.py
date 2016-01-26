@@ -180,6 +180,7 @@ INSTALLED_APPS = (
     'suggestions',
     'okscraper_django',
     'lobbyists',
+    'kikar',
 )
 
 TEMPLATE_CONTEXT_PROCESSORS = (
@@ -317,6 +318,8 @@ LOGIN_REDIRECT_TARGETS = {
         'fb_secret': ''
     }
 }
+
+KIKAR_BASE_URL = 'http://www.kikar.org'
 
 # if you add a local_settings.py file, it will override settings here
 # but please, don't commit it to git.
