@@ -21,3 +21,8 @@
   background: #dfdede;
   color: #464545;
 }
+
+#loading-statuses-symbol{
+  text-align: center;
+  display: none;
+}

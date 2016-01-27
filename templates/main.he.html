@@ -42,6 +42,7 @@
 
 
 
+
                                  {% if tidbit.photo %}{{ tidbit.photo.url }}{% else %}{{ STATIC_URL }}img/tidbits/{{ tidbit.icon }}.png{% endif %}"
                          alt="Tidbit photo">
                     <strong class="tidbit-icon-{{ tidbit.icon }}">{{ tidbit.title }}</strong>
@@ -168,7 +169,8 @@
                     <header><h2>עדכוני פייסבוק של חברי וחברות הכנסת</h2></header>
                     <ul id="kikar-facebook-updates-ul">
                     </ul>
-                    <footer>
+                    <footer style="text-align: center">
+                        <span id="loading-statuses-symbol"><i class="fa fa-2x fa-spinner fa-spin"></i> </span>
                         <button id="statuses-more" class="btn btn-mini btn-expand-fb"
                                 data-target="#kikar-facebook-updates-ul">{% trans "More Facebook Statuses" %} +
                         </button>
