@@ -26,3 +26,11 @@ class Command(BaseKnessetDataserviceCommand):
             vote_number = dataservice_vote.nbr_in_sess,
             src_url = dataservice_vote.id
         )
+        # TODO: find the related data for the vote, preferably from API
+        # TODO: here, we reparse the votes, so we should probably limit the parser according to last time we accessed this vote or something like that
+        # if v.full_text_url != None:
+        #     l = Link(title=u'מסמך הצעת החוק באתר הכנסת', url=v.full_text_url, content_type=ContentType.objects.get_for_model(v), object_pk=str(v.id))
+        #     l.save()
+        # v.reparse_members_from_votes_page(page)
+        # v.update_vote_properties()
+        # self.find_synced_protocol(v)
