@@ -94,6 +94,13 @@
             <div id="subnav">{% block subnav %} {% endblock %}</div>
             {% block header %} {% endblock %}
             <div>
+                {% block flatpage_block %}{% if flatpage %}
+                    {% if flatpage.template_name %}
+                        {% include flatpage.template_name %}
+                    {% else %}
+                        {% include "flatpages/default_block.html" %}
+                    {% endif %}
+                {% endif %}{% endblock %}
                 {% block divcontent %} {% block content %}ahm.. my child should replace this block{% endblock %}{% endblock %}
             </div>
             <div class="clear"></div>

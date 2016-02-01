@@ -9,6 +9,7 @@ from tagging.forms import TagAdminForm as OriginalTagAdminForm
 from django.contrib.admin import SimpleListFilter
 from django.utils.translation import ugettext_lazy as _
 from django.utils.html import escape, escapejs
+from django.contrib.flatpages.admin import FlatPage, FlatPageAdmin as DjangoFlatPageAdmin
 
 
 class TidibitAdmin(admin.ModelAdmin):
@@ -93,3 +94,14 @@ class TagAdmin(admin.ModelAdmin):
 
 admin.site.unregister(Tag)
 admin.site.register(Tag, TagAdmin)
+
+
+class FlatPageAdmin(DjangoFlatPageAdmin):
+
+    def save_model(self, request, obj, form, change):
+        super(FlatPageAdmin, self).save_model(request, obj, form, change)
+        from django.core.cache import cache
+        cache.delete('flatpage_block_%s'%obj.url)
+
+admin.site.unregister(FlatPage)
+admin.site.register(FlatPage, FlatPageAdmin)
