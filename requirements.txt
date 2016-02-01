@@ -53,3 +53,4 @@ django-cors-headers
 pyjwt
 django-sslserver
 python-hebrew-numbers==0.1.0
+knesset-data==0.0.2

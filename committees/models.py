@@ -302,14 +302,14 @@ class CommitteeMeeting(models.Model):
             self.protocol_text = SyncdataCommand().get_committee_protocol_text(self.src_url)
             self.save()
 
-    def reparse_protocol(self, redownload=True):
+    def reparse_protocol(self, redownload=True, mks=None, mk_names=None):
         if redownload: self.redownload_protocol()
         if self.committee.type == 'plenum':
             from plenum.management.commands.parse_plenum_protocols_subcommands.parse import parse_for_existing_meeting
             parse_for_existing_meeting(self)
         else:
             self.create_protocol_parts(delete_existing=True)
-            self.find_attending_members()
+            self.find_attending_members(mks, mk_names)
 
     @property
     def plenum_meeting_number(self):
