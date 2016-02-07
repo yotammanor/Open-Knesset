@@ -79,7 +79,7 @@ class Command(BaseKnessetDataserviceCommand):
         self.mks, self.mk_names = get_all_mk_names()
 
     def _get_committee_knesset_ids(self):
-        return list(Committee.objects.all().values_list('knesset_id', flat=True).distinct())
+        return [c.id for c in DataserviceCommittee.get_all_active_committees()]
 
     def _handle_noargs(self, **options):
         from_date = now()-timedelta(days=int(options['fromdays']))
@@ -87,7 +87,16 @@ class Command(BaseKnessetDataserviceCommand):
         self._log_info('scraping from %s to %s'%(from_date, to_date))
         for committee_src_id in self._get_committee_knesset_ids():
             self._log_info('processing committee id %s'%committee_src_id)
-            for dataservice_meeting in DataserviceCommitteeMeeting.get(committee_src_id, from_date, to_date):
+            meetings = []
+            try:
+                meetings = DataserviceCommitteeMeeting.get(committee_src_id, from_date, to_date)
+            except Exception, e:
+                DataserviceCommitteeMeeting.error_report(
+                    "failed to get meetings for committee %s"%committee_src_id,
+                    "Unexpected exception received while trying to get meetings of committee %s: %s"%(committee_src_id, str(e))
+                )
+                self._log_error('failed to get meetings for committee %s'%committee_src_id)
+            for dataservice_meeting in meetings:
                 if dataservice_meeting.url and not self._has_existing_object(dataservice_meeting):
                     self._log_debug('creating meeting %s'%dataservice_meeting.id)
                     meeting = self._create_new_object(dataservice_meeting)

@@ -53,4 +53,6 @@ django-cors-headers
 pyjwt
 django-sslserver
 python-hebrew-numbers==0.1.0
-knesset-data==0.0.3
+knesset-data==0.0.5
+git+https://github.com/turnkeylinux/octohub.git
+
