@@ -2,10 +2,10 @@
 from knesset_data.dataservice.votes import Vote as DataserviceVote
 from laws.models import Vote
 from simple.scrapers import hebrew_strftime
-from simple.scrapers.management import BaseKnessetDataserviceCommand
+from simple.scrapers.management import BaseKnessetDataserviceCollectionCommand
 
 
-class Command(BaseKnessetDataserviceCommand):
+class Command(BaseKnessetDataserviceCollectionCommand):
 
     DATASERVICE_CLASS = DataserviceVote
 

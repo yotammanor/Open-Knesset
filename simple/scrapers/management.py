@@ -7,15 +7,19 @@ class BaseKnessetDataserviceCommand(NoArgsDbLogCommand):
 
     DATASERVICE_CLASS = None
 
-    option_list = NoArgsDbLogCommand.option_list + (
-        make_option('--page-range', dest='pagerange', default='1-10', help="range of page number to scrape (e.g. --page-range=5-12), default is 1-10"),
-    )
-
     def _has_existing_object(self, dataservice_object):
         raise NotImplementedError()
 
     def _create_new_object(self, dataservice_object):
         raise NotImplementedError()
+
+
+
+class BaseKnessetDataserviceCollectionCommand(BaseKnessetDataserviceCommand):
+
+    option_list = BaseKnessetDataserviceCommand.option_list + (
+        make_option('--page-range', dest='pagerange', default='1-10', help="range of page number to scrape (e.g. --page-range=5-12), default is 1-10"),
+    )
 
     def _handle_page(self, page_num):
         for dataservice_object in self.DATASERVICE_CLASS.get_page(page_num=page_num):
