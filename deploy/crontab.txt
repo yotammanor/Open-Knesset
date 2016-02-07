@@ -12,3 +12,8 @@
 03 05 * * * /oknesset_data/oknesset/Open-Knesset/manage.py parse_future_committee_meetings
 30 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py okscrape lobbyists --dblog
 #20 05 * * 1,3,5 /oknesset_data/oknesset/Open-Knesset/manage.py update_sitemap
+
+# following is part of knesset-data project (https://github.com/hasadna/knesset-data)
+# you should set the github auth token here (but only on the server of course)
+# KNESSET_DATA_GITHUB_TOKEN=...
+26 02 * * * /oknesset_data/knesset-data/python/bin/metadata_monitor.sh periodic
