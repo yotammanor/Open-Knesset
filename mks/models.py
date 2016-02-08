@@ -175,6 +175,7 @@ class MemberAltname(models.Model):
 
 
 class Member(models.Model):
+    id = models.IntegerField(primary_key=True, help_text="Pay attention that the value of this field must correspond to the official Knesset member id")
     name = models.CharField(max_length=64)
     parties = models.ManyToManyField(
         Party, related_name='all_members', through='Membership')
