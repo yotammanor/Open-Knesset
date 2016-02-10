@@ -500,7 +500,7 @@ class MemberAPITests(ResourceTestCase):
 
         self.assertEqual(len(data['objects']), 1)
         rmks = data['objects'][0]
-        self.assertEqual(rmks['mmms_count'], 0)
+        self.assertEqual(rmks['mmms_count'], 10)
         self.assertEqual(rmks['bills_stats_first'], 2)
         self.assertEqual(rmks['bills_stats_proposed'], 5)
         self.assertEqual(rmks['average_weekly_presence_hours'], 3.141)
