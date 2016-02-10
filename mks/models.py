@@ -234,6 +234,15 @@ class Member(models.Model):
 
     def save(self, **kwargs):
         self.recalc_average_monthly_committee_presence()
+        if self.id is None:
+            try:
+                max_id = Member.objects.all().aggregate(Max('id'))['id__max']
+                if max_id is None:
+                    max_id = 0
+            except:
+                max_id = 0
+            max_id += 1
+            self.id = max_id
         super(Member, self).save(**kwargs)
 
     def average_votes_per_month(self):
