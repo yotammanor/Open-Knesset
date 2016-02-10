@@ -201,6 +201,8 @@ class Command(NoArgsDbLogCommand):
            force_download - force downloading vote data, even if we have this
                             record. used to re-scan after MKs have been added.
         """
+        # this is done in scrape_votes command now
+        return
         logger.info("update votes")
         current_max_src_id = Vote.objects.aggregate(Max('src_id'))['src_id__max']
         if current_max_src_id == None: # the db contains no votes, meaning its empty

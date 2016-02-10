@@ -362,10 +362,17 @@ class Vote(models.Model):
                         for x in Party.objects.all()]
         ))
 
-        for_party_ids = [va.member.party_at(d).id for va in self.for_votes()]
+        def party_at_or_error(member):
+            party = member.party_at(d)
+            if party:
+                return party
+            else:
+                raise Exception('could not find which party member %s belonged to during vote %s'%(member.pk,self.pk))
+
+        for_party_ids = [party_at_or_error(va.member).id for va in self.for_votes()]
         party_for_votes = [sum([x==id for x in for_party_ids]) for id in party_ids]
 
-        against_party_ids = [va.member.party_at(d).id for va in self.against_votes()]
+        against_party_ids = [party_at_or_error(va.member).id for va in self.against_votes()]
         party_against_votes = [sum([x==id for x in against_party_ids]) for id in party_ids]
 
         party_stands_for = [float(fv)>0.66*(fv+av) for (fv,av) in zip(party_for_votes, party_against_votes)]
@@ -398,13 +405,13 @@ class Vote(models.Model):
             va.against_coalition = False
             va.against_opposition = False
             va.against_own_bill = False
-            if party_stands_for[va.member.party_at(d).id] and va.type=='against':
+            if party_stands_for[party_at_or_error(va.member).id] and va.type=='against':
                 va.against_party = True
                 against_party_count += 1
-            if party_stands_against[va.member.party_at(d).id] and va.type=='for':
+            if party_stands_against[party_at_or_error(va.member).id] and va.type=='for':
                 va.against_party = True
                 against_party_count += 1
-            if va.member.party_at(d).is_coalition_at(self.time.date()):
+            if party_at_or_error(va.member).is_coalition_at(self.time.date()):
                 if (coalition_stands_for and va.type=='against') or (coalition_stands_against and va.type=='for'):
                     va.against_coalition = True
                     against_coalition_count += 1
