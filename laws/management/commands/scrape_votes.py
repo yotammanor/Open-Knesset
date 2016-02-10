@@ -50,3 +50,11 @@ class Command(BaseKnessetDataserviceCollectionCommand):
         # if v.full_text_url != None:
         #     l = Link(title=u'מסמך הצעת החוק באתר הכנסת', url=v.full_text_url, content_type=ContentType.objects.get_for_model(v), object_pk=str(v.id))
         #     l.save()
+
+    def _recreate_object(self, vote_id):
+        vote = Vote.objects.get(id=int(vote_id))
+        vote_src_id = vote.src_id
+        dataservice_vote = self.DATASERVICE_CLASS.get(vote_src_id)
+        VoteAction.objects.filter(vote=vote).delete()
+        vote.delete()
+        return self._create_new_object(dataservice_vote)
