@@ -6,6 +6,8 @@ from simple.scrapers import hebrew_strftime
 from simple.scrapers.management import BaseKnessetDataserviceCollectionCommand
 from mks.models import Member
 from simple.management.commands.syncdata import Command as SyncdataCommand
+from links.models import Link
+from django.contrib.contenttypes.models import ContentType
 
 
 class Command(BaseKnessetDataserviceCollectionCommand):
@@ -46,6 +48,10 @@ class Command(BaseKnessetDataserviceCollectionCommand):
                 raise Exception('vote %s: could not find member id %s'%(dataservice_vote.id, member_id))
         vote.update_vote_properties()
         SyncdataCommand().find_synced_protocol(vote)
+        Link.objects.create(
+            title=u'ההצבעה באתר הכנסת', url='http://www.knesset.gov.il/vote/heb/Vote_Res_Map.asp?vote_id_t=%s'%vote.src_id,
+            content_type=ContentType.objects.get_for_model(vote), object_pk=str(vote.id)
+        )
         return vote
         # if v.full_text_url != None:
         #     l = Link(title=u'מסמך הצעת החוק באתר הכנסת', url=v.full_text_url, content_type=ContentType.objects.get_for_model(v), object_pk=str(v.id))
@@ -56,5 +62,6 @@ class Command(BaseKnessetDataserviceCollectionCommand):
         vote_src_id = vote.src_id
         dataservice_vote = self.DATASERVICE_CLASS.get(vote_src_id)
         VoteAction.objects.filter(vote=vote).delete()
+        Link.objects.filter(content_type=ContentType.objects.get_for_model(vote), object_pk=vote.id).delete()
         vote.delete()
         return self._create_new_object(dataservice_vote)
