@@ -98,7 +98,7 @@ class VoteResource(BaseResource):
             # hard-coded the __in filter. not great, but works.
             orm_filters["tagged_items__tag__in"] = \
                 filters["tag"].split(',')
-        if 'from_date' in filters:
+        if 'from_date' in filters and filters.get('from_date'):
             orm_filters["time__gte"] = filters['from_date']
         if 'to_date' in filters:
             # the to_date needs to be incremented by a day since when humans say to_date=2014-07-30 they
