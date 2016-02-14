@@ -175,6 +175,7 @@ class MemberAltname(models.Model):
 
 
 class Member(models.Model):
+    id = models.IntegerField(primary_key=True, help_text="Pay attention that the value of this field must correspond to the official Knesset member id")
     name = models.CharField(max_length=64)
     parties = models.ManyToManyField(
         Party, related_name='all_members', through='Membership')
@@ -233,6 +234,15 @@ class Member(models.Model):
 
     def save(self, **kwargs):
         self.recalc_average_monthly_committee_presence()
+        if self.id is None:
+            try:
+                max_id = Member.objects.all().aggregate(Max('id'))['id__max']
+                if max_id is None:
+                    max_id = 0
+            except:
+                max_id = 0
+            max_id += 1
+            self.id = max_id
         super(Member, self).save(**kwargs)
 
     def average_votes_per_month(self):
