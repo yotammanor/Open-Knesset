@@ -165,7 +165,7 @@ class VoteAction(models.Model):
     type = models.CharField(max_length=10, choices=VOTE_ACTION_TYPE_CHOICES)
     member = models.ForeignKey('mks.Member')
     party = models.ForeignKey('mks.Party')
-    vote = models.ForeignKey('Vote')
+    vote = models.ForeignKey('Vote', related_name='actions')
     against_party = models.BooleanField(default=False)
     against_coalition = models.BooleanField(default=False)
     against_opposition = models.BooleanField(default=False)
@@ -283,10 +283,14 @@ class Vote(models.Model):
                                          type=vote_type).values_list('member__id', flat=True)
 
     def for_votes(self):
-        return VoteAction.objects.filter(vote=self, type='for')
+        return self.actions.select_related().filter(type='for')
 
     def against_votes(self):
-        return VoteAction.objects.filter(vote=self, type='against')
+        return self.actions.select_related().filter(type='against')
+
+    def abstain_votes(self):
+        print('a')
+        return self.actions.select_related().filter(type='abstain')
 
     def against_party_votes(self):
         return self.votes.filter(voteaction__against_party=True)
