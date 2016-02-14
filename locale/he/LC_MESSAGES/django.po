@@ -1764,19 +1764,19 @@ msgstr "פרוייקט של"
 
 #: templates/site_base.html:169
 msgid "Open Budget"
-msgstr "התקציב הפתוח"
+msgstr "מפתח התקציב"
 
 #: templates/site_base.html:170
-msgid "Opening the finance committee"
-msgstr "פותחים את ועדת הכספים"
+msgid "Kikar"
+msgstr ""כיכר המדינה"
 
 #: templates/site_base.html:171
 msgid "Traking Trachtenberg"
 msgstr "מעקב: דו\"ח טרכטנברג"
 
 #: templates/site_base.html:172
-msgid "Open Local Authorities"
-msgstr "רשויות מקומיות פתוחות - בקרוב"
+msgid "Open Pension"
+msgstr "פנסיה פתוחה"
 
 #: templates/site_base.html:177
 msgid "Donate to Hasadna"

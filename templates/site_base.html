@@ -173,11 +173,10 @@
                         <span>{% trans "Project of" %}</span><a href="http://www.hasadna.org.il">{% trans "The Public Knowledge Workshop" %}</a>
                     </h3>
                     <ul>
-                        <li><a
-                            href="http://www.hasadna.org.il/projects/%D7%94%D7%AA%D7%A7%D7%A6%D7%99%D7%91-%D7%94%D7%A4%D7%AA%D7%95%D7%97/" target="_blank">{% trans "Open Budget" %}</a></li>
-                        <li><a href="http://www.hasadna.org.il/projects/%D7%A4%D7%95%D7%AA%D7%97%D7%99%D7%9D-%D7%90%D7%AA-%D7%95%D7%A2%D7%93%D7%AA-%D7%94%D7%9B%D7%A1%D7%A4%D7%99%D7%9D/" target="_blank">{% trans "Opening the finance committee" %}</a></li>
-                        <li><a href="http://www.hasadna.org.il/projects/%D7%9E%D7%A2%D7%A7%D7%91-%D7%98%D7%A8%D7%9B%D7%98%D7%A0%D7%91%D7%A8%D7%92/" target="_blank">{% trans "Traking Trachtenberg" %}</a></li>
-                        <li><a href="http://www.hasadna.org.il/projects/%D7%A8%D7%A9%D7%95%D7%99%D7%95%D7%AA-%D7%9E%D7%A7%D7%95%D7%9E%D7%99%D7%95%D7%AA-%D7%A4%D7%AA%D7%95%D7%97%D7%95%D7%AA/" target="_blank">{% trans "Open Local Authorities" %}</a></li>
+                        <li><a href="http://www.obudget.org/" target="_blank">{% trans "Open Budget" %}</a></li>
+                        <li><a href="http://kikar.org/" target="_blank">{% trans "Kikar" %}</a></li>
+                        <li><a href="http://www.anyway.co.il/" target="_blank">ANYWAY</a></li>
+                        <li><a href="http://www.openpension.org.il/" target="_blank">{% trans "Open pension" %}</a></li>
                     </ul>
                     <form method="post" action="https://www.paypal.com/cgi-bin/webscr">
                         <input type="hidden" value="_s-xclick" name="cmd">
@@ -190,7 +189,7 @@
             <div class="row">
                 <div class="span12">
                     {% trans "Some rights reserved. Using data from the site requires credit" %} -
-                    <a href="{% url 'about' %}#terms">{% trans "Details in the link" %}</a>
+                    <a href="{% url 'terms-of-use' %}">{% trans "Details in the link" %}</a>
                 </div>
             </div>
         </div>
