@@ -21,6 +21,7 @@ from tagging.utils import get_tag
 from actstream import Action
 from actstream.models import action, Follow
 
+from laws import constants
 from mks.models import Party, Knesset
 from tagvotes.models import TagVote
 from knesset.utils import slugify_name, trans_clean
@@ -67,15 +68,15 @@ class PartyVotingStatistics(models.Model):
     def votes_against_party_count(self):
         d = Knesset.objects.current_knesset().start_date
         return VoteAction.objects.filter(
-                vote__time__gt=d,
-                member__current_party=self.party,
-                against_party=True).count()
+            vote__time__gt=d,
+            member__current_party=self.party,
+            against_party=True).count()
 
     def votes_count(self):
         d = Knesset.objects.current_knesset().start_date
         return VoteAction.objects.filter(
-                member__current_party=self.party,
-                vote__time__gt=d).exclude(type='no-vote').count()
+            member__current_party=self.party,
+            vote__time__gt=d).exclude(type='no-vote').count()
 
     def votes_per_seat(self):
         return round(float(self.votes_count()) / self.party.number_of_seats, 1)
@@ -95,14 +96,14 @@ class PartyVotingStatistics(models.Model):
         if total_votes:
             if self.party.is_coalition:
                 votes_against_coalition = VoteAction.objects.filter(
-                        vote__time__gt=d,
-                        member__current_party=self.party,
-                        against_coalition=True).count()
+                    vote__time__gt=d,
+                    member__current_party=self.party,
+                    against_coalition=True).count()
             else:
                 votes_against_coalition = VoteAction.objects.filter(
-                        vote__time__gt=d,
-                        member__current_party=self.party,
-                        against_opposition=True).count()
+                    vote__time__gt=d,
+                    member__current_party=self.party,
+                    against_opposition=True).count()
             return round(100.0 * (total_votes - votes_against_coalition) /
                          total_votes, 1)
         return _('N/A')
@@ -122,7 +123,7 @@ class MemberVotingStatistics(models.Model):
     def votes_count(self, from_date=None):
         if from_date:
             return VoteAction.objects.filter(member=self.member, vote__time__gt=from_date).exclude(
-                    type='no-vote').count()
+                type='no-vote').count()
         vc = cache.get('votes_count_%d' % self.member.id)
         if not vc:
             vc = VoteAction.objects.filter(member=self.member).exclude(type='no-vote').count()
@@ -218,7 +219,7 @@ class VoteManager(models.Manager):
             # exclude votes that are ascribed to any of the given agendas
             from agendas.models import AgendaVote
             qs = qs.exclude(id__in=AgendaVote.objects.filter(
-                    agenda__in=exclude_agendas).values('vote__id'))
+                agenda__in=exclude_agendas).values('vote__id'))
 
         if 'order' in kwargs:
             if kwargs['order'] == 'controversy':
@@ -231,7 +232,7 @@ class VoteManager(models.Manager):
         if kwargs.get('exclude_ascribed', False):  # exclude votes ascribed to
             # any bill.
             qs = qs.exclude(bills_pre_votes__isnull=False).exclude(
-                    bills_first__isnull=False).exclude(bill_approved__isnull=False)
+                bills_first__isnull=False).exclude(bill_approved__isnull=False)
         return qs
 
 
@@ -366,9 +367,9 @@ class Vote(models.Model):
         party_ids = Party.objects.values_list('id', flat=True)
         d = self.time.date()
         party_is_coalition = dict(zip(
-                party_ids,
-                [x.is_coalition_at(self.time.date())
-                 for x in Party.objects.all()]
+            party_ids,
+            [x.is_coalition_at(self.time.date())
+             for x in Party.objects.all()]
         ))
 
         def party_at_or_error(member):
@@ -377,7 +378,7 @@ class Vote(models.Model):
                 return party
             else:
                 raise Exception(
-                        'could not find which party member %s belonged to during vote %s' % (member.pk, self.pk))
+                    'could not find which party member %s belonged to during vote %s' % (member.pk, self.pk))
 
         for_party_ids = [party_at_or_error(va.member).id for va in self.for_votes()]
         party_for_votes = [sum([x == id for x in for_party_ids]) for id in party_ids]
@@ -385,8 +386,10 @@ class Vote(models.Model):
         against_party_ids = [party_at_or_error(va.member).id for va in self.against_votes()]
         party_against_votes = [sum([x == id for x in against_party_ids]) for id in party_ids]
 
-        party_stands_for = [float(fv) > 0.66 * (fv + av) for (fv, av) in zip(party_for_votes, party_against_votes)]
-        party_stands_against = [float(av) > 0.66 * (fv + av) for (fv, av) in zip(party_for_votes, party_against_votes)]
+        party_stands_for = [float(fv) > constants.STANDS_FOR_THRESHOLD * (fv + av) for (fv, av) in
+                            zip(party_for_votes, party_against_votes)]
+        party_stands_against = [float(av) > constants.STANDS_FOR_THRESHOLD * (fv + av) for (fv, av) in
+                                zip(party_for_votes, party_against_votes)]
 
         party_stands_for = dict(zip(party_ids, party_stands_for))
         party_stands_against = dict(zip(party_ids, party_stands_against))
@@ -395,14 +398,17 @@ class Vote(models.Model):
         coalition_against_votes = sum([x for (x, y) in zip(party_against_votes, party_ids) if party_is_coalition[y]])
         opposition_for_votes = sum([x for (x, y) in zip(party_for_votes, party_ids) if not party_is_coalition[y]])
         opposition_against_votes = sum(
-                [x for (x, y) in zip(party_against_votes, party_ids) if not party_is_coalition[y]])
+            [x for (x, y) in zip(party_against_votes, party_ids) if not party_is_coalition[y]])
 
-        coalition_stands_for = (float(coalition_for_votes) > 0.66 * (coalition_for_votes + coalition_against_votes))
-        coalition_stands_against = float(coalition_against_votes) > 0.66 * (
-            coalition_for_votes + coalition_against_votes)
-        opposition_stands_for = float(opposition_for_votes) > 0.66 * (opposition_for_votes + opposition_against_votes)
-        opposition_stands_against = float(opposition_against_votes) > 0.66 * (
-            opposition_for_votes + opposition_against_votes)
+        coalition_total_votes = coalition_for_votes + coalition_against_votes
+        coalition_stands_for = (
+            float(coalition_for_votes) > constants.STANDS_FOR_THRESHOLD * (coalition_total_votes))
+        coalition_stands_against = float(coalition_against_votes) > constants.STANDS_FOR_THRESHOLD * (
+            coalition_total_votes)
+        opposition_total_votes = opposition_for_votes + opposition_against_votes
+        opposition_stands_for = float(opposition_for_votes) > constants.STANDS_FOR_THRESHOLD * opposition_total_votes
+        opposition_stands_against = float(
+            opposition_against_votes) > constants.STANDS_FOR_THRESHOLD * opposition_total_votes
 
         # a set of all MKs that proposed bills this vote is about.
         proposers = [set(b.proposers.all()) for b in self.bills()]
@@ -591,8 +597,8 @@ class BillManager(models.Manager):
 
         if pp_id:
             pps = PrivateProposal.objects.filter(
-                    proposal_id=pp_id).values_list(
-                    'id', flat=True)
+                proposal_id=pp_id).values_list(
+                'id', flat=True)
             if pps:
                 qs = qs.filter(proposals__in=pps)
             else:
@@ -600,15 +606,15 @@ class BillManager(models.Manager):
 
         if knesset_booklet:
             kps = KnessetProposal.objects.filter(
-                    booklet_number=knesset_booklet).values_list(
-                    'id', flat=True)
+                booklet_number=knesset_booklet).values_list(
+                'id', flat=True)
             if kps:
                 qs = qs.filter(knesset_proposal__in=kps)
             else:
                 qs = qs.none()
         if gov_booklet:
             gps = GovProposal.objects.filter(
-                    booklet_number=gov_booklet).values_list('id', flat=True)
+                booklet_number=gov_booklet).values_list('id', flat=True)
             if gps:
                 qs = qs.filter(gov_proposal__in=gps)
             else:
@@ -729,7 +735,7 @@ class Bill(models.Model):
         bill_ct = ContentType.objects.get_for_model(self)
         Comment.objects.filter(content_type=bill_ct,
                                object_pk=another_bill.id).update(
-                object_pk=self.id)
+            object_pk=self.id)
         for v in voting.models.Vote.objects.filter(content_type=bill_ct,
                                                    object_id=another_bill.id):
             if voting.models.Vote.objects.filter(content_type=bill_ct,
