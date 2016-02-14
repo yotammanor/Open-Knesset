@@ -289,7 +289,6 @@ class Vote(models.Model):
         return self.actions.select_related().filter(type='against')
 
     def abstain_votes(self):
-        print('a')
         return self.actions.select_related().filter(type='abstain')
 
     def against_party_votes(self):
