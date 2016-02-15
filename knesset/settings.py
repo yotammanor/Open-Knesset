@@ -4,6 +4,8 @@ import logging
 from datetime import timedelta
 
 # dummy gettext, to get django-admin makemessages to find i18n texts in this file
+import sys
+
 gettext = lambda x: x
 
 DEBUG = True
@@ -121,7 +123,7 @@ LOCALE_PATHS = (
     os.path.join(PROJECT_ROOT, 'locale'),
 )
 INSTALLED_APPS = (
-    'django.contrib.auth',          # django apps
+    'django.contrib.auth',  # django apps
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
@@ -156,8 +158,8 @@ INSTALLED_APPS = (
     'storages',
     'corsheaders',
     'sslserver',
-    #'knesset',
-    'auxiliary',                  # knesset apps
+    # 'knesset',
+    'auxiliary',  # knesset apps
     'mks',
     'mmm',
     'laws',
@@ -197,7 +199,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
 
 INTERNAL_IPS = ()
 # Add the following line to your local_settings.py files to enable django-debug-toolar:
-#INTERNAL_IPS = ('127.0.0.1',)
+# INTERNAL_IPS = ('127.0.0.1',)
 
 LOCAL_DEV = True
 
@@ -214,13 +216,23 @@ LOGIN_REDIRECT_URL = '/'
 USER_AGENT = "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.2; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0)"
 
 LOG_FILENAME = os.path.join(PROJECT_ROOT, 'open-knesset.log')
-logger = logging.getLogger("open-knesset")
-logger.setLevel(logging.DEBUG)  # override this in prod server to logging.ERROR
+file_logger = logging.getLogger("open-knesset")
+file_logger.setLevel(logging.DEBUG)  # override this in prod server to logging.ERROR
 h = logging.FileHandler(LOG_FILENAME)
 h.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s\t%(name)s:%(lineno)d\t%(levelname)s\t%(message)s")
 h.setFormatter(formatter)
-logger.addHandler(h)
+file_logger.addHandler(h)
+
+# Console loggers, Best practice always log to stdout and stderr and let third party environment to deal with logging
+# See 12 factor app http://12factor.net/logs
+# Todo refactor this to support stderr and out and more dynamic config supporting sentry etc
+console_logger = logging.getLogger('') #root logger
+console_logger.setLevel(logging.INFO)
+stdout_handler = logging.StreamHandler(stream=sys.stdout)
+
+stdout_handler.setFormatter(formatter)
+console_logger.addHandler(stdout_handler)
 
 GOOGLE_CUSTOM_SEARCH = "007833092092208924626:1itz_l8x4a4"
 GOOGLE_MAPS_API_KEYS = {'dev': 'ABQIAAAAWCfW8hHVwzZc12qTG0qLEhQCULP4XOMyhPd8d_NrQQEO8sT8XBQdS2fOURLgU1OkrUWJE1ji1lJ-3w',
@@ -264,7 +276,6 @@ HITCOUNT_EXCLUDE_USER_GROUP = ()
 TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 NOSE_ARGS = ['--with-xunit']
 
-
 SERIALIZATION_MODULES = {
     'oknesset': 'auxiliary.serializers'
 }
@@ -272,7 +283,6 @@ SERIALIZATION_MODULES = {
 API_LIMIT_PER_PAGE = 1000
 
 SOUTH_TESTS_MIGRATE = False
-
 
 TINYMCE_DEFAULT_CONFIG = {
     'mode': "textareas",

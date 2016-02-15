@@ -55,6 +55,7 @@ class MemberRelatedVideosInline(generic.GenericTabularInline):
 
 class CoalitionMembershipAdmin(admin.ModelAdmin):
     list_display = ('party', 'start_date', 'end_date')
+
 admin.site.register(CoalitionMembership, CoalitionMembershipAdmin)
 
 
