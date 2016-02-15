@@ -364,6 +364,7 @@ class Vote(models.Model):
         return tf
 
     def update_vote_properties(self):
+        # TODO: this can be heavily optimized. somewhere sometimes..
         party_ids = Party.objects.values_list('id', flat=True)
         d = self.time.date()
         party_is_coalition = dict(zip(
