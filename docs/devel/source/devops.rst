@@ -5,7 +5,7 @@ DevOps - Servers, Configuration, Deployment, Common tasks
 Servers
 ============================
 
- Following is the servers configuration (as it was on Feb. 16, 2016):
+Following is the servers configuration (as it was on Feb. 16, 2016):
  
 db1
   DB server, runs cronjobs, (EC2 Name: Postgres1)
