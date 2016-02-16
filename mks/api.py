@@ -27,6 +27,7 @@ from django.db.models import Count
 
 logger = logging.getLogger(__name__)
 
+
 class PartyResource(BaseResource):
     ''' Party API
     TBD: create a party app
@@ -40,24 +41,23 @@ class PartyResource(BaseResource):
         include_absolute_url = True
 
     def get_object_list(self, request):
-        knesset = request.GET.get('knesset','current')
+        knesset = request.GET.get('knesset', 'current')
         if knesset == 'current':
             return super(PartyResource, self).get_object_list(request).filter(
-            knesset=Knesset.objects.current_knesset())
+                knesset=Knesset.objects.current_knesset())
         elif knesset == 'all':
             return super(PartyResource, self).get_object_list(request)
         else:
             return super(PartyResource, self).get_object_list(request).filter(
-            knesset=Knesset.objects.current_knesset())
+                knesset=Knesset.objects.current_knesset())
 
 
 class DictStruct:
     def __init__(self, **entries):
-            self.__dict__.update(entries)
+        self.__dict__.update(entries)
 
 
 class MemberBillsResource(BaseNonModelResource):
-
     class Meta(BaseNonModelResource.Meta):
         allowed_methods = ['get']
         resource_name = "member-bills"
@@ -92,16 +92,16 @@ class MemberBillsResource(BaseNonModelResource):
         # This prevents the need of using a forked django-tagging, and go
         # upstream
         tag_cloud = [{
-            'size': getattr(x, 'font_size', 1),
-            'count':x.count,
-            'name':x.name} for x in calculate_cloud(bills_tags)]
+                         'size': getattr(x, 'font_size', 1),
+                         'count': x.count,
+                         'name': x.name} for x in calculate_cloud(bills_tags)]
 
-        bills  = map(lambda b: dict(title=b.full_title,
-                                    url=b.get_absolute_url(),
-                                    stage=b.stage,
-                                    stage_text=b.get_stage_display()),
-                     member.bills.all())
-        return DictStruct(id=member.id, tag_cloud=tag_cloud,bills=bills)
+        bills = map(lambda b: dict(title=b.full_title,
+                                   url=b.get_absolute_url(),
+                                   stage=b.stage,
+                                   stage_text=b.get_stage_display()),
+                    member.bills.all())
+        return DictStruct(id=member.id, tag_cloud=tag_cloud, bills=bills)
 
     def get_object_list(self, request):
         return map(self.get_member_data, Member.objects.all())
@@ -137,12 +137,14 @@ class MemberAgendasResource(BaseResource):
                 friends = (mk.current_party.current_members()
                            .values_list('id', flat=True))
             else:
-                friends = [] 
+                friends = []
             agendas = []
-            for a in Agenda.objects.filter(pk__in = agendas_values.keys(),
-                    is_public = True):
-                amin = 200.0 ; amax = -200.0
-                pmin = 200.0 ; pmax = -200.0
+            for a in Agenda.objects.filter(pk__in=agendas_values.keys(),
+                                           is_public=True):
+                amin = 200.0;
+                amax = -200.0
+                pmin = 200.0;
+                pmax = -200.0
                 av = agendas_values[a.id]
                 for mk_id, values in a.get_mks_values_old():
                     score = values['score']
@@ -176,6 +178,7 @@ class MemberAgendasResource(BaseResource):
 
 class MemberResource(BaseResource):
     ''' The Parliament Member API '''
+
     class Meta(BaseResource.Meta):
 
         queryset = Member.objects.exclude(
@@ -197,31 +200,32 @@ class MemberResource(BaseResource):
         )
 
         excludes = ['website', 'backlinks_enabled', 'area_of_residence']
-        list_fields = ['name', 'id', 'img_url', 'is_current', 'average_weekly_presence_hours', 'mmms_count', 'bills_stats_first', 'bills_stats_proposed',]
+        list_fields = ['name', 'id', 'img_url', 'is_current', 'average_weekly_presence_hours', 'mmms_count',
+                       'bills_stats_first', 'bills_stats_proposed', ]
         include_absolute_url = True
 
     party_name = fields.CharField()
     party_url = fields.CharField()
     mmms_count = fields.IntegerField(null=True)
     votes_count = fields.IntegerField(null=True)
-    video_about =  fields.ToManyField(VideoResource,
-                    attribute= lambda b: get_videos_queryset(b.obj,group='about'),
-                    null = True,
-                    full = True)
+    video_about = fields.ToManyField(VideoResource,
+                                     attribute=lambda b: get_videos_queryset(b.obj, group='about'),
+                                     null=True,
+                                     full=True)
     videos_related = fields.ToManyField(VideoResource,
-                    attribute= lambda b: get_videos_queryset(b.obj,group='related'),
-                    null = True)
+                                        attribute=lambda b: get_videos_queryset(b.obj, group='related'),
+                                        null=True)
     links = fields.ToManyField(LinkResource,
-                    attribute = lambda b: Link.objects.for_model(b.obj),
-                    full = True,
-                    null = True)
+                               attribute=lambda b: Link.objects.for_model(b.obj),
+                               full=True,
+                               null=True)
     bills_uri = fields.CharField()
     agendas_uri = fields.CharField()
     committees = fields.ListField()
     detailed_roles = fields.ToManyField(RoleResource,
-            attribute = lambda b: Person.objects.get(mk=b.obj).roles.all(),
-            full = True,
-            null = True)
+                                        attribute=lambda b: Person.objects.get(mk=b.obj).roles.all(),
+                                        full=True,
+                                        null=True)
     fields.ToOneField(PartyResource, 'current_party', full=True)
     average_weekly_presence_rank = fields.IntegerField()
 
@@ -242,22 +246,25 @@ class MemberResource(BaseResource):
                 return simple
         return simple
 
-    def dehydrate_committees (self, bundle):
+    def dehydrate_committees(self, bundle):
         temp_list = bundle.obj.committee_meetings.exclude(committee__type='plenum')
         temp_list = temp_list.values("committee", "committee__name").annotate(Count("id")).order_by('-id__count')[:5]
-        return (map(lambda item: (item['committee__name'], reverse('committee-detail', args=[item['committee']])), temp_list))
+        return (
+        map(lambda item: (item['committee__name'], reverse('committee-detail', args=[item['committee']])), temp_list))
 
     def dehydrate_bills_uri(self, bundle):
         return '%s?%s' % (reverse('api_dispatch_list', kwargs={'resource_name': 'bill',
-                                                    'api_name': 'v2', }),
+                                                               'api_name': 'v2',}),
                           urllib.urlencode(dict(proposer=bundle.obj.id)))
+
     def dehydrate_gender(self, bundle):
         return bundle.obj.get_gender_display()
 
     def dehydrate_agendas_uri(self, bundle):
         return reverse('api_dispatch_detail', kwargs={'resource_name': 'member-agendas',
-                                                    'api_name': 'v2',
-                                                    'pk' : bundle.obj.id})
+                                                      'api_name': 'v2',
+                                                      'pk': bundle.obj.id})
+
     def dehydrate_party_name(self, bundle):
         party = bundle.obj.current_party
         return party.name if party else None
@@ -286,7 +293,7 @@ class MemberResource(BaseResource):
 
         return count
 
-    def dehydrate_average_weekly_presence_rank (self, bundle):
+    def dehydrate_average_weekly_presence_rank(self, bundle):
         ''' Calculate the distribution of presence and place the user on a 5 level scale '''
         SCALE = 5
         member = bundle.obj
@@ -306,7 +313,7 @@ class MemberResource(BaseResource):
                 else:
                     mk_location = 0
 
-                cache.set('average_presence_location_%d' % mk.id, mk_location, 60*60*24)
+                cache.set('average_presence_location_%d' % mk.id, mk_location, 60 * 60 * 24)
 
                 if mk.id == member.id:
                     rel_location = mk_location
