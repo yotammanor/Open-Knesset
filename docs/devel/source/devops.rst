@@ -29,3 +29,28 @@ web app servers
 db servers
   Runs the DB
   Runs cronjobs, see https://github.com/hasadna/Open-Knesset/blob/master/deploy/crontab.txt
+
+Deployment
+==========
+
+Deployment is done using fabric, see: https://github.com/hasadna/Open-Knesset/blob/master/fabfile.py
+
+There is a local_fab_settings.py file which contains login details.
+
+common deployment tasks
+-----------------------
+
+$ fab deploy_backend
+  deploy to the db server
+
+$ fab deploy_backend:migration=yes
+  deploy to db and run ./manage.py migrate as well
+  
+$ fab deploy_backend:requirements=yes,migration=yes
+  deploy to db, run migrations and also pip install -r requirements.txt
+  
+$ fab deploy_web
+  deploy to the web servers (small1, small2)
+
+$ fab deploy_web:requirements=yes
+  deploy to the web servers and also run pip install -r requirements.txt
