@@ -12,9 +12,7 @@ class VoteAdmin(admin.ModelAdmin):
     search_fields = ('title', 'summary', 'full_text', 'id', 'src_id')
 
     def update_vote(self, request, queryset):
-        vote_count = queryset.count() if queryset else 0
-        if queryset:
-            queryset = queryset.select_relate().prefetch_related('')
+        vote_count = queryset.count()
         for vote in queryset:
             vote.update_vote_properties()
 
