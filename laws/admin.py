@@ -1,5 +1,5 @@
 from models import Vote, Law, PrivateProposal, KnessetProposal, GovProposal, Bill, GovLegislationCommitteeDecision
-
+from laws.management.commands.scrape_votes import Command as ScrapeVotesCommand
 from django.contrib import admin
 
 
@@ -9,7 +9,7 @@ class VoteAdmin(admin.ModelAdmin):
         '__unicode__', 'short_summary', 'full_text_link', 'votes_count', 'for_votes_count', 'against_votes_count',
         'abstain_votes_count')
 
-    search_fields = ('summary', 'full_text')
+    search_fields = ('title', 'summary', 'full_text', 'id', 'src_id')
 
     def update_vote(self, request, queryset):
         vote_count = queryset.count() if queryset else 0
@@ -21,7 +21,14 @@ class VoteAdmin(admin.ModelAdmin):
         self.message_user(request, "successfully updated {0} votes".format(vote_count))
 
     update_vote.short_description = 'update vote properties and calculations'
-    actions = ['update_vote']
+
+    def recreate_vote(self, request, queryset):
+        recreated_votes = ScrapeVotesCommand().recreate_objects(queryset.values_list('pk', flat=True))
+        self.message_user(request, "successfully recreated {0} votes".format(len(recreated_votes), ', '.join([str(v.pk) for v in recreated_votes])))
+
+    recreate_vote.short_description = "recreate vote by deleting and then getting fresh data from knesset api"
+
+    actions = ['update_vote', 'recreate_vote']
 
 
 admin.site.register(Vote, VoteAdmin)
