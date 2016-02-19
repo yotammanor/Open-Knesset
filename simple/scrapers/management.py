@@ -24,7 +24,7 @@ class BaseKnessetDataserviceCommand(NoArgsDbLogCommand):
 
     def _translate_ds_to_model(self, ds_meeting):
         """
-        The class provide a mapping service from knesset-data data structure to the app schema using
+        The function provide a mapping service from knesset-data data structure to the app schema using
         the `translate_ds_to_model` . In order to use, fill the `_DS_TO_APP_KEY_MAPPING` and
         `_DS_CONVERSIONS` in the inheriting class in the following manner:
 
