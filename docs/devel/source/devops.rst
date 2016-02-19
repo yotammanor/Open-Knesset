@@ -62,6 +62,7 @@ Updating the dev DB
 -------------------
 
 Run the following on the production DB instance:
+
 * (oknesset) Open-Knesset$ ./manage.py sync_dev
 * (oknesset) Open-Knesset$ bzip2 dev.db -fk
 * (oknesset) Open-Knesset$ s3put --access_key AWS_ACCESS --secret_key AWS_SECRET --bucket oknesset-devdb dev.db.bz2
