@@ -54,3 +54,16 @@ $ fab deploy_web
 
 $ fab deploy_web:requirements=yes
   deploy to the web servers and also run pip install -r requirements.txt
+
+Common Tasks
+============
+
+Updating the dev DB
+-------------------
+
+Run the following on the production DB instance:
+* (oknesset) Open-Knesset$ ./manage.py sync_dev
+* (oknesset) Open-Knesset$ bzip2 dev.db -fk
+* (oknesset) Open-Knesset$ s3put --access_key AWS_ACCESS --secret_key AWS_SECRET --bucket oknesset-devdb dev.db.bz2
+* (oknesset) Open-Knesset$ zip dev.db.zip dev.db
+* (oknesset) Open-Knesset$ s3put --access_key AWS_ACCESS --secret_key AWS_SECRET --bucket oknesset-devdb dev.db.zip
