@@ -1,103 +1,111 @@
 # encoding: utf-8
-from knesset_data.dataservice.committees import CommitteeMeeting as DataserviceCommitteeMeeting, Committee as DataserviceCommittee
-from committees.models import CommitteeMeeting, Committee
-from simple.scrapers import hebrew_strftime
-from mks.utils import get_all_mk_names
-from simple.scrapers.management import BaseKnessetDataserviceCommand
-from django.utils.timezone import now, timedelta
+from functools import partial
 from optparse import make_option
 
+from django.db.models import Q
+from django.utils.timezone import now, timedelta
 
-def get_committee(id):
-    qs = Committee.objects.filter(knesset_id=id)
-    if qs.count() > 0:
-        return qs.first()
-    else:
-        dataservice_committee = DataserviceCommittee.get(id)
-        qs = Committee.objects.filter(name=dataservice_committee.name)
-        if qs.count() > 0:
-            qs.update(knesset_id=id)
-            return qs.first()
-        else:
-            return Committee.objects.create(
-                name=dataservice_committee.name, knesset_id=dataservice_committee.id, hide=True,
-                knesset_type_id = dataservice_committee.type_id,
-                knesset_parent_id = dataservice_committee.parent_id,
-                name_eng = dataservice_committee.name_eng,
-                name_arb = dataservice_committee.name_arb,
-                start_date = dataservice_committee.begin_date,
-                end_date = dataservice_committee.end_date,
-                knesset_description = dataservice_committee.description,
-                knesset_description_eng = dataservice_committee.description_eng,
-                knesset_description_arb = dataservice_committee.description_arb,
-                knesset_note = dataservice_committee.note,
-                knesset_note_eng = dataservice_committee.note_eng,
-                knesset_portal_link = dataservice_committee.portal_link,
-            )
+from committees.models import CommitteeMeeting, Committee
+from knesset_data.dataservice.committees import CommitteeMeeting as DataserviceCommitteeMeeting
+from mks.utils import get_all_mk_names
+from simple.scrapers import hebrew_strftime
+from simple.scrapers.management import BaseKnessetDataserviceCommand
+
+ERR_MSG = 'failed to get meetings for committee {}'
+
+ERR_MSG_REPORT = 'Unexpected exception received while trying to get meetings of committee {}: {}'
+
+_ds_to_app_key_mapping = (
+    ('date_string', 'datetime'),
+    ('date', 'datetime'),
+    ('topics', 'title'),
+    ('datetime', 'datetime'),
+    ('knesset_id', 'id'),
+    ('src_url', 'url')
+)
+
+_conversions = {
+    'date_string': partial(hebrew_strftime, fmt=u'%d/%m/%Y')
+}
+
+
+def translate_ds_to_model(ds_meeting):
+    for model_key, ds_key in _ds_to_app_key_mapping:
+        val = getattr(ds_meeting, ds_key)
+        if model_key in _conversions:
+            val = _conversions[model_key](val)
+        yield model_key, val
 
 
 class Command(BaseKnessetDataserviceCommand):
-
-    DATASERVICE_CLASS = DataserviceCommitteeMeeting
+    help = "Scrape latest committee meetings data from the knesset"
 
     option_list = BaseKnessetDataserviceCommand.option_list + (
-        make_option('--from_days', dest='fromdays', default='5', help="scrape meetings with dates from today minus X days"),
-        make_option('--to_days', dest='todays', default='0', help="scrape meetings with dates until today minut X days"),
+        make_option('--from_days', dest='fromdays', default=5, type=int,
+                    help="scrape meetings with dates from today minus X days"),
+        make_option('--to_days', dest='todays', default=0, type=int,
+                    help="scrape meetings with dates until today minus X days"),
     )
 
-    help = "Scrape latest votes data from the knesset"
+    @staticmethod
+    def _reparse_protocol(meeting):
+        mks, mk_names = get_all_mk_names()
+        meeting.reparse_protocol(mks=mks, mk_names=mk_names)
 
-    def _has_existing_object(self, dataservice_meeting):
-        has_meeting = False
-        qs = CommitteeMeeting.objects.filter(knesset_id=dataservice_meeting.id, committee__knesset_id=dataservice_meeting.committee_id)
-        if qs.count() > 0:
-            has_meeting = True
-        else:
-            # couldn't find meeting by id, let's try by date
-            # if we find meetings for the same committee on same date - we assume meeting already exists
-            # this case is mostly for old meetings that we don't have their knesset id - so we want to prevent duplicate meetings
-            qs = CommitteeMeeting.objects.filter(date=dataservice_meeting.datetime, committee__knesset_id=dataservice_meeting.committee_id)
-            if qs.count() > 0:
-                has_meeting = True
-        return has_meeting
+    def _create_object(self, dataservice_meeting, committee):
+        meeting_transformed = dict(translate_ds_to_model(dataservice_meeting))
 
-    def _create_new_object(self, dataservice_meeting):
-        meeting = CommitteeMeeting.objects.create(
-            committee=get_committee(dataservice_meeting.committee_id),
-            date_string=hebrew_strftime(dataservice_meeting.datetime, u'%d/%m/%Y'),
-            date=dataservice_meeting.datetime,
-            topics=dataservice_meeting.title,
-            datetime=dataservice_meeting.datetime,
-            knesset_id=dataservice_meeting.id,
-            src_url=dataservice_meeting.url,
-        )
-        meeting.reparse_protocol(mks=self.mks, mk_names=self.mk_names)
+        meeting = CommitteeMeeting.objects.create(committee=committee, **meeting_transformed)
+        self._reparse_protocol(meeting)
         return meeting
 
-    def __init__(self):
-        super(Command, self).__init__()
-        self.mks, self.mk_names = get_all_mk_names()
+    def _has_existing_object(self, ds_meeting):
+        # if we find meetings for the same committee on same date - we assume meeting already exists
+        # this case is mostly for old meetings that we don't have their knesset id - so we want to
+        # prevent duplicate meetings
+        qs = CommitteeMeeting.objects.filter(
+            Q(knesset_id=ds_meeting.id) | Q(date=ds_meeting.datetime),
+            committee__knesset_id=ds_meeting.committee_id
+        )
+        return bool(qs)
 
-    def _get_committee_knesset_ids(self):
-        return [c.id for c in DataserviceCommittee.get_all_active_committees()]
+    def _update_meetings(self, committee, ds_meeting):
+        if not ds_meeting.url:
+            self._log_debug(u'Meeting {} lacks URL'.format(ds_meeting.id))
+            return
+        if self._has_existing_object(ds_meeting):
+            self._log_debug(u'Meeting {} exists in DB'.format(ds_meeting.id))
+            return
+
+        self._log_debug(u'Creating meeting {}'.format(ds_meeting.id))
+        self._create_object(ds_meeting, committee)
+
+    def _get_meetings(self, committee_id, from_date, to_date):
+        try:
+            meetings = DataserviceCommitteeMeeting.get(committee_id, from_date, to_date)
+            return meetings
+        except Exception as e:
+            err_msg = ERR_MSG.format(committee_id)
+            err_msg_report = ERR_MSG_REPORT.format(committee_id, str(e))
+            DataserviceCommitteeMeeting.error_report(err_msg, err_msg_report)
+            self._log_error(err_msg)
+
+        return []
+
+    @staticmethod
+    def _extract_cmd_args(from_days, to_days):
+        from_date = now() - timedelta(days=from_days)
+        to_date = now() - timedelta(days=to_days) if to_days else now()
+        return from_date, to_date
 
     def _handle_noargs(self, **options):
-        from_date = now()-timedelta(days=int(options['fromdays']))
-        to_date = now()-timedelta(days=int(options['todays'])) if int(options['todays']) > 0 else now()
-        self._log_info('scraping from %s to %s'%(from_date, to_date))
-        for committee_src_id in self._get_committee_knesset_ids():
-            self._log_info('processing committee id %s'%committee_src_id)
-            meetings = []
-            try:
-                meetings = DataserviceCommitteeMeeting.get(committee_src_id, from_date, to_date)
-            except Exception, e:
-                DataserviceCommitteeMeeting.error_report(
-                    "failed to get meetings for committee %s"%committee_src_id,
-                    "Unexpected exception received while trying to get meetings of committee %s: %s"%(committee_src_id, str(e))
-                )
-                self._log_error('failed to get meetings for committee %s'%committee_src_id)
-            for dataservice_meeting in meetings:
-                if dataservice_meeting.url and not self._has_existing_object(dataservice_meeting):
-                    self._log_debug('creating meeting %s'%dataservice_meeting.id)
-                    meeting = self._create_new_object(dataservice_meeting)
-                    self._log_debug('created meeting %s - %s'%(meeting.pk, meeting))
+        from_date, to_date = self._extract_cmd_args(options['fromdays'], options['todays'])
+        self._log_info('Scraping from {} to {}'.format(from_date, to_date))
+
+        # filter is used to discard plenum and invalid knesset_id's
+        for committee in Committee.objects.filter(knesset_id__gt=0):
+            c_name, c_knesset_id = committee.name, committee.knesset_id
+
+            self._log_info(u'Processing {} committee (knesset ID {})'.format(c_name, c_knesset_id))
+            for ds_meeting in self._get_meetings(c_knesset_id, from_date, to_date):
+                self._update_meetings(committee, ds_meeting)
