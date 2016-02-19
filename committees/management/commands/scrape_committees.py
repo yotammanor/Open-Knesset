@@ -4,7 +4,7 @@ from committees.models import Committee
 from knesset_data.dataservice.committees import Committee as DataserviceCommittee
 from simple.scrapers.management import BaseKnessetDataserviceCommand
 
-_ds_to_app_key_mapping = (
+_DS_TO_APP_KEY_MAPPING = (
     ('name', 'name'),
     ('knesset_id', 'id'),
     ('knesset_type_id', 'type_id'),
@@ -22,12 +22,10 @@ _ds_to_app_key_mapping = (
 )
 
 
-def _translate_ds_to_model_keys(ds_committee):
-    return {model_key: getattr(ds_committee, ds_key) for model_key, ds_key in
-            _ds_to_app_key_mapping}
-
-
 class Command(BaseKnessetDataserviceCommand):
+    help = "Fetch the all the committees information from the knesset and update existing"
+    _DS_TO_APP_KEY_MAPPING = _DS_TO_APP_KEY_MAPPING
+
     def _update_or_create(self, fetched_committee):
         """
         If the committee exist merge, and update else create a new entry
@@ -45,7 +43,7 @@ class Command(BaseKnessetDataserviceCommand):
 
     def _update_active_committees(self):
         for ds_committee in DataserviceCommittee.get_all_active_committees():
-            committee = _translate_ds_to_model_keys(ds_committee)
+            committee = dict(self._translate_ds_to_model(ds_committee))
             self._update_or_create(committee)
 
     def _handle_noargs(self, **options):

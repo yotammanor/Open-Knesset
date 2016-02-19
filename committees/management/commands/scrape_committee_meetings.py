@@ -15,7 +15,7 @@ ERR_MSG = 'failed to get meetings for committee {}'
 
 ERR_MSG_REPORT = 'Unexpected exception received while trying to get meetings of committee {}: {}'
 
-_ds_to_app_key_mapping = (
+_DS_TO_APP_KEY_MAPPING = (
     ('date_string', 'datetime'),
     ('date', 'datetime'),
     ('topics', 'title'),
@@ -24,21 +24,16 @@ _ds_to_app_key_mapping = (
     ('src_url', 'url')
 )
 
-_conversions = {
+_DS_CONVERSIONS = {
     'date_string': partial(hebrew_strftime, fmt=u'%d/%m/%Y')
 }
 
 
-def translate_ds_to_model(ds_meeting):
-    for model_key, ds_key in _ds_to_app_key_mapping:
-        val = getattr(ds_meeting, ds_key)
-        if model_key in _conversions:
-            val = _conversions[model_key](val)
-        yield model_key, val
-
-
 class Command(BaseKnessetDataserviceCommand):
     help = "Scrape latest committee meetings data from the knesset"
+
+    _DS_TO_APP_KEY_MAPPING = _DS_TO_APP_KEY_MAPPING
+    _DS_CONVERSIONS = _DS_CONVERSIONS
 
     option_list = BaseKnessetDataserviceCommand.option_list + (
         make_option('--from_days', dest='fromdays', default=5, type=int,
@@ -53,7 +48,7 @@ class Command(BaseKnessetDataserviceCommand):
         meeting.reparse_protocol(mks=mks, mk_names=mk_names)
 
     def _create_object(self, dataservice_meeting, committee):
-        meeting_transformed = dict(translate_ds_to_model(dataservice_meeting))
+        meeting_transformed = dict(self._translate_ds_to_model(dataservice_meeting))
 
         meeting = CommitteeMeeting.objects.create(committee=committee, **meeting_transformed)
         self._reparse_protocol(meeting)
