@@ -69,3 +69,5 @@ Run the following on the production DB instance:
 * (oknesset) Open-Knesset$ zip dev.db.zip dev.db
 * (oknesset) Open-Knesset$ s3put --access_key AWS_ACCESS --secret_key AWS_SECRET --bucket oknesset-devdb dev.db.zip
 * (oknesset) Open-Knesset$ rm dev.db dev.db.bz2 dev.db.zip
+
+After the above is done, you may need to log-in to S3 and make the files public (right-click each file and choose "make public")
