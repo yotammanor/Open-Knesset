@@ -68,3 +68,4 @@ Run the following on the production DB instance:
 * (oknesset) Open-Knesset$ s3put --access_key AWS_ACCESS --secret_key AWS_SECRET --bucket oknesset-devdb dev.db.bz2
 * (oknesset) Open-Knesset$ zip dev.db.zip dev.db
 * (oknesset) Open-Knesset$ s3put --access_key AWS_ACCESS --secret_key AWS_SECRET --bucket oknesset-devdb dev.db.zip
+* (oknesset) Open-Knesset$ rm dev.db dev.db.bz2 dev.db.zip
