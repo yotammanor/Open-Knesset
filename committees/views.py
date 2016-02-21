@@ -258,7 +258,7 @@ class TopicDetailView(DetailView):
         context = super(TopicDetailView, self).get_context_data(**kwargs)
         topic = context['object']
         if self.request.user.is_authenticated():
-            p = self.request.user.get_profile()
+            p = self.request.user.profiles.get()
             watched = topic in p.topics
         else:
             watched = False

@@ -79,7 +79,7 @@ class BaseTagMemberListView(ListView):
 
         user = self.request.user
         if user.is_authenticated():
-            context['watched_members'] = user.get_profile().members
+            context['watched_members'] = user.profiles.get().members
         else:
             context['watched_members'] = False
 

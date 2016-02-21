@@ -392,7 +392,7 @@ class BillDetailView(DetailView):
         if bill.popular_name:
             context["keywords"] = bill.popular_name
         if self.request.user.is_authenticated():
-            userprofile = self.request.user.get_profile()
+            userprofile = self.request.user.profiles.get()
             context['watched'] = bill in userprofile.bills
         else:
             context['watched'] = False
