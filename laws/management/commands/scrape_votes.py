@@ -118,9 +118,13 @@ class Command(BaseKnessetDataserviceCollectionCommand):
         # check the basic metadata
         qs = Vote.objects.filter(src_id=dataservice_vote.id)
         if qs.count() != 1:
-            error = 'could not find corresponding vote in DB (qs.count=%s)'%(qs.count(),)
-            self._log_warn(error)
-            csv_writer.writerow([dataservice_vote.id, '', error.encode('utf-8')])
+            if fix:
+                self._log_info('could not find corresponding vote in DB, creating it now')
+                self._create_new_object(dataservice_vote)
+            else:
+                error = 'could not find corresponding vote in DB (qs.count=%s)'%(qs.count(),)
+                self._log_warn(error)
+                csv_writer.writerow([dataservice_vote.id, '', error.encode('utf-8')])
         else:
             oknesset_vote = qs.first()
             for attr_name, expected_value in self._get_dataservice_model_kwargs(dataservice_vote).iteritems():
@@ -158,11 +162,14 @@ class Command(BaseKnessetDataserviceCollectionCommand):
             self._log_info('downloading page %s'%page)
             votes = DataserviceVote.get_page(order_by=('id', 'asc'), page_num=page)
             self._log_info('downloaded %s votes'%len(votes))
-            self._log_info('  first vote date: %s'%votes[0].datetime)
-            for vote in votes:
-                if not skip_to_vote_id or int(vote.id) >= int(skip_to_vote_id):
-                    self._log_info('validating vote %s'%vote.id)
-                    self._validate_vote(vote, writer, fix=try_to_fix)
+            if len(votes) < 1:
+                self._log_warn('no votes in the page')
+            else:
+                self._log_info('  first vote date: %s'%votes[0].datetime)
+                for vote in votes:
+                    if not skip_to_vote_id or int(vote.id) >= int(skip_to_vote_id):
+                        self._log_info('validating vote %s'%vote.id)
+                        self._validate_vote(vote, writer, fix=try_to_fix)
 
     def _handle_noargs(self, **options):
         if options.get('createvotesrcid'):
