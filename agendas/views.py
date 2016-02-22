@@ -30,7 +30,6 @@ logger = logging.getLogger("open-knesset.agendas.views")
 
 
 class AgendaListView(ListView):
-
     def get_queryset(self):
         if not self.request.user.is_authenticated():
             return Agenda.objects.get_relevant_for_user(user=None)
@@ -42,7 +41,7 @@ class AgendaListView(ListView):
         # optimization - create query for votes per agenda
         # store in context as dictionary votes[agendaid]=<votenum>
         agenda_votes_results = Agenda.objects.values("id").annotate(Count("votes"))
-        agenda_votes = dict(map(lambda vote:(vote["id"],str(vote["votes__count"])),agenda_votes_results))
+        agenda_votes = dict(map(lambda vote: (vote["id"], str(vote["votes__count"])), agenda_votes_results))
         parties_lookup = {party.id: party.name for
                           party in Party.current_knesset.all()}
 
@@ -68,16 +67,15 @@ class AgendaListView(ListView):
         allEditorIds = list(set(chain.from_iterable(agendaEditorIds.values())))
         editors = User.objects.filter(id__in=allEditorIds)
         context['agenda_editors'] = agendaEditorIds
-        context['editors'] = dict(map(lambda obj:(obj.id,obj),editors))
+        context['editors'] = dict(map(lambda obj: (obj.id, obj), editors))
         context['watched'] = watched
-        context['agenda_votes']=agenda_votes
-        context['agenda_party_values']=allAgendaPartyVotes
-        context['parties_lookup']=parties_lookup
+        context['agenda_votes'] = agenda_votes
+        context['agenda_party_values'] = allAgendaPartyVotes
+        context['parties_lookup'] = parties_lookup
         return context
 
 
 class AgendaDetailView(DetailView):
-
     model = Agenda
 
     INITIAL = 4
@@ -127,15 +125,18 @@ class AgendaDetailView(DetailView):
         context['agenda_mk_values'] = dict(mks_values)
         cmp_rank = lambda x, y: x[1]['rank'] - y[1]['rank']
         if all_mks:
-            context['all_mks_ids'] = map(itemgetter(0),mks_values[:200])
+            context['all_mks_ids'] = map(lambda x: x[0], mks_values[:200])
             context['all_mks'] = True
         else:
-            context['mks_top'] = map(itemgetter(0),mks_values[:5])
-            context['mks_bottom'] = map(itemgetter(0),mks_values[-5:])
+            active_mks_value = filter(lambda x: x[1]['score'] != 0, mks_values)
+            context['mks_top'] = map(lambda x: x[0], active_mks_value[:5])
+            context['mks_bottom'] = map(lambda x: x[0], active_mks_value[-5:])
 
         allAgendaPartyVotes = agenda.get_all_party_values()
-        context['agenda_party_values']=dict(map(lambda x:(x[0],x[1]),allAgendaPartyVotes.setdefault(agenda.id,[])))
-        context['agendaTopParties']=map(itemgetter(0),sorted(allAgendaPartyVotes[agenda.id],key=itemgetter(1),reverse=True)[:20])
+        context['agenda_party_values'] = dict(
+            map(lambda x: (x[0], x[1]), allAgendaPartyVotes.setdefault(agenda.id, [])))
+        context['agendaTopParties'] = map(itemgetter(0),
+                                          sorted(allAgendaPartyVotes[agenda.id], key=itemgetter(1), reverse=True)[:20])
 
         agenda_votes = cache.get('agenda_votes_%d' % agenda.id)
 
@@ -164,17 +165,16 @@ class AgendaDetailView(DetailView):
         # Optimization: get all parties and members before rendering
         # Further possible optimization: only bring parties/members needed for rendering
         parties_objects = Party.objects.all()
-        partiesDict = dict(map(lambda party:(party.id,party),parties_objects))
-        context['parties']=partiesDict
+        partiesDict = dict(map(lambda party: (party.id, party), parties_objects))
+        context['parties'] = partiesDict
 
         member_objects = Member.objects.all()
-        membersDict = dict(map(lambda mk:(mk.id,mk),member_objects))
-        context['members']=membersDict
+        membersDict = dict(map(lambda mk: (mk.id, mk), member_objects))
+        context['members'] = membersDict
         return context
 
 
 class AgendaVotesMoreView(GetMoreView):
-
     paginate_by = 10
     template_name = 'agendas/agenda_vote_partial.html'
 
@@ -202,7 +202,6 @@ class AgendaVotesMoreView(GetMoreView):
 
 
 class AgendaBillsMoreView(GetMoreView):
-
     paginate_by = 10
     template_name = 'agendas/agenda_bill_partial.html'
 
@@ -212,7 +211,6 @@ class AgendaBillsMoreView(GetMoreView):
 
 
 class AgendaMeetingsMoreView(GetMoreView):
-
     paginate_by = 10
     template_name = 'agendas/agenda_meeting_partial.html'
 
@@ -221,7 +219,7 @@ class AgendaMeetingsMoreView(GetMoreView):
         return agenda.agendameetings.all()
 
 
-class AgendaVoteDetailView (DetailView):
+class AgendaVoteDetailView(DetailView):
     model = AgendaVote
     template_name = 'agendas/agenda_vote_detail.html'
 
@@ -232,50 +230,53 @@ class AgendaVoteDetailView (DetailView):
         agenda = agendavote.agenda
         try:
             context['title'] = _("Comments on agenda %(agenda)s vote %(vote)s") % {
-                  'vote':vote.title,
-                  'agenda':agenda.name}
+                'vote': vote.title,
+                'agenda': agenda.name}
         except AttributeError:
             context['title'] = _('None')
-            logger.error('Attribute error trying to generate title for agenda %d vote %d' % (agenda.id,vote.id))
+            logger.error('Attribute error trying to generate title for agenda %d vote %d' % (agenda.id, vote.id))
         return context
 
-class AgendaMeetingDetailView (DetailView):
+
+class AgendaMeetingDetailView(DetailView):
     model = AgendaMeeting
     template_name = 'agendas/agenda_meeting_detail.html'
 
     def get_context_data(self, *args, **kwargs):
-        context = super(AgendaMeetingDetailView , self).get_context_data(*args, **kwargs)
+        context = super(AgendaMeetingDetailView, self).get_context_data(*args, **kwargs)
         agendameeting = context['object']
         meeting = agendameeting.meeting
         agenda = agendameeting.agenda
         try:
             context['title'] = _("Comments on agenda %(agenda)s meeting %(meeting)s") % {
-                  'meeting':meeting,
-                  'agenda':agenda.name}
+                'meeting': meeting,
+                'agenda': agenda.name}
         except AttributeError:
             context['title'] = _('None')
-            logger.error('Attribute error trying to generate title for agenda %d meeting %d' % (agenda.id,meeting.id))
+            logger.error('Attribute error trying to generate title for agenda %d meeting %d' % (agenda.id, meeting.id))
         return context
 
-class AgendaBillDetailView (DetailView):
+
+class AgendaBillDetailView(DetailView):
     model = AgendaBill
     template_name = 'agendas/agenda_bill_detail.html'
 
     def get_context_data(self, *args, **kwargs):
-        context = super(AgendaBillDetailView , self).get_context_data(*args, **kwargs)
+        context = super(AgendaBillDetailView, self).get_context_data(*args, **kwargs)
         agendabill = context['object']
         bill = agendabill.bill
         agenda = agendabill.agenda
         try:
             context['title'] = _("Comments on agenda %(agenda)s bill %(bill)s") % {
-                  'bill':bill.full_title,
-                  'agenda':agenda.name}
+                'bill': bill.full_title,
+                'agenda': agenda.name}
         except AttributeError:
             context['title'] = _('None')
-            logger.error('Attribute error trying to generate title for agenda %d bill %d' % (agenda.id,bill.id))
+            logger.error('Attribute error trying to generate title for agenda %d bill %d' % (agenda.id, bill.id))
         return context
 
-class AgendaMkDetailView (DetailView):
+
+class AgendaMkDetailView(DetailView):
     model = Agenda
     template_name = 'agendas/mk_agenda_detail.html'
 
@@ -284,16 +285,18 @@ class AgendaMkDetailView (DetailView):
         agenda = context['object']
         context['agenda_url'] = agenda.get_absolute_url()
         context['agenda_name'] = agenda.name
-        member =  Member.objects.get(pk=context['member_id'])
+        member = Member.objects.get(pk=context['member_id'])
         context['member'] = member
         context['member_url'] = member.get_absolute_url()
         context['score'] = agenda.member_score(member)
 
         try:
-            context['title'] = _("Analysis of %(member)s votes by agenda %(agenda)s") % {'member':member.name, 'agenda':agenda.name}
+            context['title'] = _("Analysis of %(member)s votes by agenda %(agenda)s") % {'member': member.name,
+                                                                                         'agenda': agenda.name}
         except AttributeError:
             context['title'] = _('None')
-            logger.error('Attribute error trying to generate title for agenda %d member %d' % (self.object_id,self.member_id))
+            logger.error(
+                'Attribute error trying to generate title for agenda %d member %d' % (self.object_id, self.member_id))
 
         related_mk_votes = agenda.related_mk_votes(member)
 
@@ -308,12 +311,13 @@ class AgendaMkDetailView (DetailView):
 
         return context
 
-class AgendaDetailEditView (DetailView):
+
+class AgendaDetailEditView(DetailView):
     model = Agenda
     template_name = 'agendas/agenda_detail_edit.html'
 
     def get(self, request, *args, **kwargs):
-        object_id = kwargs.get('pk' , kwargs.get('object_id', None))
+        object_id = kwargs.get('pk', kwargs.get('object_id', None))
         agenda = get_object_or_404(Agenda, pk=object_id)
         if request.user in agenda.editors.all():
             return super(AgendaDetailEditView, self).get(request, *args, **kwargs)
@@ -323,24 +327,24 @@ class AgendaDetailEditView (DetailView):
     def get_context_data(self, *args, **kwargs):
         context = super(AgendaDetailEditView, self).get_context_data(*args, **kwargs)
         agenda = context['object']
-        form = getattr (self, 'form', None)
+        form = getattr(self, 'form', None)
         if form is None:
             form = EditAgendaForm(agenda=agenda if self.request.method == 'GET' else None)
         context['form'] = form
         return context
 
     def post(self, request, *args, **kwargs):
-        object_id = kwargs.get('pk' , kwargs.get('object_id', None))
+        object_id = kwargs.get('pk', kwargs.get('object_id', None))
         agenda = get_object_or_404(Agenda, pk=object_id)
         if request.user not in agenda.editors.all():
             return HttpResponseForbidden()
         form = EditAgendaForm(data=self.request.POST)
-        if form.is_valid(): # All validation rules pass
+        if form.is_valid():  # All validation rules pass
             agenda.name = form.cleaned_data['name']
             agenda.public_owner_name = form.cleaned_data['public_owner_name']
             agenda.description = form.cleaned_data['description']
             agenda.save()
-#            return HttpResponseRedirect(reverse('agenda-detail',kwargs={'object_id':agenda.id}))
+            #            return HttpResponseRedirect(reverse('agenda-detail',kwargs={'object_id':agenda.id}))
             return HttpResponseRedirect(agenda.get_absolute_url())
         else:
             self.form = form
@@ -364,29 +368,30 @@ def agenda_add_view(request):
             agenda.description = form.cleaned_data['description']
             agenda.save()
             agenda.editors.add(request.user)
-            return HttpResponseRedirect(agenda.get_absolute_url()) # Redirect after POST
+            return HttpResponseRedirect(agenda.get_absolute_url())  # Redirect after POST
     else:
         initial_data = {'public_owner_name': request.user.username}
-        form = AddAgendaForm(initial=initial_data) # An unbound form with initial data
+        form = AddAgendaForm(initial=initial_data)  # An unbound form with initial data
 
     return render_to_response(template_name, {'form': form}, context_instance=RequestContext(request))
 
 
 # used for redirection after an object has been added to the agenda
-object_redirect = {'vote':('vote-detail','vote-list'),
-                   'bill':('bill-detail','bill-list'),
-                   'committeemeeting':('committee-meeting','committee-list'),
-                  }
-object_formset_classes = {'vote':VoteLinkingFormSet,
-                          'bill':VoteLinkingFormSet,
-                          'committeemeeting':MeetingLinkingFormSet,
-                         }
+object_redirect = {'vote': ('vote-detail', 'vote-list'),
+                   'bill': ('bill-detail', 'bill-list'),
+                   'committeemeeting': ('committee-meeting', 'committee-list'),
+                   }
+object_formset_classes = {'vote': VoteLinkingFormSet,
+                          'bill': VoteLinkingFormSet,
+                          'committeemeeting': MeetingLinkingFormSet,
+                          }
+
 
 @login_required
 def update_editors_agendas(request):
     if request.method == 'POST':
-        object_type = request.POST.get('form-0-object_type',None)
-        object_id = request.POST.get('form-0-obj_id',None)
+        object_type = request.POST.get('form-0-object_type', None)
+        object_id = request.POST.get('form-0-obj_id', None)
         vl_formset = object_formset_classes[object_type](request.POST)
         if vl_formset.is_valid():
             for a in vl_formset.cleaned_data:
@@ -405,86 +410,86 @@ def update_editors_agendas(request):
                             try:
                                 object_id = a['obj_id']
                                 av = AgendaVote.objects.get(
-                                       agenda__id=a['agenda_id'],
-                                       vote__id = a['obj_id'])
+                                    agenda__id=a['agenda_id'],
+                                    vote__id=a['obj_id'])
                                 av.delete()
                             except AgendaVote.DoesNotExist:
                                 pass
-                        else: # not delete, so try to create
+                        else:  # not delete, so try to create
                             if (a['weight'] is not '' and
-                                a['importance'] is not ''):
+                                        a['importance'] is not ''):
                                 try:
                                     object_id = a['obj_id']
                                     av = AgendaVote.objects.get(
-                                           agenda__id=a['agenda_id'],
-                                           vote__id = a['obj_id'])
+                                        agenda__id=a['agenda_id'],
+                                        vote__id=a['obj_id'])
                                     av.score = a['weight']
                                     av.importance = a['importance']
                                     av.reasoning = a['reasoning']
                                     av.save()
                                 except AgendaVote.DoesNotExist:
                                     av = AgendaVote(
-                                           agenda_id=int(a['agenda_id']),
-                                           vote_id=int(a['obj_id']),
-                                           score = a['weight'],
-                                           importance = a['importance'],
-                                           reasoning = a['reasoning'])
+                                        agenda_id=int(a['agenda_id']),
+                                        vote_id=int(a['obj_id']),
+                                        score=a['weight'],
+                                        importance=a['importance'],
+                                        reasoning=a['reasoning'])
                                     av.save()
                     if a['object_type'] == 'bill':
                         if a['DELETE']:
                             try:
                                 object_id = a['obj_id']
                                 av = AgendaBill.objects.get(
-                                       agenda__id=a['agenda_id'],
-                                       bill__id = a['obj_id'])
+                                    agenda__id=a['agenda_id'],
+                                    bill__id=a['obj_id'])
                                 av.delete()
                             except AgendaBill.DoesNotExist:
                                 pass
-                        else: # not delete, so try to create
+                        else:  # not delete, so try to create
                             if (a['weight'] is not '' and
-                                a['importance'] is not ''):
+                                        a['importance'] is not ''):
                                 try:
                                     object_id = a['obj_id']
                                     av = AgendaBill.objects.get(
-                                           agenda__id=a['agenda_id'],
-                                           bill__id = a['obj_id'])
+                                        agenda__id=a['agenda_id'],
+                                        bill__id=a['obj_id'])
                                     av.score = a['weight']
                                     av.importance = a['importance']
                                     av.reasoning = a['reasoning']
                                     av.save()
                                 except AgendaBill.DoesNotExist:
                                     av = AgendaBill(
-                                           agenda_id=int(a['agenda_id']),
-                                           bill_id=int(a['obj_id']),
-                                           score = a['weight'],
-                                           importance = a['importance'],
-                                           reasoning = a['reasoning'])
+                                        agenda_id=int(a['agenda_id']),
+                                        bill_id=int(a['obj_id']),
+                                        score=a['weight'],
+                                        importance=a['importance'],
+                                        reasoning=a['reasoning'])
                                     av.save()
                     if a['object_type'] == 'committeemeeting':
                         if a['DELETE']:
                             try:
                                 object_id = a['obj_id']
                                 av = AgendaMeeting.objects.get(
-                                       agenda__id=a['agenda_id'],
-                                       meeting__id = a['obj_id'])
+                                    agenda__id=a['agenda_id'],
+                                    meeting__id=a['obj_id'])
                                 av.delete()
                             except AgendaMeeting.DoesNotExist:
                                 pass
-                        else: # not delete, so try to create
+                        else:  # not delete, so try to create
                             try:
                                 object_id = a['obj_id']
                                 av = AgendaMeeting.objects.get(
-                                       agenda__id=a['agenda_id'],
-                                       meeting__id = a['obj_id'])
+                                    agenda__id=a['agenda_id'],
+                                    meeting__id=a['obj_id'])
                                 av.score = a['weight']
                                 av.reasoning = a['reasoning']
                                 av.save()
                             except AgendaMeeting.DoesNotExist:
                                 av = AgendaMeeting(
-                                       agenda_id=int(a['agenda_id']),
-                                       meeting_id=int(a['obj_id']),
-                                       score = a['weight'],
-                                       reasoning = a['reasoning'])
+                                    agenda_id=int(a['agenda_id']),
+                                    meeting_id=int(a['obj_id']),
+                                    score=a['weight'],
+                                    reasoning=a['reasoning'])
                                 av.save()
                 else:
                     logger.info("invalid form")
@@ -494,11 +499,11 @@ def update_editors_agendas(request):
             logger.info("invalid formset")
             logger.info("%s" % vl_formset.errors)
         if object_type in object_redirect:
-            if object_id: # return to object page
+            if object_id:  # return to object page
                 return HttpResponseRedirect(
-                        reverse(object_redirect[object_type][0],
-                                kwargs={'pk':object_id}))
-            else: # return to list
+                    reverse(object_redirect[object_type][0],
+                            kwargs={'pk': object_id}))
+            else:  # return to list
                 return HttpResponseRedirect(reverse(object_redirect[object_type][1]))
         else:
             logger.warn('unknown object_type')
