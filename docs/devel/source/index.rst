@@ -53,6 +53,7 @@ Contents:
     browsertests
     scraping/index
     devops
+    project_management
 
 Indices and tables
 ==================
