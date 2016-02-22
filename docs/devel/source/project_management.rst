@@ -10,6 +10,8 @@ Pull Request Code Review
 
 All code contributions are sent using a GitHub Pull Request, for example: https://github.com/hasadna/Open-Knesset/pull/556
 
+When you start reviewing a pull request, assign it to yourself so that we won't have 2 people reviewing the same code together.
+
 You should review both the code, but also the change itself, make sure it fits Open Knesset and our needs.
 
 If in doubt, raise the issue on the forum or in slack.
