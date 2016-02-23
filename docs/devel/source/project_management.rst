@@ -2,9 +2,6 @@
 Project Management
 ==================
 
-Reviewing and Merging Pull Requests
-===================================
-
 Pull Request Code Review
 ------------------------
 
@@ -36,3 +33,8 @@ Look at a few previous releases to see what's written in the release notes, and 
 Generally, release notes are meant for non technical people as well, so you should write a few words about the
 changes that were introduced. Also, you can write deployment notes if any special actions should be performed
 before or after the deployment.
+
+Deploying a release
+-------------------
+
+Once you have some pull requests merged you might want to deploy the release. The release should be published before deployment (click "Publish" button in GitHub edit release page). This allows us to know which version was deployed. For technical details about how to deploy see the DevOps documentation.
