@@ -5,10 +5,12 @@ from views import (
     MeetingsListView, MeetingDetailView, MeetingTagListView,
     CommitteeListView, CommitteeDetailView, TopicListView, TopicsMoreView,
     TopicDetailView, delete_topic, delete_topic_rating, meeting_list_by_date,
-    edit_topic, CommitteeMMMDocuments)
+    edit_topic, CommitteeMMMDocuments, UnpublishedProtocolslistView, FutureMeetingslistView)
 
 
 meetings_list = MeetingsListView.as_view()
+unpublished_protocols_list = UnpublishedProtocolslistView.as_view()
+future_meetings_list = FutureMeetingslistView.as_view()
 
 committeesurlpatterns = patterns('',
     url(r'^committee/$', CommitteeListView.as_view(), name='committee-list'),
@@ -16,6 +18,8 @@ committeesurlpatterns = patterns('',
     url(r'^committee/(?P<pk>\d+)/$', CommitteeDetailView.as_view(), name='committee-detail'),
     url(r'^committee/all_meetings/$', meetings_list, name='committee-all-meetings'),
     url(r'^committee/(?P<committee_id>\d+)/all_meetings/$', meetings_list, name='committee-all-meetings'),
+    url(r'^committee/(?P<committee_id>\d+)/all_unpublished_protocols/$', unpublished_protocols_list, name='committee-all-unpublished-protocols'),
+    url(r'^committee/(?P<committee_id>\d+)/all_future_meetings/$', future_meetings_list, name='committee-all-future-meetings'),
     url(r'^committee/date/(?P<date>[\d\-]+)/$', meeting_list_by_date, name='committee-meetings-by-date'),
     url(r'^committee/(?P<committee_id>\d+)/date/(?P<date>[\d\-]+)/$', meeting_list_by_date, name='committee-meetings-by-date'),
     url(r'^committee/(?P<committee_id>\d+)/date/$', meeting_list_by_date, name='committee-meetings-by-date'),

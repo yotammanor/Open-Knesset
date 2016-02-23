@@ -70,7 +70,7 @@ class CommitteeDetailView(DetailView):
     model = Committee
 
     def get_context_data(self, *args, **kwargs):
-        context = super(CommitteeDetailView, self).get_context_data(*args, **kwargs)
+        context = super(CommitteeDetailView, self).get_context_data(**kwargs)
         cm = context['object']
         cm.sorted_mmm_documents = cm.mmm_documents.order_by('-publication_date')[:10]
         cached_context = cache.get('committee_detail_%d' % cm.id, {})
@@ -78,15 +78,13 @@ class CommitteeDetailView(DetailView):
             cached_context['chairpersons'] = cm.chairpersons.all()
             cached_context['replacements'] = cm.replacements.all()
             cached_context['members'] = cm.members_by_presence()
-            recent_meetings = cm.recent_meetings()
+            recent_meetings = cm.recent_meetings(limit=10)
             cached_context['meetings_list'] = recent_meetings
-            ref_date = recent_meetings[0].date + datetime.timedelta(1) \
-                if recent_meetings.count() > 0 \
-                else datetime.datetime.now()
-            cached_context['future_meetings_list'] = cm.future_meetings()
+
+            cached_context['future_meetings_list'] = cm.future_meetings(limit=10)
             cur_date = datetime.datetime.now()
             cached_context['protocol_not_yet_published_list'] = \
-                cm.events.filter(when__gt=ref_date, when__lte=cur_date)
+                cm.protocol_not_yet_published_meetings(end_date=cur_date, limit=10)
             # cache.set('committee_detail_%d' % cm.id, cached_context,
             #           settings.LONG_CACHE_TIME)
         context.update(cached_context)
@@ -370,6 +368,78 @@ class MeetingsListView(ListView):
         qs = CommitteeMeeting.objects.filter_and_order(**dict(self.request.GET))
         if c_id:
             qs = qs.filter(committee__id=c_id)
+        return qs
+
+
+class UnpublishedProtocolslistView(ListView):
+    allow_empty = False
+    paginate_by = 20
+    template_name = 'committees/committee_full_events_list.html'
+
+    def get_context_data(self, *args, **kwargs):
+        context = super(UnpublishedProtocolslistView, self).get_context_data(**kwargs)
+        committee_id = self.kwargs.get('committee_id')
+        if committee_id:
+            # items = context['object_list']
+            committee = Committee.objects.get(pk=committee_id)
+
+            if committee.type == 'plenum':
+                committee_name = _('Knesset Plenum')
+            else:
+                committee_name = committee.name
+            context['title'] = _('All unpublished protocols by %(committee)s') % {
+                'committee': committee_name}
+            context['committee'] = committee
+        else:
+            raise Http404('missing committee_id')
+
+        context['committee_id'] = committee_id
+
+        context['none'] = _('No %(object_type)s found') % {
+            'object_type': CommitteeMeeting._meta.verbose_name_plural}
+
+        return context
+
+    def get_queryset(self):
+        committee_id = self.kwargs.get('committee_id')
+        committee = Committee.objects.get(pk=committee_id)
+        end_date = datetime.datetime.now()
+        qs = committee.protocol_not_yet_published_meetings(end_date=end_date, do_limit=False)
+        return qs
+
+
+class FutureMeetingslistView(ListView):
+    allow_empty = False
+    paginate_by = 20
+    template_name = 'committees/committee_full_events_list.html'
+
+    def get_context_data(self, *args, **kwargs):
+        context = super(FutureMeetingslistView, self).get_context_data(**kwargs)
+        committee_id = self.kwargs.get('committee_id')
+        if committee_id:
+            committee = Committee.objects.get(pk=committee_id)
+
+            if committee.type == 'plenum':
+                committee_name = _('Knesset Plenum')
+            else:
+                committee_name = committee.name
+            context['title'] = _('All future meetings by %(committee)s') % {
+                'committee': committee_name}
+            context['committee'] = committee
+        else:
+            raise Http404('missing committee_id')
+
+        context['committee_id'] = committee_id
+
+        context['none'] = _('No %(object_type)s found') % {
+            'object_type': CommitteeMeeting._meta.verbose_name_plural}
+
+        return context
+
+    def get_queryset(self):
+        committee_id = self.kwargs.get('committee_id')
+        committee = Committee.objects.get(pk=committee_id)
+        qs = committee.future_meetings(do_limit=False)
         return qs
 
 

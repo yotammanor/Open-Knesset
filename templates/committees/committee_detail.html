@@ -37,6 +37,8 @@
             });
         });
 
+
+
     </script>
 {% endblock %}
 {% block description %}{{ object.name }} - {% trans 'Open Knesset - Opening the Knesset to the public' %}{% endblock %}
@@ -86,11 +88,15 @@
             <section class="card card-list">
                 <header><h2><i class="fa fa-calendar"></i>{% trans 'Future Meetings' %}</h2></header>
                 <ul>
-                    {% for o in future_meetings_list|dictsortreversed:"when" %}
+
+                    <!-- Note that the difference is sorting is not a mistake, the more interesting future meetings for
+                    the user are the one about to happen-->
+                    {% for o in future_meetings_list|dictsort:"when" %}
                         {% include "events/_event_li.html" %}
                     {% empty %}
                         <li>{% trans "None" %}</li>
                     {% endfor %}
+                    <li><a href="all_future_meetings/">{% trans 'more...' %}</a></li>
                 </ul>
             </section>
             <section class="card card-list">
@@ -98,11 +104,12 @@
                         class="fa fa-minus-circle"></i>{% trans 'Meetings for which a protocol was not yet published' %}
                 </h2></header>
                 <ul>
-                    {% for o in protocol_not_yet_published_list %}
+                    {% for o in protocol_not_yet_published_list|dictsortreversed:"when" %}
                         {% include "events/_event_li.html" %}
                     {% empty %}
                         <li>{% trans "None" %}</li>
                     {% endfor %}
+                    <li><a href="all_unpublished_protocols/">{% trans 'more...' %}</a></li>
                 </ul>
             </section>
             <section class="card card-list card-list-latest">
