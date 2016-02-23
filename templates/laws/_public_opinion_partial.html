@@ -1,0 +1,49 @@
+{% load i18n laws_tags bills_tags mks_tags links_tags voting_tags agendas_tags i18ninclude %}
+<aside class="sidebar">
+    <header><h2>{% trans "Public Opinion" %}</h2></header>
+    <div id="public-opinion">
+        <div class="progress">
+            <div class="bar bar-success" style="width:{{ voting_score.for_percent }}%">{{ voting_score.for }}</div>
+            <div class="bar bar-danger"
+                 style="width:{{ voting_score.against_percent }}%">{{ voting_score.against }}</div>
+        </div>
+        {% if party_voting_score %}
+            <h4>{% trans 'Public Opinion - party members' %}</h4>
+            <div class="progress">
+                <div class="bar bar-success"
+                     style="width:{{ party_voting_score.for_percent }}%">{{ party_voting_score.for }}</div>
+                <div class="bar bar-danger"
+                     style="width:{{ party_voting_score.against_percent }}%">{{ party_voting_score.against }}</div>
+            </div>
+        {% endif %}
+        {% if user_party_voting_score %}
+            <h4>{% trans 'Public Opinion - your party members' %}</h4>
+            <div class="progress">
+                <div class="bar bar-success"
+                     style="width:{{ user_party_voting_score.for_percent }}%">{{ user_party_voting_score.for }}</div>
+                <div class="bar bar-danger"
+                     style="width:{{ user_party_voting_score.against_percent }}%">{{ user_party_voting_score.against }}</div>
+            </div>
+        {% endif %}
+        {% if user.is_authenticated %}
+            {% vote_by_user user on object as vote_dict %}
+            {% if vote_dict and vote_dict.direction %}
+                {% trans 'You voted ' %} <b>{{ vote_dict.get_direction_display }}</b>
+                <form action="{% url 'vote-on-bill' bill.id 0 %}" method="post">{% csrf_token %}
+                    <input type="submit" name="submit" value="{% trans "Delete" %}" class="btn"/>
+                </form>
+            {% else %}
+                <div class="row">
+                    <form class="span1" action="{% url 'vote-on-bill' bill.id 1 %}" method="post">{% csrf_token %}
+                        <input type="submit" name="submit" value="{% trans "I'm for" %}"/>
+                    </form>
+                    <form class="span1" action="{% url 'vote-on-bill' bill.id -1 %}" method="post">{% csrf_token %}
+                        <input type="submit" name="submit" value="{% trans "I'm against" %}"/>
+                    </form>
+                </div>
+            {% endif %}
+        {% else %}
+            <a href='{% url 'login' %}?next={{ request.get_full_path }}'>{% trans 'Please login to vote' %}</a>
+        {% endif %}
+    </div>
+</aside>
