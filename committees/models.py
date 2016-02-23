@@ -145,14 +145,20 @@ class Committee(models.Model):
         members.sort(key=lambda x: x.meetings_percentage, reverse=True)
         return members
 
-    def recent_meetings(self, limit=10):
-        return self.meetings.all().order_by('-date')[:limit]
+    def recent_meetings(self, limit=10, do_limit=True):
+        relevant_meetings = self.meetings.all().order_by('-date')
+        if do_limit:
+            more_available = relevant_meetings.count() > limit
+            return relevant_meetings[:limit], more_available
+        else:
+            return relevant_meetings
 
     def future_meetings(self, limit=10, do_limit=True):
         current_date = datetime.now()
         relevant_events = self.events.filter(when__gt=current_date).order_by('when')
         if do_limit:
-            return relevant_events[:limit]
+            more_available = relevant_events.count() > limit
+            return relevant_events[:limit], more_available
         else:
             return relevant_events
 
@@ -161,8 +167,10 @@ class Committee(models.Model):
             if self.meetings.count() > 0 \
             else datetime.datetime.now()
         relevant_events = self.events.filter(when__gt=start_date, when__lte=end_date).order_by('-when')
+
         if do_limit:
-            return relevant_events[:limit]
+            more_available = relevant_events.count() > limit
+            return relevant_events[:limit], more_available
         else:
             return relevant_events
 

@@ -39,6 +39,8 @@
 
 
 
+
+
     </script>
 {% endblock %}
 {% block description %}{{ object.name }} - {% trans 'Open Knesset - Opening the Knesset to the public' %}{% endblock %}
@@ -96,7 +98,9 @@
                     {% empty %}
                         <li>{% trans "None" %}</li>
                     {% endfor %}
-                    <li><a href="all_future_meetings/">{% trans 'more...' %}</a></li>
+                    {% if more_future_meetings_available %}
+                        <li><a href="all_future_meetings/">{% trans 'more...' %}</a></li>
+                    {% endif %}
                 </ul>
             </section>
             <section class="card card-list">
@@ -109,7 +113,9 @@
                     {% empty %}
                         <li>{% trans "None" %}</li>
                     {% endfor %}
-                    <li><a href="all_unpublished_protocols/">{% trans 'more...' %}</a></li>
+                    {% if more_unpublished_available %}
+                        <li><a href="all_unpublished_protocols/">{% trans 'more...' %}</a></li>
+                    {% endif %}
                 </ul>
             </section>
             <section class="card card-list card-list-latest">
@@ -120,7 +126,9 @@
                     {% empty %}
                         <li>{% trans "None" %}</li>
                     {% endfor %}
-                    <li><a href="all_meetings/">{% trans 'more...' %}</a></li>
+                    {% if more_meetings_available %}
+                        <li><a href="all_meetings/">{% trans 'more...' %}</a></li>
+                    {% endif %}
                 </ul>
             </section>
             {% ifnotequal object.type 'plenum' %}

@@ -68,29 +68,39 @@ class TopicsMoreView(GetMoreView):
 
 class CommitteeDetailView(DetailView):
     model = Committee
+    view_cache_key = 'committee_detail_%d'
+    SEE_ALL_THRESHOLD = 10
 
     def get_context_data(self, *args, **kwargs):
         context = super(CommitteeDetailView, self).get_context_data(**kwargs)
         cm = context['object']
-        cm.sorted_mmm_documents = cm.mmm_documents.order_by('-publication_date')[:10]
-        cached_context = cache.get('committee_detail_%d' % cm.id, {})
-        if not cached_context:
-            cached_context['chairpersons'] = cm.chairpersons.all()
-            cached_context['replacements'] = cm.replacements.all()
-            cached_context['members'] = cm.members_by_presence()
-            recent_meetings = cm.recent_meetings(limit=10)
-            cached_context['meetings_list'] = recent_meetings
+        cm.sorted_mmm_documents = cm.mmm_documents.order_by('-publication_date')[:self.SEE_ALL_THRESHOLD]
 
-            cached_context['future_meetings_list'] = cm.future_meetings(limit=10)
-            cur_date = datetime.datetime.now()
-            cached_context['protocol_not_yet_published_list'] = \
-                cm.protocol_not_yet_published_meetings(end_date=cur_date, limit=10)
+        cached_context = cache.get(self.view_cache_key % cm.id, {})
+        if not cached_context:
+            self._build_context_data(cached_context, cm)
             # cache.set('committee_detail_%d' % cm.id, cached_context,
             #           settings.LONG_CACHE_TIME)
         context.update(cached_context)
         context['annotations'] = cm.annotations.order_by('-timestamp')
         context['topics'] = cm.topic_set.summary()[:5]
         return context
+
+    def _build_context_data(self, cached_context, cm):
+        cached_context['chairpersons'] = cm.chairpersons.all()
+        cached_context['replacements'] = cm.replacements.all()
+        cached_context['members'] = cm.members_by_presence()
+        recent_meetings, more_meetings_available = cm.recent_meetings(limit=self.SEE_ALL_THRESHOLD)
+        cached_context['meetings_list'] = recent_meetings
+        cached_context['more_meetings_available'] = more_meetings_available
+        future_meetings, more_future_meetings_available = cm.future_meetings(limit=self.SEE_ALL_THRESHOLD)
+        cached_context['future_meetings_list'] = future_meetings
+        cached_context['more_future_meetings_available'] = more_future_meetings_available
+        cur_date = datetime.datetime.now()
+        not_yet_published_meetings, more_unpublished_available = cm.protocol_not_yet_published_meetings(
+            end_date=cur_date, limit=self.SEE_ALL_THRESHOLD)
+        cached_context['protocol_not_yet_published_list'] = not_yet_published_meetings
+        cached_context['more_unpublished_available'] = more_unpublished_available
 
 
 class MeetingDetailView(DetailView):
@@ -340,8 +350,7 @@ class MeetingsListView(ListView):
     paginate_by = 20
 
     def get_context_data(self, *args, **kwargs):
-        context = super(MeetingsListView, self).get_context_data(*args,
-                                                                 **kwargs)
+        context = super(MeetingsListView, self).get_context_data(**kwargs)
         committee_id = self.kwargs.get('committee_id')
         if committee_id:
             items = context['object_list']

@@ -25,14 +25,16 @@ class CommitteeResource(BaseResource):
         }
 
     def dehydrate_recent_meetings(self, bundle):
+        meetings, more_available = bundle.obj.recent_meetings()
         return [
             {'url': x.get_absolute_url(), 'title': x.title(), 'date': x.date}
-            for x in bundle.obj.recent_meetings()]
+            for x in meetings]
 
     def dehydrate_future_meetings(self, bundle):
+        future_meetings, more_available = bundle.obj.future_meetings()
         return [
             {'title': x.what, 'date': x.when}
-            for x in bundle.obj.future_meetings()]
+            for x in future_meetings]
 
     def get_object_list(self, request):
         committees = super(CommitteeResource, self).get_object_list(request)
