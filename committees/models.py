@@ -3,7 +3,7 @@ import re
 import logging
 import sys
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from django.db import models
 from django.utils.translation import ugettext_lazy as _, ugettext
 from django.utils.text import Truncator
@@ -47,10 +47,12 @@ class Committee(models.Model):
     type = models.CharField(max_length=10, default=CommitteeTypes.committee, choices=CommitteeTypes.as_choices(),
                             db_index=True)
     hide = models.BooleanField(default=False)
+    # Deprecated? In use? does not look in use
     protocol_not_published = models.BooleanField(default=False)
     knesset_id = models.IntegerField(null=True, blank=True)
     knesset_type_id = models.IntegerField(null=True, blank=True)
     knesset_parent_id = models.IntegerField(null=True, blank=True)
+    # Deprecated? In use? does not look
     last_scrape_time = models.DateTimeField(null=True, blank=True)
     name_eng = models.CharField(max_length=256, null=True, blank=True)
     name_arb = models.CharField(max_length=256, null=True, blank=True)
@@ -115,7 +117,8 @@ class Committee(models.Model):
             return (100 * res_set.count() / total_count) if total_count else 0
 
         def filter_this_year(res_set):
-            return res_set.filter(date__gte='%d-01-01' % datetime.now().year)
+            year_start = date.today().replace(month=1, day=1)
+            return res_set.filter(date__gte=year_start)
 
         if ids is not None:
             members = list(Member.objects.filter(id__in=ids))
@@ -142,12 +145,34 @@ class Committee(models.Model):
         members.sort(key=lambda x: x.meetings_percentage, reverse=True)
         return members
 
-    def recent_meetings(self):
-        return self.meetings.all().order_by('-date')[:10]
+    def recent_meetings(self, limit=10, do_limit=True):
+        relevant_meetings = self.meetings.all().order_by('-date')
+        if do_limit:
+            more_available = relevant_meetings.count() > limit
+            return relevant_meetings[:limit], more_available
+        else:
+            return relevant_meetings
 
-    def future_meetings(self):
-        cur_date = datetime.now()
-        return self.events.filter(when__gt=cur_date)
+    def future_meetings(self, limit=10, do_limit=True):
+        current_date = datetime.now()
+        relevant_events = self.events.filter(when__gt=current_date).order_by('when')
+        if do_limit:
+            more_available = relevant_events.count() > limit
+            return relevant_events[:limit], more_available
+        else:
+            return relevant_events
+
+    def protocol_not_yet_published_meetings(self, end_date, limit=10, do_limit=True):
+        start_date = self.meetings.all().order_by('-date').first().date + timedelta(days=1) \
+            if self.meetings.count() > 0 \
+            else datetime.datetime.now()
+        relevant_events = self.events.filter(when__gt=start_date, when__lte=end_date).order_by('-when')
+
+        if do_limit:
+            more_available = relevant_events.count() > limit
+            return relevant_events[:limit], more_available
+        else:
+            return relevant_events
 
 
 not_header = re.compile(
@@ -316,10 +341,12 @@ class CommitteeMeeting(models.Model):
 
     def redownload_protocol(self):
         if self.committee.type == 'plenum':
+            # TODO: Using managment command this way is an antipattern, a common service should be extracted and used
             from plenum.management.commands.parse_plenum_protocols_subcommands.download import \
                 download_for_existing_meeting
             download_for_existing_meeting(self)
         else:
+            # TODO: see above
             from simple.management.commands.syncdata import Command as SyncdataCommand
             self.protocol_text = SyncdataCommand().get_committee_protocol_text(self.src_url)
             self.save()
@@ -327,6 +354,7 @@ class CommitteeMeeting(models.Model):
     def reparse_protocol(self, redownload=True, mks=None, mk_names=None):
         if redownload: self.redownload_protocol()
         if self.committee.type == 'plenum':
+            # See above
             from plenum.management.commands.parse_plenum_protocols_subcommands.parse import parse_for_existing_meeting
             parse_for_existing_meeting(self)
         else:

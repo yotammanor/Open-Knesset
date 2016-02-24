@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Django\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-02-22 19:34+0200\n"
+"POT-Creation-Date: 2016-02-23 23:23+0200\n"
 "PO-Revision-Date: 2015-12-28 15:19+0200\n"
 "Last-Translator: Ofri Raviv <ofri.raviv@gmail.com>\n"
 "Language-Team: Django-i18n <django-i18n@googlegroups.com>\n"
@@ -150,9 +150,9 @@ msgstr "בעריכת"
 
 #: agendas/views.py:111 agendas/views.py:236 agendas/views.py:255
 #: agendas/views.py:274 agendas/views.py:297
-#: templates/committees/committee_detail.html:92
-#: templates/committees/committee_detail.html:104
+#: templates/committees/committee_detail.html:99
 #: templates/committees/committee_detail.html:114
+#: templates/committees/committee_detail.html:127
 #: templates/mks/member_detail.html:504 templates/user/editprofile.html:56
 #: templates/user/editprofile.html.py:70 templates/user/editprofile.html:84
 msgid "None"
@@ -210,7 +210,7 @@ msgid ""
 "Main activity feed for the whole site, same as presented on the main page"
 msgstr "פיד ראשי עבור כל האתר, בדומה למוצג בדף הראשי"
 
-#: auxiliary/forms.py:15 committees/models.py:513 laws/views.py:698
+#: auxiliary/forms.py:15 committees/models.py:541 laws/views.py:698
 msgid "Title"
 msgstr "כותרת"
 
@@ -363,51 +363,67 @@ msgstr "גבוה"
 msgid "Extremely above average"
 msgstr "גבוה מאוד"
 
-#: committees/models.py:82 templates/mks/member_detail.html:300
+#: committees/admin.py:38
+#, fuzzy
+msgid "Missing Protocol"
+msgstr "מפלגות"
+
+#: committees/admin.py:52
+#, fuzzy
+msgid "Has Missing Protocol"
+msgstr "קריאת את פרוטוקול הישיבה"
+
+#: committees/admin.py:53
+#, fuzzy
+msgid "Has Protocol"
+msgstr "פרוטוקול"
+
+#: committees/models.py:84 templates/mks/member_detail.html:300
 msgid "Plenum"
 msgstr "מליאה"
 
-#: committees/models.py:216
+#: committees/models.py:241
 msgid "Committee Meeting"
 msgstr "ישיבת ועדה"
 
-#: committees/models.py:217 templates/laws/bill_detail.html:256
+#: committees/models.py:242 templates/laws/bill_detail.html:256
 #: templates/laws/bill_detail.html:328 templates/laws/law_detail.html:17
 #: templates/laws/law_detail.html.py:30 templates/laws/law_detail.html:43
 msgid "Committee Meetings"
 msgstr "ישיבות הוועדה"
 
-#: committees/models.py:515
+#: committees/models.py:543
 msgid "Description"
 msgstr "תאור"
 
-#: committees/models.py:517
+#: committees/models.py:545
 msgid "published"
 msgstr "פורסמה"
 
-#: committees/models.py:518
+#: committees/models.py:546
 msgid "flagged"
 msgstr "חשודה"
 
-#: committees/models.py:519
+#: committees/models.py:547
 msgid "rejected"
 msgstr "נדחתה"
 
-#: committees/models.py:520
+#: committees/models.py:548
 msgid "accepted"
 msgstr "אושרה"
 
-#: committees/models.py:521
+#: committees/models.py:549
 msgid "appeal"
 msgstr "בערעור"
 
-#: committees/models.py:522
+#: committees/models.py:550
 msgid "deleted"
 msgstr "נמחקה"
 
-#: committees/models.py:531 templates/site_base.html:74
+#: committees/models.py:559 templates/site_base.html:74
 #: templates/site_base.html.py:141
-#: templates/committees/committee_detail.html:50
+#: templates/committees/committee_detail.html:54
+#: templates/committees/committee_full_events_list.html:30
 #: templates/committees/committee_list.html:3
 #: templates/committees/committee_list.html:4
 #: templates/committees/committee_list.html:5
@@ -426,71 +442,83 @@ msgstr "נמחקה"
 msgid "Committees"
 msgstr "ועדות"
 
-#: committees/models.py:539
+#: committees/models.py:567
 msgid "Topic"
 msgstr "הצעה לסדר"
 
-#: committees/models.py:540 templates/committees/topic_list.html:4
+#: committees/models.py:568 templates/committees/topic_list.html:4
 #: templates/user/followed_topics.html:4
 msgid "Topics"
 msgstr "הצעות לסדר"
 
-#: committees/views.py:113
+#: committees/views.py:121
 #, python-format
 msgid "%(committee)s meeting on %(date)s"
 msgstr "ישיבה של %(committee)s בתאריך %(date)s  "
 
-#: committees/views.py:115
+#: committees/views.py:123
 #, python-format
 msgid "%(committee)s meeting on %(date)s on topic %(topic)s"
 msgstr "ישיבה של %(committee)s בתאריך %(date)s  בנושא %(topic)s"
 
-#: committees/views.py:122
+#: committees/views.py:130
 #, python-format
 msgid " page %(page)s"
 msgstr " עמוד %(page)s"
 
-#: committees/views.py:227
+#: committees/views.py:235
 msgid "added-bill-to-cm"
 msgstr "קישר/ה הצעת חוק לישיבת ועדה"
 
-#: committees/views.py:228
+#: committees/views.py:236
 msgid "added-mk-to-cm"
 msgstr "הוסיף/ה חבר כנסת לישיבת ועדה"
 
-#: committees/views.py:229
+#: committees/views.py:237
 msgid "removed-mk-from-cm"
 msgstr "הסיר/ה חבר כנסת מישיבת ועדה"
 
-#: committees/views.py:353 templates/committees/committee_detail.html:64
+#: committees/views.py:360 committees/views.py:396 committees/views.py:432
+#: templates/committees/committee_detail.html:68
 msgid "Knesset Plenum"
 msgstr "מליאת הכנסת"
 
-#: committees/views.py:356
+#: committees/views.py:363
 #, python-format
 msgid "All meetings by %(committee)s"
 msgstr "כל הישיבות של %(committee)s "
 
-#: committees/views.py:360
+#: committees/views.py:367
 msgid "Parliamentary committees meetings"
 msgstr "ישיבות ועדות הכנסת"
 
-#: committees/views.py:363 committees/views.py:408
+#: committees/views.py:370 committees/views.py:407 committees/views.py:443
+#: committees/views.py:487
 #, python-format
 msgid "No %(object_type)s found"
 msgstr "לא נמצאו %(object_type)s"
 
-#: committees/views.py:397
+#: committees/views.py:399
+#, python-format
+msgid "All unpublished protocols by %(committee)s"
+msgstr "כל הפרוטוקולים שטרם פורסמו על ידי %(committee)s "
+
+#: committees/views.py:435
+#, python-format
+msgid "All future meetings by %(committee)s"
+msgstr "כל הישיבות העתידיות של %(committee)s "
+
+#: committees/views.py:476
 #, python-format
 msgid "Meetings by %(committee)s on date %(date)s"
 msgstr "ישיבות של %(committee)s בתאריך %(date)s"
 
-#: committees/views.py:402
+#: committees/views.py:481
 #, python-format
 msgid "Parliamentary committees meetings on date %(date)s"
 msgstr "ישיבות של ועדות הכנסת בתאריך %(date)s"
 
-#: committees/views.py:443
+#: committees/views.py:522
 #, python-format
 msgid "Committee Meetings tagged %(tag)s"
 msgstr "ישיבות וועדה שתויגו %(tag)s"
@@ -1613,7 +1641,7 @@ msgstr "אודות"
 #: templates/auxiliary/scraper_run_detail.html:5
 #: templates/auxiliary/tag_detail.html:5 templates/auxiliary/tag_list.html:9
 #: templates/auxiliary/untagged_objects.html:5
-#: templates/committees/committee_detail.html:42
+#: templates/committees/committee_detail.html:46
 #: templates/committees/committee_list.html:5
 #: templates/committees/committeemeeting_detail.html:7
 #: templates/committees/committeemeeting_list_by_tag.html:5
@@ -2557,6 +2585,7 @@ msgid "Choose Knesset"
 msgstr "בחר כנסת"
 
 #: templates/auxiliary/tag_detail.html:22
+#, python-format
 msgid ""
 "Active members for tag %(tag)s in Knesset\n"
 "                            %(number)s"
@@ -2713,13 +2742,13 @@ msgid "No comments yet"
 msgstr "אין עדיין תגובות"
 
 #: templates/comments/object_comment_list.html:36
-#: templates/committees/committee_detail.html:141
+#: templates/committees/committee_detail.html:156
 #: templates/laws/bill_detail.html:511
 msgid "Please"
 msgstr "אנא"
 
 #: templates/comments/object_comment_list.html:36
-#: templates/committees/committee_detail.html:143
+#: templates/committees/committee_detail.html:158
 #: templates/laws/bill_detail.html:511
 msgid "validate your email"
 msgstr "אמת/י את הדואר אלקטרוני שסיפקת"
@@ -2766,55 +2795,62 @@ msgstr "מ&quot;מ"
 msgid "No topics suggested yet"
 msgstr "טרם הוצעו הצעות לסדר"
 
-#: templates/committees/committee_detail.html:87
+#: templates/committees/committee_detail.html:91
 msgid "Future Meetings"
 msgstr "ישיבות קרובות"
 
-#: templates/committees/committee_detail.html:98
-msgid "Meetings for which a protocol was not yet published"
-msgstr "ישיבות מהן טרם פורסם פרוטוקול"
-
-#: templates/committees/committee_detail.html:109
-msgid "Last Meetings"
-msgstr "ישיבות אחרונות"
-
-#: templates/committees/committee_detail.html:116
-#: templates/committees/committee_detail.html:124
+#: templates/committees/committee_detail.html:102
+#: templates/committees/committee_detail.html:117
+#: templates/committees/committee_detail.html:130
+#: templates/committees/committee_detail.html:139
 msgid "more..."
 msgstr "עוד..."
 
-#: templates/committees/committee_detail.html:121
+#: templates/committees/committee_detail.html:108
+msgid "Meetings for which a protocol was not yet published"
+msgstr "ישיבות מהן טרם פורסם פרוטוקול"
+
+#: templates/committees/committee_detail.html:122
+msgid "Last Meetings"
+msgstr "ישיבות אחרונות"
+
+#: templates/committees/committee_detail.html:136
 msgid "MMM Documents"
 msgstr "מסמך ממ\"מ"
 
-#: templates/committees/committee_detail.html:133
+#: templates/committees/committee_detail.html:148
 #: templates/committees/committee_list.html:71
 #: templates/committees/committee_list.html:82
 #: templates/committees/topic_list.html:8
 msgid "Suggested Agenda Topics"
 msgstr "הצעות לסדר יום"
 
-#: templates/committees/committee_detail.html:139
+#: templates/committees/committee_detail.html:154
 msgid "Suggest Topic"
 msgstr "העלו הצעה"
 
-#: templates/committees/committee_detail.html:141
+#: templates/committees/committee_detail.html:156
 msgid "to suggest a topic"
 msgstr "להעלות הצעה לסדר"
 
-#: templates/committees/committee_detail.html:146
+#: templates/committees/committee_detail.html:161
 msgid "Please login to suggest a topic"
 msgstr "יש להזדהות כדי לפרסם הצעה לסדר"
 
-#: templates/committees/committee_detail.html:155
+#: templates/committees/committee_detail.html:170
 msgid "Latest Annotations"
 msgstr "הארות אחרונות"
 
-#: templates/committees/committee_detail.html:171
+#: templates/committees/committee_detail.html:186
 #: templates/user/annotated_items.html:29
 #: templates/user/public_profile.html:56
 msgid "No annotations yet..."
 msgstr "אין עדיין הארות"
+
+#: templates/committees/committee_full_events_list.html:33
+#: templates/committees/committeemeeting_list.html:32
+msgid "All meetings"
+msgstr "רשימת הישיבות המלאה"
 
 #: templates/committees/committee_list.html:41
 msgid "what does committees do?"
@@ -2887,10 +2923,6 @@ msgstr "לוביסטים מאוזכרים"
 #: templates/committees/committeemeeting_detail.html:162
 msgid "Lobbyist corporations mentioned"
 msgstr "תאגידי לוביסטים"
-
-#: templates/committees/committeemeeting_list.html:32
-msgid "All meetings"
-msgstr "רשימת הישיבות המלאה"
 
 #: templates/committees/committeemeeting_list_by_tag.html:9
 #, python-format
@@ -4453,10 +4485,6 @@ msgstr "פרופיל המשתמש עודכן"
 #, fuzzy
 #~ msgid "Bogus Flag"
 #~ msgstr "רשימת בלוגים"
-
-#, fuzzy
-#~ msgid "Missing Parameter"
-#~ msgstr "מפלגות"
 
 #, fuzzy
 #~ msgid "Bogus content"
