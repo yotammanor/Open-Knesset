@@ -290,7 +290,6 @@ SOUTH_TESTS_MIGRATE = False
 SOUTH_MIGRATION_MODULES = {
 
     'waffle': 'waffle.south_migrations',
-    
 }
 
 TINYMCE_DEFAULT_CONFIG = {
