@@ -288,6 +288,7 @@ class CommitteeMeeting(models.Model):
             delete them, a ValidationError will be thrown, because
             it doesn't make sense to create the parts again.
         """
+        logger.debug('create_protocol_parts %s'%delete_existing)
         if delete_existing:
             ppct = ContentType.objects.get_for_model(ProtocolPart)
             annotations = Annotation.objects.filter(content_type=ppct, object_id__in=self.parts.all)
@@ -306,11 +307,19 @@ class CommitteeMeeting(models.Model):
             create_plenum_protocol_parts(self, mks=mks, mk_names=mk_names)
             return
         else:
+            def get_protocol_part(i, part):
+                logger.debug('creating protocol part %s'%i)
+                return ProtocolPart(meeting=self, order=i, header=part.header, body=part.body)
             with KnessetDataCommitteeMeetingProtocol.get_from_text(self.protocol_text) as protocol:
-                i = 1
-                for part in protocol.parts:
-                    ProtocolPart(meeting=self, order=i, header=part.header, body=part.body).save()
-                    i += 1
+                # TODO: use bulk_create (I had a strange error when using it)
+                # ProtocolPart.objects.bulk_create(
+                # for testing, you could just save one part:
+                # get_protocol_part(1, protocol.parts[0]).save()
+                list([
+                    get_protocol_part(i, part).save()
+                    for i, part
+                    in zip(range(1, len(protocol.parts)+1), protocol.parts)
+                ])
 
     def redownload_protocol(self):
         if self.committee.type == 'plenum':
@@ -390,7 +399,9 @@ class CommitteeMeeting(models.Model):
                                    content_type=ContentType.objects.get_for_model(CommitteeMeeting).id)
 
     def find_attending_members(self, mks=None, mk_names=None):
+        logger.debug('find_attending_members')
         if mks is None and mk_names is None:
+            logger.debug('get_all_mk_names')
             mks, mk_names = get_all_mk_names()
         try:
             with KnessetDataCommitteeMeetingProtocol.get_from_text(self.protocol_text) as protocol:
