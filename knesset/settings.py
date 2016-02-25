@@ -83,6 +83,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',  # keep after session
     'django.middleware.csrf.CsrfViewMiddleware',
     'pagination.middleware.PaginationMiddleware',
+    'waffle.middleware.WaffleMiddleware',
     # make sure to keep the DebugToolbarMiddleware last
     'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
@@ -158,6 +159,7 @@ INSTALLED_APPS = (
     'storages',
     'corsheaders',
     'sslserver',
+    'waffle',
     # 'knesset',
     'auxiliary',  # knesset apps
     'mks',
@@ -284,6 +286,12 @@ SERIALIZATION_MODULES = {
 API_LIMIT_PER_PAGE = 1000
 
 SOUTH_TESTS_MIGRATE = False
+
+SOUTH_MIGRATION_MODULES = {
+
+    'waffle': 'waffle.south_migrations',
+
+}
 
 TINYMCE_DEFAULT_CONFIG = {
     'mode': "textareas",
