@@ -78,7 +78,10 @@ $(document).ready(function () {
             success: function (data) {
                 console.log(data);
                 if (data['main_feed'] == undefined) {
-                    console.log('Does not have a facebook feed')
+                    console.log('This Member does not have a facebook feed')
+                } else if (data['name_he'] != sectionDisplayElem.data('test-name')) {
+                    console.log('Apparent incompatibility between Kikar and OKnesset identifiers')
+
                 } else {
                     sectionDisplayElem.show()
                 }
