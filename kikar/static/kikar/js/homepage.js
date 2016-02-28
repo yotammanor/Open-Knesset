@@ -33,6 +33,7 @@ $(document).ready(function () {
     var loadingSymbol = $('#loading-statuses-symbol');
     var listContainer = $('#kikar-facebook-updates-ul');
     var offsetHandler = $('#statuses-more');
+    var sectionDisplayElem = $('#kikar-statuses-section');
 
     var requestURL = '/kikar/get-statuses/';
     var kikarAPIPath = '/api/v1/';
@@ -69,6 +70,24 @@ $(document).ready(function () {
             }
         });
     }
+
+    if (sectionDisplayElem.data('type') == 'member') {
+        $.ajax({
+            url: '/kikar/get-member/' + sectionDisplayElem.data('id'),
+            contentType: "application/json",
+            success: function (data) {
+                console.log(data);
+                if (data['main_feed'] == undefined) {
+                    console.log('Does not have a facebook feed')
+                } else {
+                    sectionDisplayElem.show()
+                }
+            }
+        });
+    } else {
+        sectionDisplayElem.show()
+    }
+
 
     if (offsetHandler.length) {
         requestAndAddStatuses()
