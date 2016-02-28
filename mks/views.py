@@ -3,6 +3,7 @@ import json
 from operator import attrgetter
 from itertools import chain
 
+import waffle
 from django.conf import settings
 from django.db.models import Sum, Q
 from django.utils.translation import ugettext as _
@@ -45,7 +46,7 @@ class MemberRedirectView(RedirectView):
 
 
 class MemberListView(ListView):
-    pages = (
+    pages = [
         ('abc', _('By ABC')),
         ('bills_proposed', _('By number of bills proposed')),
         ('bills_pre', _('By number of bills pre-approved')),
@@ -56,17 +57,20 @@ class MemberListView(ListView):
         ('committees', _('By average monthly committee meetings')),
         ('followers', _('By number of followers')),
         ('graph', _('Graphical view'))
-    )
+    ]
 
     def get_queryset(self):
         return Member.current_knesset.all()
 
     def get_context_data(self, **kwargs):
+        if not waffle.flag_is_active(self.request, 'show_member_graph'):
+            self.pages.remove(('graph', _('Graphical view')))
 
         info = self.kwargs['stat_type']
 
         original_context = super(MemberListView,
                                  self).get_context_data(**kwargs)
+
         qs = original_context['object_list'].filter(
             is_current=True).select_related('current_party')
 
@@ -81,106 +85,28 @@ class MemberListView(ListView):
         context['stat_type'] = info
         context['title'] = dict(self.pages)[info]
         context[
-            'csv_path'] = 'api/v2/member' + '?' + self.request.GET.urlencode() + '&format=csv&limit=0'
+            'csv_path'] = self._resolve_csv_export_request()
         context['past_mks'] = Member.current_knesset.filter(is_current=False)
 
         # We make sure qs are lists so that the template can get min/max
         if info == 'abc':
             pass
         elif info == 'bills_proposed':
-            qs = list(
-                qs.order_by('-bills_stats_proposed')
-                    .select_related('current_party')
-                    .extra(select={'extra': 'bills_stats_proposed'})
-            )
-            context['past_mks'] = list(
-                context['past_mks'].order_by('-bills_stats_proposed')
-                    .select_related('current_party')
-                    .extra(select={'extra': 'bills_stats_proposed'})
-            )
-            context['bill_stage'] = 'proposed'
+            qs = self._get_by_bills_proposed(context, qs)
         elif info == 'bills_pre':
-            qs = list(
-                qs.order_by('-bills_stats_pre')
-                    .select_related('current_party')
-                    .extra(select={'extra': 'bills_stats_pre'})
-            )
-            context['past_mks'] = list(
-                context['past_mks'].order_by('-bills_stats_pre')
-                    .select_related('current_party')
-                    .extra(select={'extra': 'bills_stats_pre'})
-            )
-            context['bill_stage'] = 'pre'
+            qs = self._get_by_bills_pre(context, qs)
         elif info == 'bills_first':
-            qs = list(
-                qs.order_by('-bills_stats_first')
-                    .select_related('current_party')
-                    .extra(select={'extra': 'bills_stats_first'})
-            )
-            context['past_mks'] = list(
-                context['past_mks'].order_by('-bills_stats_first')
-                    .select_related('current_party')
-                    .extra(select={'extra': 'bills_stats_first'})
-            )
-            context['bill_stage'] = 'first'
+            qs = self._get_by_bills_first(context, qs)
         elif info == 'bills_approved':
-            qs = list(
-                qs.order_by('-bills_stats_approved')
-                    .select_related('current_party')
-                    .extra(select={'extra': 'bills_stats_approved'})
-            )
-            context['past_mks'] = list(
-                context['past_mks'].order_by('-bills_stats_approved')
-                    .select_related('current_party')
-                    .extra(select={'extra': 'bills_stats_approved'})
-            )
-            context['bill_stage'] = 'approved'
+            qs = self._get_by_bills_approved(context, qs)
         elif info == 'votes':
-            qs = list(qs)
-            vs = list(MemberVotingStatistics.objects.all())
-            vs = dict(zip([x.member_id for x in vs], vs))
-            for x in qs:
-                x.extra = vs[x.id].average_votes_per_month()
-            qs.sort(key=lambda x: x.extra, reverse=True)
-            context['past_mks'] = list(context['past_mks'])
-            for x in context['past_mks']:
-                x.extra = x.voting_statistics.average_votes_per_month()
-            context['past_mks'].sort(key=lambda x: x.extra, reverse=True)
+            qs = self._get_by_votes(context, qs)
         elif info == 'presence':
-            qs = qs.extra(select={'extra': 'average_weekly_presence_hours'}
-                          ).order_by('-extra')
-            context['past_mks'] = context['past_mks'].extra(
-                select={'extra': 'average_weekly_presence_hours'}).order_by(
-                '-extra')
-            # sort again because db sort freaks when some values are None.
-            qs = list(qs)
-            qs.sort(key=lambda x: x.extra or 0, reverse=True)
-            context['past_mks'] = list(context['past_mks'])
-            context['past_mks'].sort(key=lambda x: x.extra or 0, reverse=True)
+            qs = self._get_by_presence(context, qs)
         elif info == 'committees':
-            qs = list(qs)
-            for x in qs:
-                x.extra = x.committee_meetings_per_month()
-            qs.sort(key=lambda x: x.extra or 0, reverse=True)
-            context['past_mks'] = list(context['past_mks'])
-            for x in context['past_mks']:
-                x.extra = x.committee_meetings_per_month()
-            context['past_mks'].sort(key=lambda x: x.extra or 0, reverse=True)
+            qs = self._get_by_committees(context, qs)
         elif info == 'followers':
-            mct = ContentType.objects.get_for_model(Member)
-            mk_follows = Follow.objects.filter(content_type=mct).values_list(
-                'object_id', flat=True)
-            mk_follows_dict = {}
-            for mf in mk_follows:
-                mk_follows_dict[mf] = mk_follows_dict.get(mf, 0) + 1
-            qs = list(qs)
-            for x in qs:
-                x.extra = mk_follows_dict.get(x.id, 0)
-            qs.sort(key=lambda x: x.extra or 0, reverse=True)
-            context['past_mks'] = list(context['past_mks'])
-            for x in context['past_mks']:
-                x.extra = mk_follows_dict.get(x.id, 0)
-            context['past_mks'].sort(key=lambda x: x.extra or 0, reverse=True)
+            qs = self._get_by_followers(context, qs)
         elif info == 'graph':
             pass
 
@@ -195,6 +121,119 @@ class MemberListView(ListView):
         cache.set('object_list_by_%s' % info, context, settings.LONG_CACHE_TIME)
         original_context.update(context)
         return original_context
+
+    def _get_by_followers(self, context, qs):
+        mct = ContentType.objects.get_for_model(Member)
+        mk_follows = Follow.objects.filter(content_type=mct).values_list(
+            'object_id', flat=True)
+        mk_follows_dict = {}
+        for mf in mk_follows:
+            mk_follows_dict[mf] = mk_follows_dict.get(mf, 0) + 1
+        qs = list(qs)
+        for x in qs:
+            x.extra = mk_follows_dict.get(x.id, 0)
+        qs.sort(key=lambda x: x.extra or 0, reverse=True)
+        context['past_mks'] = list(context['past_mks'])
+        for x in context['past_mks']:
+            x.extra = mk_follows_dict.get(x.id, 0)
+        context['past_mks'].sort(key=lambda x: x.extra or 0, reverse=True)
+        return qs
+
+    def _get_by_committees(self, context, qs):
+        qs = list(qs)
+        for x in qs:
+            x.extra = x.committee_meetings_per_month()
+        qs.sort(key=lambda x: x.extra or 0, reverse=True)
+        context['past_mks'] = list(context['past_mks'])
+        for x in context['past_mks']:
+            x.extra = x.committee_meetings_per_month()
+        context['past_mks'].sort(key=lambda x: x.extra or 0, reverse=True)
+        return qs
+
+    def _get_by_presence(self, context, qs):
+        qs = qs.extra(select={'extra': 'average_weekly_presence_hours'}
+                      ).order_by('-extra')
+        context['past_mks'] = context['past_mks'].extra(
+            select={'extra': 'average_weekly_presence_hours'}).order_by(
+            '-extra')
+        # sort again because db sort freaks when some values are None.
+        qs = list(qs)
+        qs.sort(key=lambda x: x.extra or 0, reverse=True)
+        context['past_mks'] = list(context['past_mks'])
+        context['past_mks'].sort(key=lambda x: x.extra or 0, reverse=True)
+        return qs
+
+    def _get_by_votes(self, context, qs):
+        qs = list(qs)
+        vs = list(MemberVotingStatistics.objects.all())
+        vs = dict(zip([x.member_id for x in vs], vs))
+        for x in qs:
+            x.extra = vs[x.id].average_votes_per_month()
+        qs.sort(key=lambda x: x.extra, reverse=True)
+        context['past_mks'] = list(context['past_mks'])
+        for x in context['past_mks']:
+            x.extra = x.voting_statistics.average_votes_per_month()
+        context['past_mks'].sort(key=lambda x: x.extra, reverse=True)
+        return qs
+
+    def _resolve_csv_export_request(self):
+        return 'api/v2/member' + '?' + self.request.GET.urlencode() + '&format=csv&limit=0'
+
+    def _get_by_bills_proposed(self, context, qs):
+        qs = list(
+            qs.order_by('-bills_stats_proposed')
+                .select_related('current_party')
+                .extra(select={'extra': 'bills_stats_proposed'})
+        )
+        context['past_mks'] = list(
+            context['past_mks'].order_by('-bills_stats_proposed')
+                .select_related('current_party')
+                .extra(select={'extra': 'bills_stats_proposed'})
+        )
+        context['bill_stage'] = 'proposed'
+        return qs
+
+    def _get_by_bills_approved(self, context, qs):
+        qs = list(
+            qs.order_by('-bills_stats_approved')
+                .select_related('current_party')
+                .extra(select={'extra': 'bills_stats_approved'})
+        )
+        context['past_mks'] = list(
+            context['past_mks'].order_by('-bills_stats_approved')
+                .select_related('current_party')
+                .extra(select={'extra': 'bills_stats_approved'})
+        )
+        context['bill_stage'] = 'approved'
+        return qs
+
+    def _get_by_bills_first(self, context, qs):
+        qs = list(
+            qs.order_by('-bills_stats_first')
+                .select_related('current_party')
+                .extra(select={'extra': 'bills_stats_first'})
+        )
+        context['past_mks'] = list(
+            context['past_mks'].order_by('-bills_stats_first')
+                .select_related('current_party')
+                .extra(select={'extra': 'bills_stats_first'})
+        )
+        context['bill_stage'] = 'first'
+        return qs
+
+    def _get_by_bills_pre(self, context, qs):
+        qs = list(
+            qs.order_by('-bills_stats_pre')
+                .select_related('current_party')
+                .extra(select={'extra': 'bills_stats_pre'})
+        )
+        context['past_mks'] = list(
+            context['past_mks'].order_by('-bills_stats_pre')
+                .select_related('current_party')
+                .extra(select={'extra': 'bills_stats_pre'})
+        )
+        context['bill_stage'] = 'pre'
+        return qs
 
 
 class MemberCsvView(CsvView):
