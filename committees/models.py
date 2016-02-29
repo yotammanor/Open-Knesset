@@ -222,6 +222,10 @@ class CommitteeMeeting(models.Model):
     mks_attended = models.ManyToManyField('mks.Member', related_name='committee_meetings')
     votes_mentioned = models.ManyToManyField('laws.Vote', related_name='committee_meetings', blank=True)
     protocol_text = models.TextField(null=True, blank=True)
+    # the date the protocol text was last downloaded and saved
+    protocol_text_update_date = models.DateField(blank=True, null=True)
+    # the date the protocol parts were last parsed and saved
+    protocol_parts_update_date = models.DateField(blank=True, null=True)
     topics = models.TextField(null=True, blank=True)
     src_url = models.URLField(max_length=1024, null=True, blank=True)
     tagged_items = generic.GenericRelation(TaggedItem,
@@ -320,6 +324,8 @@ class CommitteeMeeting(models.Model):
                     for i, part
                     in zip(range(1, len(protocol.parts)+1), protocol.parts)
                 ])
+            self.protocol_parts_update_date = datetime.now()
+            self.save()
 
     def redownload_protocol(self):
         if self.committee.type == 'plenum':
@@ -330,6 +336,7 @@ class CommitteeMeeting(models.Model):
         else:
             with KnessetDataCommitteeMeetingProtocol.get_from_url(self.src_url) as protocol:
                 self.protocol_text = protocol.text
+                self.protocol_text_update_date = datetime.now()
                 self.save()
 
     def reparse_protocol(self, redownload=True, mks=None, mk_names=None):
