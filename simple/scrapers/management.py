@@ -9,6 +9,7 @@ class BaseKnessetDataserviceCommand(NoArgsDbLogCommand):
     """
     A base command to ease fetching the data from the knesset API into the app schema
 
+    extending classes should implement the functions that raise NotImplementError exceptions
     """
 
     _DS_TO_APP_KEY_MAPPING = tuple()
@@ -18,12 +19,33 @@ class BaseKnessetDataserviceCommand(NoArgsDbLogCommand):
         return self._get_existing_object(dataservice_object) is not None
 
     def _get_existing_object(self, dataservice_object):
+        # should use the dataservice_object to get existing related object in DB
+        # if related object is not in DB - should return None
+        # example code:
+        # qs = Vote.objects.filter(src_id=dataservice_object.id)
+        # return qs.first() if qs.count() == 1 else None
         raise NotImplementedError()
 
     def _create_new_object(self, dataservice_object):
+        # this will run after get_existing_object, so you can assume there is no existing object in DB
+        # it should create the object in DB using the data in dataservice_object
+        # return value is the created DB object
+        # this function must always return a DB object which was created - if there is an error - raise an Exception
         raise NotImplementedError()
 
     def recreate_objects(self, object_ids):
+        # recreate the given list of DB object ids
+        # this could be something that deletes, then re-creates
+        # or it could update in-place
+        # example code which just deletes and re-creates (usually you will want something more complex):
+        # recreated_votes = []
+        # for vote_id in vote_ids:
+        #     oknesset_vote = Vote.objects.get(id=int(vote_id))
+        #     dataservice_vote = self.DATASERVICE_CLASS.get(oknesset_vote.src_id)
+        #     oknesset_vote.delete()
+        #     recreated_vote = self._create_new_object(dataservice_vote)
+        #     recreated_votes.append(self._update_or_create_vote(dataservice_vote, oknesset_vote))
+        # return recreated_votes
         raise NotImplementedError()
 
     def _translate_ds_to_model(self, ds_meeting):
