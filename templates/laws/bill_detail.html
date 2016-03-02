@@ -172,6 +172,7 @@
                     <h3>{% bill_type_display object %}, {% trans "Booklet Number" %}: {% bill_booklet_number object %}</h3>
                 </div>
                 {% if proposers %}
+                    <h4>{% trans "proposers" %}</h4>
                     {% include "mks/member_photos.html" with members=proposers %}
                 {% endif %}
             </section>
