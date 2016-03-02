@@ -27,6 +27,7 @@ from lobbyists.models import LobbyistHistory, LobbyistCorporation
 from itertools import groupby
 from hebrew_numbers import gematria_to_int
 from mks.utils import get_all_mk_names
+from knesset_data.protocols.committee import CommitteeMeetingProtocol as KnessetDataCommitteeMeetingProtocol
 
 COMMITTEE_PROTOCOL_PAGINATE_BY = 120
 
@@ -221,6 +222,10 @@ class CommitteeMeeting(models.Model):
     mks_attended = models.ManyToManyField('mks.Member', related_name='committee_meetings')
     votes_mentioned = models.ManyToManyField('laws.Vote', related_name='committee_meetings', blank=True)
     protocol_text = models.TextField(null=True, blank=True)
+    # the date the protocol text was last downloaded and saved
+    protocol_text_update_date = models.DateField(blank=True, null=True)
+    # the date the protocol parts were last parsed and saved
+    protocol_parts_update_date = models.DateField(blank=True, null=True)
     topics = models.TextField(null=True, blank=True)
     src_url = models.URLField(max_length=1024, null=True, blank=True)
     tagged_items = generic.GenericRelation(TaggedItem,
@@ -287,6 +292,7 @@ class CommitteeMeeting(models.Model):
             delete them, a ValidationError will be thrown, because
             it doesn't make sense to create the parts again.
         """
+        logger.debug('create_protocol_parts %s'%delete_existing)
         if delete_existing:
             ppct = ContentType.objects.get_for_model(ProtocolPart)
             annotations = Annotation.objects.filter(content_type=ppct, object_id__in=self.parts.all)
@@ -301,43 +307,25 @@ class CommitteeMeeting(models.Model):
                     'CommitteeMeeting already has parts. delete them if you want to run create_protocol_parts again.')
         if not self.protocol_text:  # sometimes there are empty protocols
             return  # then we don't need to do anything here.
-
         if self.committee.type == 'plenum':
             create_plenum_protocol_parts(self, mks=mks, mk_names=mk_names)
             return
-
-        # break the protocol to its parts
-        # first, fix places where the colon is in the beginning of next line
-        # (move it to the end of the correct line)
-        protocol_text = []
-        for line in re.sub("[ ]+", " ", self.protocol_text).split('\n'):
-            # if re.match(r'^\<.*\>\W*$',line): # this line start and ends with
-            #                                  # <...>. need to remove it.
-            #    line = line[1:-1]
-            if line.startswith(':'):
-                protocol_text[-1] += ':'
-                protocol_text.append(line[1:])
-            else:
-                protocol_text.append(line)
-
-        i = 1
-        section = []
-        header = ''
-
-        # now create the sections
-        for line in protocol_text:
-            if legitimate_header(line):
-                if (i > 1) or (section):
-                    ProtocolPart(meeting=self, order=i,
-                                 header=header, body='\n'.join(section)).save()
-                i += 1
-                header = re.sub('[\>:]+$', '', re.sub('^[\< ]+', '', line))
-                section = []
-            else:
-                section.append(line)
-
-        # don't forget the last section
-        ProtocolPart(meeting=self, order=i, header=header, body='\n'.join(section)).save()
+        else:
+            def get_protocol_part(i, part):
+                logger.debug('creating protocol part %s'%i)
+                return ProtocolPart(meeting=self, order=i, header=part.header, body=part.body)
+            with KnessetDataCommitteeMeetingProtocol.get_from_text(self.protocol_text) as protocol:
+                # TODO: use bulk_create (I had a strange error when using it)
+                # ProtocolPart.objects.bulk_create(
+                # for testing, you could just save one part:
+                # get_protocol_part(1, protocol.parts[0]).save()
+                list([
+                    get_protocol_part(i, part).save()
+                    for i, part
+                    in zip(range(1, len(protocol.parts)+1), protocol.parts)
+                ])
+            self.protocol_parts_update_date = datetime.now()
+            self.save()
 
     def redownload_protocol(self):
         if self.committee.type == 'plenum':
@@ -346,10 +334,10 @@ class CommitteeMeeting(models.Model):
                 download_for_existing_meeting
             download_for_existing_meeting(self)
         else:
-            # TODO: see above
-            from simple.management.commands.syncdata import Command as SyncdataCommand
-            self.protocol_text = SyncdataCommand().get_committee_protocol_text(self.src_url)
-            self.save()
+            with KnessetDataCommitteeMeetingProtocol.get_from_url(self.src_url) as protocol:
+                self.protocol_text = protocol.text
+                self.protocol_text_update_date = datetime.now()
+                self.save()
 
     def reparse_protocol(self, redownload=True, mks=None, mk_names=None):
         if redownload: self.redownload_protocol()
@@ -418,20 +406,18 @@ class CommitteeMeeting(models.Model):
                                    content_type=ContentType.objects.get_for_model(CommitteeMeeting).id)
 
     def find_attending_members(self, mks=None, mk_names=None):
+        logger.debug('find_attending_members')
         if mks is None and mk_names is None:
+            logger.debug('get_all_mk_names')
             mks, mk_names = get_all_mk_names()
         try:
-            r = re.search(
-                "חברי הו?ועדה(.*?)(\n[^\n]*(ייעוץ|יועץ|רישום|רש(מים|מות|מו|מ|מת|ם|מה)|קצר(נים|ניות|ן|נית))[\s|:])".decode(
-                    'utf8'), self.protocol_text, re.DOTALL).group(1)
-            s = r.split('\n')
-            for (i, name) in enumerate(mk_names):
-                if not mks[i].party_at(self.date):  # not a member at time of
-                    # this meeting?
-                    continue  # then don't search for this MK.
-                for s0 in s:
-                    if s0.find(name) >= 0:
-                        self.mks_attended.add(mks[i])
+            with KnessetDataCommitteeMeetingProtocol.get_from_text(self.protocol_text) as protocol:
+                attended_mk_names = protocol.find_attending_members(mk_names)
+                for name in attended_mk_names:
+                    i = mk_names.index(name)
+                    if not mks[i].party_at(self.date):  # not a member at time of this meeting?
+                        continue  # then don't search for this MK.
+                    self.mks_attended.add(mks[i])
         except Exception:
             exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
             logger.debug("%s%s",

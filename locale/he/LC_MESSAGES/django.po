@@ -3,7 +3,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Django\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2016-02-29 13:22+0200\n"
+"POT-Creation-Date: 2016-02-29 18:27+0200\n"
 "PO-Revision-Date: 2015-12-28 15:19+0200\n"
 "Last-Translator: Ofri Raviv <ofri.raviv@gmail.com>\n"
 "Language-Team: Django-i18n <django-i18n@googlegroups.com>\n"
@@ -151,8 +151,8 @@ msgstr "בעריכת"
 #: agendas/views.py:111 agendas/views.py:236 agendas/views.py:255
 #: agendas/views.py:274 agendas/views.py:297
 #: templates/committees/committee_detail.html:99
-#: templates/committees/committee_detail.html:114
-#: templates/committees/committee_detail.html:127
+#: templates/committees/committee_detail.html:115
+#: templates/committees/committee_detail.html:131
 #: templates/mks/member_detail.html:571 templates/user/editprofile.html:56
 #: templates/user/editprofile.html.py:70 templates/user/editprofile.html:84
 msgid "None"
@@ -210,7 +210,7 @@ msgid ""
 "Main activity feed for the whole site, same as presented on the main page"
 msgstr "פיד ראשי עבור כל האתר, בדומה למוצג בדף הראשי"
 
-#: auxiliary/forms.py:15 committees/models.py:541 laws/views.py:698
+#: auxiliary/forms.py:15 committees/models.py:527 laws/views.py:698
 msgid "Title"
 msgstr "כותרת"
 
@@ -363,64 +363,64 @@ msgstr "גבוה"
 msgid "Extremely above average"
 msgstr "גבוה מאוד"
 
-#: committees/admin.py:38
+#: committees/admin.py:44
 #, fuzzy
 msgid "Missing Protocol"
 msgstr "מפלגות"
 
-#: committees/admin.py:52
+#: committees/admin.py:58
 #, fuzzy
 msgid "Has Missing Protocol"
 msgstr "קריאת את פרוטוקול הישיבה"
 
-#: committees/admin.py:53
+#: committees/admin.py:59
 #, fuzzy
 msgid "Has Protocol"
 msgstr "פרוטוקול"
 
-#: committees/models.py:84 templates/mks/member_detail.html:327
+#: committees/models.py:85 templates/mks/member_detail.html:327
 msgid "Plenum"
 msgstr "מליאה"
 
-#: committees/models.py:241
+#: committees/models.py:246
 msgid "Committee Meeting"
 msgstr "ישיבת ועדה"
 
-#: committees/models.py:242 templates/laws/bill_detail.html:284
+#: committees/models.py:247 templates/laws/bill_detail.html:284
 #: templates/laws/bill_detail.html:369 templates/laws/law_detail.html:17
 #: templates/laws/law_detail.html.py:30 templates/laws/law_detail.html:43
 msgid "Committee Meetings"
 msgstr "ישיבות הוועדה"
 
-#: committees/models.py:543
+#: committees/models.py:529
 msgid "Description"
 msgstr "תאור"
 
-#: committees/models.py:545
+#: committees/models.py:531
 msgid "published"
 msgstr "פורסמה"
 
-#: committees/models.py:546
+#: committees/models.py:532
 msgid "flagged"
 msgstr "חשודה"
 
-#: committees/models.py:547
+#: committees/models.py:533
 msgid "rejected"
 msgstr "נדחתה"
 
-#: committees/models.py:548
+#: committees/models.py:534
 msgid "accepted"
 msgstr "אושרה"
 
-#: committees/models.py:549
+#: committees/models.py:535
 msgid "appeal"
 msgstr "בערעור"
 
-#: committees/models.py:550
+#: committees/models.py:536
 msgid "deleted"
 msgstr "נמחקה"
 
-#: committees/models.py:559 templates/site_base.html:74
+#: committees/models.py:545 templates/site_base.html:74
 #: templates/site_base.html.py:141
 #: templates/committees/committee_detail.html:54
 #: templates/committees/committee_full_events_list.html:30
@@ -442,11 +442,11 @@ msgstr "נמחקה"
 msgid "Committees"
 msgstr "ועדות"
 
-#: committees/models.py:567
+#: committees/models.py:553
 msgid "Topic"
 msgstr "הצעה לסדר"
 
-#: committees/models.py:568 templates/committees/topic_list.html:4
+#: committees/models.py:554 templates/committees/topic_list.html:4
 #: templates/user/followed_topics.html:4
 msgid "Topics"
 msgstr "הצעות לסדר"
@@ -2743,13 +2743,13 @@ msgid "No comments yet"
 msgstr "אין עדיין תגובות"
 
 #: templates/comments/object_comment_list.html:36
-#: templates/committees/committee_detail.html:156
+#: templates/committees/committee_detail.html:160
 #: templates/laws/bill_detail.html:529
 msgid "Please"
 msgstr "אנא"
 
 #: templates/comments/object_comment_list.html:36
-#: templates/committees/committee_detail.html:158
+#: templates/committees/committee_detail.html:162
 #: templates/laws/bill_detail.html:529
 msgid "validate your email"
 msgstr "אמת/י את הדואר אלקטרוני שסיפקת"
@@ -2801,9 +2801,9 @@ msgid "Future Meetings"
 msgstr "ישיבות קרובות"
 
 #: templates/committees/committee_detail.html:102
-#: templates/committees/committee_detail.html:117
-#: templates/committees/committee_detail.html:130
-#: templates/committees/committee_detail.html:139
+#: templates/committees/committee_detail.html:118
+#: templates/committees/committee_detail.html:134
+#: templates/committees/committee_detail.html:143
 msgid "more..."
 msgstr "עוד..."
 
@@ -2811,38 +2811,44 @@ msgstr "עוד..."
 msgid "Meetings for which a protocol was not yet published"
 msgstr "ישיבות מהן טרם פורסם פרוטוקול"
 
-#: templates/committees/committee_detail.html:122
+#: templates/committees/committee_detail.html:121
+msgid ""
+"Sorry, this feature was temporarily removed due to invalid data. We are "
+"working on the problem and will re-enable it as soon as possible."
+msgstr "תכונה זו בוטלה זמנית עקב שגיאות בנתונים. אנחנו עובדים על הבעיה ונפעיל את התכונה מחדש בהקדם האפשרי."
+
+#: templates/committees/committee_detail.html:126
 msgid "Last Meetings"
 msgstr "ישיבות אחרונות"
 
-#: templates/committees/committee_detail.html:136
+#: templates/committees/committee_detail.html:140
 msgid "MMM Documents"
 msgstr "מסמך ממ\"מ"
 
-#: templates/committees/committee_detail.html:148
+#: templates/committees/committee_detail.html:152
 #: templates/committees/committee_list.html:71
 #: templates/committees/committee_list.html:82
 #: templates/committees/topic_list.html:8
 msgid "Suggested Agenda Topics"
 msgstr "הצעות לסדר יום"
 
-#: templates/committees/committee_detail.html:154
+#: templates/committees/committee_detail.html:158
 msgid "Suggest Topic"
 msgstr "העלו הצעה"
 
-#: templates/committees/committee_detail.html:156
+#: templates/committees/committee_detail.html:160
 msgid "to suggest a topic"
 msgstr "להעלות הצעה לסדר"
 
-#: templates/committees/committee_detail.html:161
+#: templates/committees/committee_detail.html:165
 msgid "Please login to suggest a topic"
 msgstr "יש להזדהות כדי לפרסם הצעה לסדר"
 
-#: templates/committees/committee_detail.html:170
+#: templates/committees/committee_detail.html:174
 msgid "Latest Annotations"
 msgstr "הארות אחרונות"
 
-#: templates/committees/committee_detail.html:186
+#: templates/committees/committee_detail.html:190
 #: templates/user/annotated_items.html:29
 #: templates/user/public_profile.html:56
 msgid "No annotations yet..."

@@ -49,8 +49,8 @@ class Command(BaseKnessetDataserviceCommand):
 
     def _create_object(self, dataservice_meeting, committee):
         meeting_transformed = dict(self._translate_ds_to_model(dataservice_meeting))
-
         meeting = CommitteeMeeting.objects.create(committee=committee, **meeting_transformed)
+        self._log_info('creating meeting %s'%meeting.pk)
         self._reparse_protocol(meeting)
         return meeting
 
