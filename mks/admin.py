@@ -56,6 +56,7 @@ class MemberRelatedVideosInline(generic.GenericTabularInline):
 class CoalitionMembershipAdmin(admin.ModelAdmin):
     list_display = ('party', 'start_date', 'end_date')
 
+
 admin.site.register(CoalitionMembership, CoalitionMembershipAdmin)
 
 
@@ -64,21 +65,23 @@ class PartyAdmin(admin.ModelAdmin):
     list_display = ('name', 'knesset', 'start_date', 'end_date',
                     'is_coalition', 'number_of_members',
                     'number_of_seats')
-    list_filter = ('knesset', )
+    list_filter = ('knesset',)
     inlines = (MembershipInline,)
+
+
 admin.site.register(Party, PartyAdmin)
 
 
 class MemberAdmin(admin.ModelAdmin):
     ordering = ('name',)
-#    fields = ('name','start_date','end_date')
+    #    fields = ('name','start_date','end_date')
     list_display = ('name', 'gender', 'PartiesString', 'current_party',
                     'is_current', 'current_position')
     list_editable = ('is_current', 'current_position')
     search_fields = ['name']
     inlines = (MembershipInline, MemberLinksInline, MemberAltnameInline, MemberPersonInline,
                MemberRelatedVideosInline)
-    list_filter = ('current_party__knesset', 'gender')
+    list_filter = ('current_party__knesset', 'gender', 'is_current', 'current_party',)
 
     # A template for a very customized change view:
     change_form_template = 'admin/simple/change_form_with_extra.html'
@@ -115,25 +118,35 @@ admin.site.register(Member, MemberAdmin)
 
 class CorrelationAdmin(admin.ModelAdmin):
     ordering = ('-normalized_score',)
+
+
 admin.site.register(Correlation, CorrelationAdmin)
 
 
 class MembershipAdmin(admin.ModelAdmin):
     ordering = ('member__name',)
+
+
 admin.site.register(Membership, MembershipAdmin)
 
 
 class AwardTypeAdmin(admin.ModelAdmin):
     pass
+
+
 admin.site.register(AwardType, AwardTypeAdmin)
 
 
 class AwardAdmin(admin.ModelAdmin):
     list_display = ('member', 'award_type', 'date_given')
     raw_id_fields = ('member',)
+
+
 admin.site.register(Award, AwardAdmin)
 
 
 class KnessetAdmin(admin.ModelAdmin):
     pass
+
+
 admin.site.register(Knesset, KnessetAdmin)
