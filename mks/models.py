@@ -1,16 +1,16 @@
-#encoding: utf-8
+# encoding: utf-8
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from django.db import models
-from django.core.cache import cache
+
 from django.core.urlresolvers import reverse
 from django.db.models import Q, Max
-from django.utils.translation import ugettext_lazy as _, ugettext
+from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
 from planet.models import Blog
-from knesset.utils import cannonize
+
 from links.models import Link
-import difflib
+
 from mks.managers import (
     BetterManager, PartyManager, KnessetManager, CurrentKnessetMembersManager,
     CurrentKnessetPartyManager, MembershipManager)
@@ -48,7 +48,6 @@ class CoalitionMembership(models.Model):
 
 
 class Knesset(models.Model):
-
     number = models.IntegerField(_('Knesset number'), primary_key=True)
     start_date = models.DateField(_('Start date'), blank=True, null=True)
     end_date = models.DateField(_('End date'), blank=True, null=True)
@@ -119,10 +118,12 @@ class Party(models.Model):
 
     def NameWithLink(self):
         return '<a href="%s">%s</a>' % (self.get_absolute_url(), self.name)
+
     NameWithLink.allow_tags = True
 
     def MembersString(self):
         return ", ".join([m.NameWithLink() for m in self.members.all().order_by('name')])
+
     MembersString.allow_tags = True
 
     def member_list(self):
@@ -133,8 +134,8 @@ class Party(models.Model):
         date"""
         memberships = CoalitionMembership.objects.filter(party=self)
         for membership in memberships:
-            if (not membership.start_date or membership.start_date <= date) and\
-               (not membership.end_date or membership.end_date >= date):
+            if (not membership.start_date or membership.start_date <= date) and \
+                    (not membership.end_date or membership.end_date >= date):
                 return True
         return False
 
@@ -165,6 +166,7 @@ class Membership(models.Model):
     position = models.PositiveIntegerField(blank=True, default=999)
 
     objects = MembershipManager()
+
     def __unicode__(self):
         return "%s-%s (%s-%s)" % (self.member.name, self.party.name, str(self.start_date), str(self.end_date))
 
@@ -175,7 +177,8 @@ class MemberAltname(models.Model):
 
 
 class Member(models.Model):
-    id = models.IntegerField(primary_key=True, help_text="Pay attention that the value of this field must correspond to the official Knesset member id")
+    id = models.IntegerField(primary_key=True,
+                             help_text="Pay attention that the value of this field must correspond to the official Knesset member id")
     name = models.CharField(max_length=64)
     parties = models.ManyToManyField(
         Party, related_name='all_members', through='Membership')
@@ -197,8 +200,10 @@ class Member(models.Model):
     year_of_aliyah = models.IntegerField(blank=True, null=True)
     is_current = models.BooleanField(default=True, db_index=True)
     blog = models.OneToOneField(Blog, blank=True, null=True)
-    place_of_residence = models.CharField(blank=True, null=True, max_length=100, help_text=_('an accurate place of residence (for example, an address'))
-    area_of_residence = models.CharField(blank=True, null=True, max_length=100, help_text=_('a general area of residence (for example, "the negev"'))
+    place_of_residence = models.CharField(blank=True, null=True, max_length=100,
+                                          help_text=_('an accurate place of residence (for example, an address'))
+    area_of_residence = models.CharField(blank=True, null=True, max_length=100,
+                                         help_text=_('a general area of residence (for example, "the negev"'))
     place_of_residence_lat = models.CharField(
         blank=True, null=True, max_length=16)
     place_of_residence_lon = models.CharField(
@@ -255,13 +260,16 @@ class Member(models.Model):
         return self.name
 
     def name_with_dashes(self):
-        return self.name.replace(' - ', ' ').replace("'", "").replace(u"”", '').replace("`", "").replace("(", "").replace(")", "").replace(u'\xa0', ' ').replace(' ', '-')
+        return self.name.replace(' - ', ' ').replace("'", "").replace(u"”", '').replace("`", "").replace("(",
+                                                                                                         "").replace(
+            ")", "").replace(u'\xa0', ' ').replace(' ', '-')
 
     def Party(self):
         return self.parties.all().order_by('-membership__start_date')[0]
 
     def PartiesString(self):
         return ", ".join([p.NameWithLink() for p in self.parties.all().order_by('membership__start_date')])
+
     PartiesString.allow_tags = True
 
     def party_at(self, date):
@@ -269,8 +277,8 @@ class Member(models.Model):
         """
         memberships = Membership.objects.filter(member=self).order_by('-start_date')
         for membership in memberships:
-            if (not membership.start_date or membership.start_date <= date) and\
-               (not membership.end_date or membership.end_date >= date):
+            if (not membership.start_date or membership.start_date <= date) and \
+                    (not membership.end_date or membership.end_date >= date):
                 return membership.party
         return None
 
@@ -363,28 +371,31 @@ class Member(models.Model):
 
     def NameWithLink(self):
         return '<a href="%s">%s</a>' % (self.get_absolute_url(), self.name)
+
     NameWithLink.allow_tags = True
 
     @property
     def get_role(self):
         if self.current_role_descriptions:
             return self.current_role_descriptions
+        return self.get_gender_aware_mk_role_description()
+
+    def get_gender_aware_mk_role_description(self):
         if self.is_current:
             if self.is_female():
                 if self.current_party.is_coalition:
-                    return ugettext('Coalition Member (female)')
+                    return _('Coalition Member (female)')
                 else:
-                    return ugettext('Opposition Member (female)')
+                    return _('Opposition Member (female)')
             else:
                 if self.current_party.is_coalition:
-                    return ugettext('Coalition Member (male)')
+                    return _('Coalition Member (male)')
                 else:
-                    return ugettext('Opposition Member (male)')
-
+                    return _('Opposition Member (male)')
         if self.is_female():
-            return ugettext('Past Member (female)')
+            return _('Past Member (female)')
         else:
-            return ugettext('Past Member (male)')
+            return _('Past Member (male)')
 
     @property
     def roles(self):
@@ -403,7 +414,7 @@ class Member(models.Model):
         """Check if one of the roles starts with minister"""
 
         # TODO Once we have roles table change this
-        minister = ugettext('Minister')
+        minister = _('Minister')
         return any(x.startswith(minister) for x in self.roles)
 
     @property
@@ -486,10 +497,10 @@ class Member(models.Model):
         return self.awards_and_convictions.filter(award_type__valence__lt=0)
 
 
-
 class WeeklyPresence(models.Model):
     member = models.ForeignKey('Member')
-    date = models.DateField(blank=True, null=True)  # contains the date of the begining of the relevant week (actually monday)
+    date = models.DateField(blank=True,
+                            null=True)  # contains the date of the begining of the relevant week (actually monday)
     hours = models.FloatField(
         blank=True)  # number of hours this member was present during this week
 
@@ -520,7 +531,8 @@ class Award(models.Model):
         return u"%s - %s" % (self.member, self.award_type)
 
     class Meta:
-        ordering = ('-date_given', )
+        ordering = ('-date_given',)
+
 
 # force signal connections
 from listeners import *
