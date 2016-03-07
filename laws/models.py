@@ -2,6 +2,7 @@
 import re, logging, random, sys, traceback
 from datetime import date, timedelta
 
+from django.contrib.comments import Comment
 from django.db import models, IntegrityError
 from django.contrib.contenttypes import generic
 from django import forms
@@ -597,28 +598,31 @@ class BillManager(models.Manager):
         elif bill_type == 'knesset':
             qs = qs.exclude(knesset_proposal=None)
 
+        elif bill_type == 'private':
+            qs = qs.exclude(proposals=None)
+
         if pp_id:
-            pps = PrivateProposal.objects.filter(
+            private_proposals = PrivateProposal.objects.filter(
                 proposal_id=pp_id).values_list(
                 'id', flat=True)
-            if pps:
-                qs = qs.filter(proposals__in=pps)
+            if private_proposals:
+                qs = qs.filter(proposals__in=private_proposals)
             else:
                 qs = qs.none()
 
         if knesset_booklet:
-            kps = KnessetProposal.objects.filter(
+            knesset_proposals = KnessetProposal.objects.filter(
                 booklet_number=knesset_booklet).values_list(
                 'id', flat=True)
-            if kps:
-                qs = qs.filter(knesset_proposal__in=kps)
+            if knesset_proposals:
+                qs = qs.filter(knesset_proposal__in=knesset_proposals)
             else:
                 qs = qs.none()
         if gov_booklet:
-            gps = GovProposal.objects.filter(
+            government_proposals = GovProposal.objects.filter(
                 booklet_number=gov_booklet).values_list('id', flat=True)
-            if gps:
-                qs = qs.filter(gov_proposal__in=gps)
+            if government_proposals:
+                qs = qs.filter(gov_proposal__in=government_proposals)
             else:
                 qs = qs.none()
 
