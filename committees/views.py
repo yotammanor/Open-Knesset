@@ -164,7 +164,7 @@ class MeetingDetailView(DetailView):
         return context
 
     def _resolve_handler_by_user_input_type(self, user_input_type):
-        handler =  self._action_handlers.get(user_input_type)
+        handler = self._action_handlers.get(user_input_type)
         return getattr(self, handler)
 
     @hashnav_method_decorator(login_required)
@@ -197,10 +197,13 @@ class MeetingDetailView(DetailView):
         cm.lobbyists_mentioned.add(l)
 
     def _handle_remove_mk(self, cm, request):
-        mk_names = Member.objects.values_list('name', flat=True)
-        mk_name = difflib.get_close_matches(request.POST.get('mk_name'),
-                                            mk_names)[0]
-        mk = Member.objects.get(name=mk_name)
+        if not request.POST.get('mk_id'):
+            mk_names = Member.objects.values_list('name', flat=True)
+            mk_name = difflib.get_close_matches(request.POST.get('mk_name_to_remove'),
+                                                mk_names)[0]
+            mk = Member.objects.get(name=mk_name)
+        else:
+            mk = Member.objects.get(id=request.POST.get('mk_id'))
         cm.mks_attended.remove(mk)
         cm.save()  # just to signal, so the attended Action gets created.
         action.send(request.user,
@@ -210,10 +213,13 @@ class MeetingDetailView(DetailView):
                     timestamp=datetime.datetime.now())
 
     def _handle_add_mk(self, cm, request):
-        mk_names = Member.objects.values_list('name', flat=True)
-        mk_name = difflib.get_close_matches(request.POST.get('mk_name'),
-                                            mk_names)[0]
-        mk = Member.objects.get(name=mk_name)
+        if not request.POST.get('mk_id'):
+            mk_names = Member.objects.values_list('name', flat=True)
+            mk_name = difflib.get_close_matches(request.POST.get('mk_name'),
+                                                mk_names)[0]
+            mk = Member.objects.get(name=mk_name)
+        else:
+            mk = Member.objects.get(id=request.POST.get('mk_id'))
         cm.mks_attended.add(mk)
         cm.save()  # just to signal, so the attended Action gets created.
         action.send(request.user,
