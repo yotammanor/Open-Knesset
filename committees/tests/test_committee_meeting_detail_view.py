@@ -9,9 +9,10 @@ from annotatetext.models import Annotation
 from actstream.models import Action
 from tagging.models import Tag, TaggedItem
 from laws.models import Bill
+from lobbyists.models import Lobbyist
 from mks.models import Member, Knesset
 from committees.models import Committee, CommitteeMeeting
-
+from persons.models import Person
 
 just_id = lambda x: x.id
 APP = 'committees'
@@ -19,6 +20,7 @@ APP = 'committees'
 
 class CommitteeMeetingDetailViewTest(TestCase):
     def setUp(self):
+        super(CommitteeMeetingDetailViewTest, self).setUp()
         self.knesset = Knesset.objects.create(number=1,
                                               start_date=datetime.today() - timedelta(days=1))
         self.committee_1 = Committee.objects.create(name='c1')
@@ -54,7 +56,20 @@ I have a deadline''')
         self.tag_1 = Tag.objects.create(name='tag1')
         self.meeting_1.mks_attended.add(self.mk_1)
 
-    def testProtocolPart(self):
+    def tearDown(self):
+        super(CommitteeMeetingDetailViewTest, self).tearDown()
+        self.client.logout()
+        self.meeting_1.delete()
+        self.meeting_2.delete()
+        self.committee_1.delete()
+        self.committee_2.delete()
+        self.jacob.delete()
+        self.group.delete()
+        self.bill_1.delete()
+        self.mk_1.delete()
+        self.topic.delete()
+
+    def test_protocol_parts_return_correctly(self):
         parts_list = self.meeting_1.parts.list()
         self.assertEqual(parts_list.count(), 2)
         self.assertEqual(parts_list[0].header, u'jacob')
@@ -62,20 +77,11 @@ I have a deadline''')
         self.assertEqual(parts_list[1].header, u'adrian')
         self.assertEqual(parts_list[1].body, 'I have a deadline')
 
-    def testPartAnnotation(self):
+    def test_annotating_protocol_part(self):
         '''this is more about testing the annotatext app '''
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
         part = self.meeting_1.parts.list()[0]
-        res = self.client.post(reverse('annotatetext-post_annotation'),
-                               {'selection_start': 7,
-                                'selection_end': 14,
-                                'flags': 0,
-                                'color': '#000',
-                                'lengthcheck': len(part.body),
-                                'comment': 'just perfect',
-                                'object_id': part.id,
-                                'content_type': ContentType.objects.get_for_model(part).id,
-                                })
+        res = self._given_protocol_annotation(part)
         self.assertEqual(res.status_code, 302)
         annotation = Annotation.objects.get(object_id=part.id,
                                             content_type=ContentType.objects.get_for_model(part).id)
@@ -96,20 +102,11 @@ I have a deadline''')
         stream = Action.objects.stream_for_actor(self.jacob)
         self.assertEqual(stream.count(), 1)
 
-    def testTwoAnnotations(self):
+    def test_adding_and_removing_two_annotation_to_protocol(self):
         '''create two annotations on same part, and delete them'''
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
         part = self.meeting_1.parts.list()[0]
-        res = self.client.post(reverse('annotatetext-post_annotation'),
-                               {'selection_start': 7,
-                                'selection_end': 14,
-                                'flags': 0,
-                                'color': '#000',
-                                'lengthcheck': len(part.body),
-                                'comment': 'just perfect',
-                                'object_id': part.id,
-                                'content_type': ContentType.objects.get_for_model(part).id,
-                                })
+        res = self._given_protocol_annotation(part)
         self.assertEqual(res.status_code, 302)
         res = self.client.post(reverse('annotatetext-post_annotation'),
                                {'selection_start': 8,
@@ -136,44 +133,27 @@ I have a deadline''')
         c_annotations = self.committee_1.annotations
         self.assertEqual(c_annotations.count(), 1)
 
-    def testAnnotationForbidden(self):
+    def test_cannot_annotate_without_known_email(self):
         self.jacob.groups.clear()  # invalidate this user's email
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
         part = self.meeting_1.parts.list()[0]
-        res = self.client.post(reverse('annotatetext-post_annotation'),
-                               {'selection_start': 7,
-                                'selection_end': 14,
-                                'flags': 0,
-                                'color': '#000',
-                                'lengthcheck': len(part.body),
-                                'comment': 'just perfect',
-                                'object_id': part.id,
-                                'content_type': ContentType.objects.get_for_model(part).id,
-                                })
+        res = self._given_protocol_annotation(part)
         self.assertEqual(res.status_code,
                          403)  # 403 Forbidden. 302 means a user with unverified email has posted an annotation.
 
-    def testCommitteeList(self):
-        res = self.client.get(reverse('committee-list'))
-        self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'committees/committee_list.html')
-        committees = res.context['committees']
-        self.assertEqual(map(just_id, committees),
-                         [self.committee_1.id, self.committee_2.id, ])
-        self.assertQuerysetEqual(res.context['topics'],
-                                 ["<Topic: hello>"])
+    def _given_protocol_annotation(self, part):
+        return self.client.post(reverse('annotatetext-post_annotation'),
+                                {'selection_start': 7,
+                                 'selection_end': 14,
+                                 'flags': 0,
+                                 'color': '#000',
+                                 'lengthcheck': len(part.body),
+                                 'comment': 'just perfect',
+                                 'object_id': part.id,
+                                 'content_type': ContentType.objects.get_for_model(part).id,
+                                 })
 
-    def testCommitteeMeetings(self):
-        res = self.client.get(self.committee_1.get_absolute_url())
-        self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res,
-                                'committees/committee_detail.html')
-        object_list = res.context['meetings_list']
-        self.assertEqual(map(just_id, object_list),
-                         [self.meeting_1.id, self.meeting_2.id, ],
-                         'object_list has wrong objects: %s' % object_list)
-
-    def test_committee_meeting(self):
+    def test_committee_meeting_returns_correct_members(self):
         res = self.client.get(self.meeting_1.get_absolute_url())
         self.assertEqual(res.status_code, 200)
         self.assertTemplateUsed(res,
@@ -183,45 +163,58 @@ I have a deadline''')
                          [self.mk_1.id],
                          'members has wrong objects: %s' % members)
 
-    def testLoginRequired(self):
+    def test_user_can_add_a_bill_to_meetings_if_not_login(self):
         res = self.client.post(reverse('committee-meeting',
                                        kwargs={'pk': self.meeting_1.id}))
-        self.assertFalse(self.bill_1 in self.meeting_1.bills_first.all())
+        self._verify_bill_not_in_meeting(self.bill_1, self.meeting_1)
         self.assertEqual(res.status_code, 302)
         self.assertTrue(res['location'].startswith('%s%s' %
                                                    ('http://testserver', settings.LOGIN_URL)))
 
-    def testConnectToMK(self):
+    def test_post_removing_and_adding_mk_to_committee_meetings(self):
+        mk_1 = self.mk_1
+        meeting = self.meeting_1
+        self._verify_mk_has_meeting(meeting, mk_1)
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
-        res = self.client.post(reverse('committee-meeting',
-                                       kwargs={'pk': self.meeting_1.id}),
-                               {'user_input_type': 'mk',
-                                'mk_name': self.mk_1.name})
-        self.assertEqual(res.status_code, 302)
-        self.assertTrue(self.meeting_1 in self.mk_1.committee_meetings.all())
-        self.client.logout()
+        res = self._given_mk_removed_from_meeting(meeting, mk_1)
 
-    def testConnectToBill(self):
-        self.assertTrue(self.client.login(username='jacob', password='JKM'))
-        res = self.client.post(reverse('committee-meeting',
-                                       kwargs={'pk':
-                                                   self.meeting_1.id}),
-                               {'user_input_type': 'bill',
-                                'bill_id': self.bill_1.id})
+        self._verify_mk_does_not_have_meeting(meeting, mk_1)
+        res = self._given_mk_added_to_meeting(meeting, mk_1)
         self.assertEqual(res.status_code, 302)
-        self.assertTrue(self.bill_1 in self.meeting_1.bills_first.all())
-        self.client.logout()
+        self._verify_mk_has_meeting(meeting, mk_1)
+
+    def test_post_adds_bill_to_committee_meeting(self):
+        bill_1 = self.bill_1
+        meeting = self.meeting_1
+        self._verify_bill_not_in_meeting(bill_1, meeting)
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        res = self._given_bill_added_to_meeting(bill_1, meeting)
+        self.assertEqual(res.status_code, 302)
+        self._verify_bill_in_meeting(bill_1, meeting)
+
+    def test_post_adds_and_removes_lobbyist_to_committee_meeting(self):
+        lobbyist = self._setup_lobbyist()
+        meeting = self.meeting_1
+        self._verify_lobbyist_not_mentioned_in_meetings(lobbyist, meeting)
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        res = self._given_lobbyist_added_to_meeting(meeting, lobbyist)
+        self.assertEqual(res.status_code, 302)
+        self._verify_lobbyist_mentioned_in_meetings(lobbyist, meeting)
+
+        res = self._given_lobbyist_removed_from_meeting(meeting, lobbyist)
+        self._verify_lobbyist_not_mentioned_in_meetings(lobbyist, meeting)
 
     def test_add_tag_committee_login_required(self):
         url = reverse('add-tag-to-object',
-                                 kwargs={'app':APP,
-                                         'object_type':'committeemeeting',
-                                         'object_id': self.meeting_1.id})
-        res = self.client.post(url, {'tag_id':self.tag_1})
+                      kwargs={'app': APP,
+                              'object_type': 'committeemeeting',
+                              'object_id': self.meeting_1.id})
+        res = self.client.post(url, {'tag_id': self.tag_1})
         self.assertRedirects(res, "%s?next=%s" % (settings.LOGIN_URL, url),
                              status_code=302)
 
-    def test_add_tag(self):
+    def test_post_adds_tag_to_meeting(self):
+        self.assertNotIn(self.tag_1, self.meeting_1.tags)
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
         url = reverse('add-tag-to-object',
                       kwargs={'app': APP,
@@ -255,36 +248,55 @@ I have a deadline''')
         self.new_tag = Tag.objects.get(name='new tag')
         self.assertIn(self.new_tag, self.meeting_1.tags)
 
-    def test_committeemeeting_by_tag(self):
-        res = self.client.get('%s?tagged=false' % reverse('committee-all-meetings'))
-        self.assertQuerysetEqual(res.context['object_list'],
-                                 ['<CommitteeMeeting: c1 - python>',
-                                  '<CommitteeMeeting: c1 - django>'],
-                                 )
-        self.ti = TaggedItem._default_manager.create(
-            tag=self.tag_1,
-            content_type=ContentType.objects.get_for_model(CommitteeMeeting),
-            object_id=self.meeting_1.id)
-        res = self.client.get(reverse('committeemeeting-tag', args=[self.tag_1.name]))
-        self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'committees/committeemeeting_list_by_tag.html')
-        tag = res.context['tag']
-        self.assertEqual(tag, self.tag_1)
-        self.assertQuerysetEqual(res.context['object_list'],
-                                 ['<CommitteeMeeting: c1 - django>'])
-        res = self.client.get('%s?tagged=false' % reverse('committee-all-meetings'))
-        self.assertQuerysetEqual(res.context['object_list'],
-                                 ['<CommitteeMeeting: c1 - python>'])
-        # cleanup
-        self.ti.delete()
+    def _given_mk_added_to_meeting(self, meeting, mk):
+        return self.client.post(reverse('committee-meeting',
+                                        kwargs={'pk': meeting.id}),
+                                {'user_input_type': 'mk',
+                                 'mk_name': mk.name})
 
-    def tearDown(self):
-        self.meeting_1.delete()
-        self.meeting_2.delete()
-        self.committee_1.delete()
-        self.committee_2.delete()
-        self.jacob.delete()
-        self.group.delete()
-        self.bill_1.delete()
-        self.mk_1.delete()
-        self.topic.delete()
+    def _given_mk_removed_from_meeting(self, meeting, mk):
+        return self.client.post(reverse('committee-meeting',
+                                        kwargs={'pk': meeting.id}),
+                                {'user_input_type': 'remove-mk',
+                                 'mk_name': mk.name})
+
+    def _given_lobbyist_added_to_meeting(self, meeting, lobbyist):
+        return self.client.post(reverse('committee-meeting',
+                                        kwargs={'pk': meeting.id}),
+                                {'user_input_type': 'add-lobbyist',
+                                 'lobbyist_name': lobbyist.person.name})
+
+    def _given_lobbyist_removed_from_meeting(self, meeting, lobbyist):
+        return self.client.post(reverse('committee-meeting',
+                                        kwargs={'pk': meeting.id}),
+                                {'user_input_type': 'remove-lobbyist',
+                                 'lobbyist_name': lobbyist.person.name})
+
+    def _verify_mk_does_not_have_meeting(self, meeting, mk_1):
+        self.assertFalse(meeting in mk_1.committee_meetings.all())
+
+    def _verify_mk_has_meeting(self, meeting, mk_1):
+        self.assertTrue(meeting in mk_1.committee_meetings.all())
+
+    def _verify_bill_in_meeting(self, bill_1, meeting):
+        self.assertTrue(bill_1 in meeting.bills_first.all())
+
+    def _given_bill_added_to_meeting(self, bill_1, meeting):
+        return self.client.post(reverse('committee-meeting',
+                                        kwargs={'pk':
+                                                    meeting.id}),
+                                {'user_input_type': 'bill',
+                                 'bill_id': bill_1.id})
+
+    def _verify_bill_not_in_meeting(self, bill_1, meeting):
+        self.assertFalse(bill_1 in meeting.bills_first.all())
+
+    def _verify_lobbyist_mentioned_in_meetings(self, lobbyist, meeting):
+        self.assertTrue(lobbyist in meeting.lobbyists_mentioned.all())
+
+    def _verify_lobbyist_not_mentioned_in_meetings(self, lobbyist, meeting):
+        self.assertFalse(lobbyist in meeting.lobbyists_mentioned.all())
+
+    def _setup_lobbyist(self, name='kressni'):
+        person = Person.objects.create(name=name)
+        return Lobbyist.objects.create(person=person)
