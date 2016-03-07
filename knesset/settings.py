@@ -160,6 +160,7 @@ INSTALLED_APPS = (
     'corsheaders',
     'sslserver',
     'waffle',
+    'import_export',
     # 'knesset',
     'auxiliary',  # knesset apps
     'mks',

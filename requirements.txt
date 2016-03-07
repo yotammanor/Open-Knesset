@@ -57,3 +57,4 @@ git+https://github.com/turnkeylinux/octohub.git
 knesset-data==0.0.10
 
 django-waffle==0.11
+django-import-export==0.4.2
