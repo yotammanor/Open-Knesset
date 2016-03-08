@@ -158,7 +158,7 @@ class BillSelectForm(forms.Form):
                                required=False, initial='all')
     changed_after = forms.DateField(label=_('Stage Changed After:'), required=False,
                                     input_formats=["%d/%m/%Y", "%d/%m/%y"])
-    changed_before = forms.DateField(label=_('Stage Chaged Before:'), required=False,
+    changed_before = forms.DateField(label=_('Stage Changed Before:'), required=False,
                                      input_formats=["%d/%m/%Y", "%d/%m/%y"])
 
     pp_id = forms.IntegerField(required=False,
@@ -167,6 +167,8 @@ class BillSelectForm(forms.Form):
                                          label=_('Knesset booklet'))
     gov_booklet = forms.IntegerField(required=False,
                                      label=_('Government booklet'))
+
+    member = forms.CharField(widget=forms.HiddenInput(), required=False)
 
     # TODO: add more filter options:
     # order = forms.ChoiceField(label=_('Order by'), choices=ORDER_CHOICES,
