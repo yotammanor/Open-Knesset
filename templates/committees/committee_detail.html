@@ -1,5 +1,5 @@
 {% extends "site_base.html" %}
-{% load i18n mks_tags avatar_tags %}{% load static from staticfiles %}
+{% load i18n mks_tags avatar_tags waffle_tags %}{% load static from staticfiles %}
 {% block extratitle %}{{ object }}{% endblock %}
 {% block keywords %}{{ object.name }}{% endblock %}
 {% block extrajs %}
@@ -108,14 +108,18 @@
                         class="fa fa-minus-circle"></i>{% trans 'Meetings for which a protocol was not yet published' %}
                 </h2></header>
                 <ul>
-                    {% for o in protocol_not_yet_published_list|dictsortreversed:"when" %}
-                        {% include "events/_event_li.html" %}
-                    {% empty %}
-                        <li>{% trans "None" %}</li>
-                    {% endfor %}
-                    {% if more_unpublished_available %}
-                        <li><a href="all_unpublished_protocols/">{% trans 'more...' %}</a></li>
-                    {% endif %}
+                    {% flag "committee meetings for which protocol was not yet published" %}
+                        {% for o in protocol_not_yet_published_list|dictsortreversed:"when" %}
+                            {% include "events/_event_li.html" %}
+                        {% empty %}
+                            <li>{% trans "None" %}</li>
+                        {% endfor %}
+                        {% if more_unpublished_available %}
+                            <li><a href="all_unpublished_protocols/">{% trans 'more...' %}</a></li>
+                        {% endif %}
+                    {% else %}
+                        <li>{% include "_feature_unavailable_message.html" %}</li>
+                    {% endflag %}
                 </ul>
             </section>
             <section class="card card-list card-list-latest">

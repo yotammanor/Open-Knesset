@@ -106,11 +106,21 @@ class CommitteeDetailView(DetailView):
 class MeetingDetailView(DetailView):
     model = CommitteeMeeting
 
+    _action_handlers = {
+        'bill': '_handle_bill_update',
+        'mk': '_handle_add_mk',
+        'remove-mk': '_handle_remove_mk',
+        'add-lobbyist': '_handle_add_lobbyist',
+        'remove-lobbyist': '_handle_remove_lobbyist',
+        'protocol': '_handle_protocol',
+
+    }
+
     def get_queryset(self):
         return super(MeetingDetailView, self).get_queryset().select_related('committee')
 
     def get_context_data(self, *args, **kwargs):
-        context = super(MeetingDetailView, self).get_context_data(*args, **kwargs)
+        context = super(MeetingDetailView, self).get_context_data(**kwargs)
         cm = context['object']
         colors = {}
         speakers = cm.parts.order_by('speaker__mk').values_list('header', 'speaker__mk').distinct()
@@ -153,83 +163,90 @@ class MeetingDetailView(DetailView):
 
         return context
 
+    def _resolve_handler_by_user_input_type(self, user_input_type):
+        handler =  self._action_handlers.get(user_input_type)
+        return getattr(self, handler)
+
     @hashnav_method_decorator(login_required)
     def post(self, request, **kwargs):
         cm = get_object_or_404(CommitteeMeeting, pk=kwargs['pk'])
         request = self.request
         user_input_type = request.POST.get('user_input_type')
-        if user_input_type == 'bill':
-            bill_id = request.POST.get('bill_id')
-            if bill_id.isdigit():
-                bill = get_object_or_404(Bill, pk=bill_id)
-            else:  # not a number, maybe its p/1234
-                m = re.findall('\d+', bill_id)
-                if len(m) != 1:
-                    raise ValueError("didn't find exactly 1 number in bill_id=%s" % bill_id)
-                pp = PrivateProposal.objects.get(proposal_id=m[0])
-                bill = pp.bill
 
-            if bill.stage in ['1', '2', '-2',
-                              '3']:  # this bill is in early stage, so cm must be one of the first meetings
-                bill.first_committee_meetings.add(cm)
-            else:  # this bill is in later stages
-                v = bill.first_vote  # look for first vote
-                if v and v.time.date() < cm.date:  # and check if the cm is after it,
-                    bill.second_committee_meetings.add(
-                        cm)  # if so, this is a second committee meeting
-                else:  # otherwise, assume its first cms.
-                    bill.first_committee_meetings.add(cm)
-            bill.update_stage()
-            action.send(request.user, verb='added-bill-to-cm',
-                        description=cm,
-                        target=bill,
-                        timestamp=datetime.datetime.now())
-
-        if user_input_type == 'mk':
-            mk_names = Member.objects.values_list('name', flat=True)
-            mk_name = difflib.get_close_matches(request.POST.get('mk_name'),
-                                                mk_names)[0]
-            mk = Member.objects.get(name=mk_name)
-            cm.mks_attended.add(mk)
-            cm.save()  # just to signal, so the attended Action gets created.
-            action.send(request.user,
-                        verb='added-mk-to-cm',
-                        description=cm,
-                        target=mk,
-                        timestamp=datetime.datetime.now())
-
-        if user_input_type == 'remove-mk':
-            mk_names = Member.objects.values_list('name', flat=True)
-            mk_name = difflib.get_close_matches(request.POST.get('mk_name'),
-                                                mk_names)[0]
-            mk = Member.objects.get(name=mk_name)
-            cm.mks_attended.remove(mk)
-            cm.save()  # just to signal, so the attended Action gets created.
-            action.send(request.user,
-                        verb='removed-mk-to-cm',
-                        description=cm,
-                        target=mk,
-                        timestamp=datetime.datetime.now())
-
-        if user_input_type == 'add-lobbyist':
-            l = Lobbyist.objects.get(person__name=request.POST.get(
-                'lobbyist_name'))
-            cm.lobbyists_mentioned.add(l)
-
-        if user_input_type == 'remove-lobbyist':
-            l = Lobbyist.objects.get(person__name=request.POST.get(
-                'lobbyist_name'))
-            cm.lobbyists_mentioned.remove(l)
-
-        if user_input_type == "protocol":
-            if not cm.protocol_text:  # don't override existing protocols
-                cm.protocol_text = request.POST.get('protocol_text')
-                cm.save()
-                cm.create_protocol_parts()
-                mks, mk_names = get_all_mk_names()
-                cm.find_attending_members(mks, mk_names)
+        handler = self._resolve_handler_by_user_input_type(user_input_type=user_input_type)
+        handler(cm, request)
 
         return HttpResponseRedirect(".")
+
+    def _handle_protocol(self, cm, request):
+        if not cm.protocol_text:  # don't override existing protocols
+            cm.protocol_text = request.POST.get('protocol_text')
+            cm.save()
+            cm.create_protocol_parts()
+            mks, mk_names = get_all_mk_names()
+            cm.find_attending_members(mks, mk_names)
+
+    def _handle_remove_lobbyist(self, cm, request):
+        l = Lobbyist.objects.get(person__name=request.POST.get(
+            'lobbyist_name'))
+        cm.lobbyists_mentioned.remove(l)
+
+    def _handle_add_lobbyist(self, cm, request):
+        l = Lobbyist.objects.get(person__name=request.POST.get(
+            'lobbyist_name'))
+        cm.lobbyists_mentioned.add(l)
+
+    def _handle_remove_mk(self, cm, request):
+        mk_names = Member.objects.values_list('name', flat=True)
+        mk_name = difflib.get_close_matches(request.POST.get('mk_name'),
+                                            mk_names)[0]
+        mk = Member.objects.get(name=mk_name)
+        cm.mks_attended.remove(mk)
+        cm.save()  # just to signal, so the attended Action gets created.
+        action.send(request.user,
+                    verb='removed-mk-to-cm',
+                    description=cm,
+                    target=mk,
+                    timestamp=datetime.datetime.now())
+
+    def _handle_add_mk(self, cm, request):
+        mk_names = Member.objects.values_list('name', flat=True)
+        mk_name = difflib.get_close_matches(request.POST.get('mk_name'),
+                                            mk_names)[0]
+        mk = Member.objects.get(name=mk_name)
+        cm.mks_attended.add(mk)
+        cm.save()  # just to signal, so the attended Action gets created.
+        action.send(request.user,
+                    verb='added-mk-to-cm',
+                    description=cm,
+                    target=mk,
+                    timestamp=datetime.datetime.now())
+
+    def _handle_bill_update(self, cm, request):
+        bill_id = request.POST.get('bill_id')
+        if bill_id.isdigit():
+            bill = get_object_or_404(Bill, pk=bill_id)
+        else:  # not a number, maybe its p/1234
+            m = re.findall('\d+', bill_id)
+            if len(m) != 1:
+                raise ValueError("didn't find exactly 1 number in bill_id=%s" % bill_id)
+            pp = PrivateProposal.objects.get(proposal_id=m[0])
+            bill = pp.bill
+        if bill.stage in ['1', '2', '-2',
+                          '3']:  # this bill is in early stage, so cm must be one of the first meetings
+            bill.first_committee_meetings.add(cm)
+        else:  # this bill is in later stages
+            v = bill.first_vote  # look for first vote
+            if v and v.time.date() < cm.date:  # and check if the cm is after it,
+                bill.second_committee_meetings.add(
+                    cm)  # if so, this is a second committee meeting
+            else:  # otherwise, assume its first cms.
+                bill.first_committee_meetings.add(cm)
+        bill.update_stage()
+        action.send(request.user, verb='added-bill-to-cm',
+                    description=cm,
+                    target=bill,
+                    timestamp=datetime.datetime.now())
 
 
 _('added-bill-to-cm')

@@ -6,6 +6,12 @@ from video.models import Video
 from models import Committee, CommitteeMeeting, Topic
 from links.models import Link
 from django.utils.translation import ugettext_lazy as _
+from mks.utils import get_all_mk_names
+import logging
+
+
+logger = logging.getLogger(__name__)
+
 
 
 class CommitteeRelatedVideosInline(generic.GenericTabularInline):
@@ -74,6 +80,8 @@ class CommitteeMeetingAdmin(admin.ModelAdmin):
     ordering = ('-date',)
     list_display = ('__unicode__', 'date', 'committee_type', 'protocol_parts')
     list_filter = ('committee', 'committee__type', MissingProtocolListFilter)
+    search_fields = ['id', 'topics']
+    actions = ['redownload_and_reparse_protocol', 'reparse_protocol']
 
     def committee_type(self, obj):
         return obj.committee.type
@@ -81,6 +89,18 @@ class CommitteeMeetingAdmin(admin.ModelAdmin):
     def protocol_parts(self, obj):
         return obj.parts.all().count()
 
+    def redownload_and_reparse_protocol(self, request, qs):
+        mks, mk_names = get_all_mk_names()
+        for meeting in qs:
+            meeting.reparse_protocol(mks=mks, mk_names=mk_names)
+        self.message_user(request, "successfully redownloaded & reparsed %s meetings"%qs.count())
+
+    def reparse_protocol(self, request, qs):
+        mks, mk_names = get_all_mk_names()
+        for meeting in qs:
+            logger.debug('reparsing meeting %s'%meeting.pk)
+            meeting.reparse_protocol(redownload=False, mks=mks, mk_names=mk_names)
+        self.message_user(request, "successfully reparsed %s meetings"%qs.count())
 
 admin.site.register(CommitteeMeeting, CommitteeMeetingAdmin)
 
