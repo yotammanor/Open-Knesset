@@ -64,7 +64,10 @@ class MemberListView(ListView):
 
     def get_context_data(self, **kwargs):
         if not waffle.flag_is_active(self.request, 'show_member_graph'):
-            self.pages.remove(('graph', _('Graphical view')))
+            graph_view = ('graph', _('Graphical view'))
+            if graph_view in self.pages:
+
+                self.pages.remove(graph_view)
 
         info = self.kwargs['stat_type']
 

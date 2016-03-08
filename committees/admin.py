@@ -2,6 +2,8 @@ from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.generic import GenericTabularInline
 from django.db.models import Q
 from django.contrib import admin
+from import_export.admin import ImportExportModelAdmin
+
 from video.models import Video
 from models import Committee, CommitteeMeeting, Topic
 from links.models import Link
@@ -9,9 +11,7 @@ from django.utils.translation import ugettext_lazy as _
 from mks.utils import get_all_mk_names
 import logging
 
-
 logger = logging.getLogger(__name__)
-
 
 
 class CommitteeRelatedVideosInline(generic.GenericTabularInline):
@@ -29,7 +29,7 @@ class CommitteeRelatedVideosInline(generic.GenericTabularInline):
         return qs
 
 
-class CommitteeAdmin(admin.ModelAdmin):
+class CommitteeAdmin(ImportExportModelAdmin):
     ordering = ('name',)
     filter_horizontal = ('members', 'chairpersons', 'replacements')
     inlines = (CommitteeRelatedVideosInline,)
@@ -76,7 +76,7 @@ class MissingProtocolListFilter(admin.SimpleListFilter):
             return queryset
 
 
-class CommitteeMeetingAdmin(admin.ModelAdmin):
+class CommitteeMeetingAdmin(ImportExportModelAdmin):
     ordering = ('-date',)
     list_display = ('__unicode__', 'date', 'committee_type', 'protocol_parts')
     list_filter = ('committee', 'committee__type', MissingProtocolListFilter)
@@ -93,14 +93,15 @@ class CommitteeMeetingAdmin(admin.ModelAdmin):
         mks, mk_names = get_all_mk_names()
         for meeting in qs:
             meeting.reparse_protocol(mks=mks, mk_names=mk_names)
-        self.message_user(request, "successfully redownloaded & reparsed %s meetings"%qs.count())
+        self.message_user(request, "successfully redownloaded & reparsed %s meetings" % qs.count())
 
     def reparse_protocol(self, request, qs):
         mks, mk_names = get_all_mk_names()
         for meeting in qs:
-            logger.debug('reparsing meeting %s'%meeting.pk)
+            logger.debug('reparsing meeting %s' % meeting.pk)
             meeting.reparse_protocol(redownload=False, mks=mks, mk_names=mk_names)
-        self.message_user(request, "successfully reparsed %s meetings"%qs.count())
+        self.message_user(request, "successfully reparsed %s meetings" % qs.count())
+
 
 admin.site.register(CommitteeMeeting, CommitteeMeetingAdmin)
 
@@ -111,7 +112,7 @@ class LinksTable(GenericTabularInline):
     ct_fk_field = 'object_pk'
 
 
-class TopicAdmin(admin.ModelAdmin):
+class TopicAdmin(ImportExportModelAdmin):
     ordering = ('-created',)
     list_select_related = True
     exclude = ('meetings',)
