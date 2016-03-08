@@ -9,6 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
 from planet.models import Blog
 
+from laws.enums import BillStages
 from links.models import Link
 
 from mks.managers import (
@@ -431,17 +432,20 @@ class Member(models.Model):
 
     def recalc_bill_statistics(self):
         d = Knesset.objects.current_knesset().start_date
-        self.bills_stats_proposed = self.proposals_proposed.filter(
-            date__gte=d).count()
-        self.bills_stats_pre = self.proposals_proposed.filter(
-            date__gte=d,
-            bill__stage__in=['2', '3', '4', '5', '6']).count()
-        self.bills_stats_first = self.proposals_proposed.filter(
-            date__gte=d,
-            bill__stage__in=['4', '5', '6']).count()
-        self.bills_stats_approved = self.proposals_proposed.filter(
-            date__gte=d,
-            bill__stage='6').count()
+        self.bills_stats_proposed = self.bills.filter(
+            stage_date__gte=d).count()
+        self.bills_stats_pre = self.bills.filter(
+            stage_date__gte=d,
+            stage__in=[BillStages.PRE_APPROVED, BillStages.IN_COMMITTEE, BillStages.FIRST_VOTE,
+                       BillStages.COMMITTEE_CORRECTIONS, BillStages.APPROVED, BillStages.FAILED_FIRST_VOTE,
+                       BillStages.FAILED_APPROVAL]).count()
+        self.bills_stats_first = self.bills.filter(
+            stage_date__gte=d,
+            stage__in=[BillStages.FIRST_VOTE, BillStages.COMMITTEE_CORRECTIONS, BillStages.APPROVED,
+                       BillStages.FAILED_APPROVAL]).count()
+        self.bills_stats_approved = self.bills.filter(
+            stage_date__gte=d,
+            stage=BillStages.APPROVED).count()
         self.save()
 
     def recalc_average_weekly_presence_hours(self):

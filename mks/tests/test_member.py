@@ -2,6 +2,8 @@ import datetime
 
 from django.test import TestCase
 
+from laws.enums import BillStages
+from laws.models import Bill
 from mks.models import Knesset, Party, Member, Membership, MemberAltname
 from mks.tests.base import ten_days_ago, two_days_ago
 
@@ -42,12 +44,90 @@ class TestMember(TestCase):
         party_at = self.member.party_at(today.date())
         self.assertEqual(party_at, self.current_party)
 
-    def testNames(self):
+    def test_member_names_includes_alt_names(self):
         m = Member(name='test member')
         self.assertEqual(m.names, ['test member'])
         m.save()
         MemberAltname(member=m, name='test2').save()
         self.assertEqual(m.names, ['test member', 'test2'])
+
+    def test_member_bill_statistics_calculation_counts_bill_per_stage_correctly(self):
+        first_bill = self.given_bill_exists('first_bill')
+        self.given_member_proposed_bill(self.member, first_bill)
+
+        self.given_bill_stage(first_bill, stage=BillStages.PROPOSED)
+        self.member.recalc_bill_statistics()
+
+        self.assertEqual(self.member.bills_stats_proposed, 1)
+        self.assertEqual(self.member.bills_stats_pre, 0)
+        self.assertEqual(self.member.bills_stats_first, 0)
+        self.assertEqual(self.member.bills_stats_approved, 0)
+
+        self.given_bill_stage(first_bill, stage=BillStages.PRE_APPROVED)
+        self.member.recalc_bill_statistics()
+
+        self.assertEqual(self.member.bills_stats_proposed, 1)
+        self.assertEqual(self.member.bills_stats_pre, 1)
+        self.assertEqual(self.member.bills_stats_first, 0)
+        self.assertEqual(self.member.bills_stats_approved, 0)
+
+        self.given_bill_stage(first_bill, stage=BillStages.COMMITTEE_CORRECTIONS)
+        self.member.recalc_bill_statistics()
+
+        self.assertEqual(self.member.bills_stats_proposed, 1)
+        self.assertEqual(self.member.bills_stats_pre, 1)
+        self.assertEqual(self.member.bills_stats_first, 1)
+        self.assertEqual(self.member.bills_stats_approved, 0)
+
+        self.given_bill_stage(first_bill, stage=BillStages.APPROVED)
+        self.member.recalc_bill_statistics()
+
+        self.assertEqual(self.member.bills_stats_proposed, 1)
+        self.assertEqual(self.member.bills_stats_pre, 1)
+        self.assertEqual(self.member.bills_stats_first, 1)
+        self.assertEqual(self.member.bills_stats_approved, 1)
+
+    def test_member_bill_statistics_calculation_counts_bill_correctly_if_disapproved_in_the_end(self):
+        first_bill = self.given_bill_exists('first_bill')
+        self.given_member_proposed_bill(self.member, first_bill)
+
+        self.given_bill_stage(first_bill, stage=BillStages.PROPOSED)
+        self.member.recalc_bill_statistics()
+
+        self.assertEqual(self.member.bills_stats_proposed, 1)
+        self.assertEqual(self.member.bills_stats_pre, 0)
+        self.assertEqual(self.member.bills_stats_first, 0)
+        self.assertEqual(self.member.bills_stats_approved, 0)
+
+        self.given_bill_stage(first_bill, stage=BillStages.PRE_APPROVED)
+        self.member.recalc_bill_statistics()
+
+        self.assertEqual(self.member.bills_stats_proposed, 1)
+        self.assertEqual(self.member.bills_stats_pre, 1)
+        self.assertEqual(self.member.bills_stats_first, 0)
+        self.assertEqual(self.member.bills_stats_approved, 0)
+
+        self.given_bill_stage(first_bill, stage=BillStages.FAILED_APPROVAL)
+        self.member.recalc_bill_statistics()
+
+        self.assertEqual(self.member.bills_stats_proposed, 1)
+        self.assertEqual(self.member.bills_stats_pre, 1,
+                         'Expected bill to exist in pre state although later disapproved')
+        self.assertEqual(self.member.bills_stats_first, 1)
+        self.assertEqual(self.member.bills_stats_approved, 0)
+
+    def test_member_bill_statistics_calculation_does_not_count_bills_before_current_knesset(self):
+        first_bill = self.given_bill_exists('first_bill')
+        self.given_member_proposed_bill(self.member, first_bill)
+
+        date_in_previous_knesset = self.previous_knesset.start_date + datetime.timedelta(days=1)
+        self.given_bill_stage(first_bill, stage=BillStages.PROPOSED, stage_date=date_in_previous_knesset)
+        self.member.recalc_bill_statistics()
+
+        self.assertEqual(self.member.bills_stats_proposed, 0)
+        self.assertEqual(self.member.bills_stats_pre, 0)
+        self.assertEqual(self.member.bills_stats_first, 0)
+        self.assertEqual(self.member.bills_stats_approved, 0)
 
     def given_party_exists_in_knesset(self, party_name, knesset):
         party, create = Party.objects.get_or_create(name='{0}_{1}'.format(party_name, knesset.number),
@@ -65,4 +145,17 @@ class TestMember(TestCase):
             membership.save()
         return member
 
+    def given_bill_exists(self, title='bill 1', stage=BillStages.PROPOSED):
+        bill = Bill.objects.create(stage=stage, title=title)
+        return bill
 
+    def given_bill_stage(self, bill, stage, stage_date=None):
+        bill.stage = stage
+        if stage_date:
+            bill.stage_date = stage_date
+        else:
+            bill.stage_date = datetime.datetime.now()
+        bill.save()
+
+    def given_member_proposed_bill(self, member, bill):
+        bill.proposers.add(member)
