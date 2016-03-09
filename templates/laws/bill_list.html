@@ -57,9 +57,10 @@
                     <a class="btn btn-mini btn-question" href="#">?</a>
                 </header>
                 <div>
-                    <form action="." method="get" class="filter-form">
+                    <form id="billFilterForm" action="." method="get" class="filter-form">
                     {{ form.as_p }}
                     <input type="submit" value="{% trans "Filter" %}" class="submit awesome-button">
+                    <button id="resetForm"  class="submit awesome-button">{% trans "Reset form" %}</button>
                     </form>
                 </div>
             </aside>
@@ -71,6 +72,12 @@
 <script>
 $(function() {
     $('#id_stage').focus();
+    //UGLY reset form hack TODO: refactor this
+    $('#resetForm').bind('click', function(){
+        $(this).closest('form').find("input[type=text], input[type=hidden], textarea").val("");
+        $(this).closest('form').find("select").val("all");
+        $(this).closest('form').find("input[type=submit]")[0].click();
+    })
 });
 </script>
 {% endblock %}

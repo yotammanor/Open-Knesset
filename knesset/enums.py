@@ -4,6 +4,10 @@ class Enum(object):
         return filter(lambda x: not x.startswith('_'), cls.__dict__.keys())
 
     @classmethod
+    def items(cls):
+        return map(lambda x: (x, getattr(cls, x)), cls.get_keys())
+
+    @classmethod
     def get_values(cls):
         return map(lambda x: getattr(cls, x), cls.get_keys())
 
