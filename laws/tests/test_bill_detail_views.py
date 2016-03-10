@@ -19,9 +19,9 @@ just_id = lambda x: x.id
 APP = 'laws'
 
 
-class BillViewsTest(TestCase):
+class BillDetailViewsTest(TestCase):
     def setUp(self):
-        super(BillViewsTest, self).setUp()
+        super(BillDetailViewsTest, self).setUp()
 
         d = date.today()
         self.knesset = Knesset.objects.create(
@@ -51,47 +51,15 @@ class BillViewsTest(TestCase):
         self.tag_1 = Tag.objects.create(name='tag1')
 
     def teardown(self):
-        super(BillViewsTest, self).tearDown()
-
-    def testBillList(self):
-        res = self.client.get(reverse('bill-list'))
-        self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'laws/bill_list.html')
-        object_list = res.context['object_list']
-        self.assertEqual(map(just_id, object_list),
-                         [self.bill_3.id, self.bill_2.id, self.bill_1.id])
-
-    def testBillListByStage(self):
-        res = self.client.get(reverse('bill-list'), {'stage': 'all'})
-        object_list = res.context['object_list']
-        self.assertEqual(map(just_id, object_list),
-                         [self.bill_3.id, self.bill_2.id, self.bill_1.id])
-        res = self.client.get(reverse('bill-list'), {'stage': '1'})
-        object_list = res.context['object_list']
-        self.assertEqual(map(just_id, object_list), [self.bill_1.id])
-        res = self.client.get(reverse('bill-list'), {'stage': '2'})
-        object_list = res.context['object_list']
-        self.assertEqual(set(map(just_id, object_list)), set([self.bill_2.id, self.bill_3.id]))
-
-    def test_bill_list_with_member(self):
-        "Test the view of bills proposed by specific MK"
-        res = self.client.get(reverse('bill-list'), {'member': self.mk_1.id})
-        self.assertEqual(res.status_code, 200)
-
-    def test_bill_list_with_invalid_member(self):
-        "test the view of bills proposed by specific mk, with invalid parameter"
-        res = self.client.get(reverse('bill-list'), {'member': 'qwertyuiop'})
-        self.assertEqual(res.status_code, 404)
-
-    def test_bill_list_with_nonexisting_member(self):
-        "test the view of bills proposed by specific mk, with nonexisting parameter"
-        res = self.client.get(reverse('bill-list'), {'member': '0'})
-        self.assertEqual(res.status_code, 404)
-
-    def testBillListByKnessetBooklet(self):
-        res = self.client.get(reverse('bill-list'), {'knesset_booklet': '2'})
-        object_list = res.context['object_list']
-        self.assertEqual(map(just_id, object_list), [self.bill_1.id])
+        super(BillDetailViewsTest, self).tearDown()
+        # self.vote_1.delete()
+        # self.vote_2.delete()
+        # self.bill_1.delete()
+        # self.bill_2.delete()
+        # self.bill_3.delete()
+        # self.jacob.delete()
+        # self.mk_1.delete()
+        # self.tag_1.delete()
 
     def testBillDetail(self):
         res = self.client.get(reverse('bill-detail',
@@ -367,12 +335,12 @@ class BillViewsTest(TestCase):
         self.bill_2.budget_ests.get(estimator__username='jacob').delete()
         self.client.logout()
 
-    def tearDown(self):
-        self.vote_1.delete()
-        self.vote_2.delete()
-        self.bill_1.delete()
-        self.bill_2.delete()
-        self.bill_3.delete()
-        self.jacob.delete()
-        self.mk_1.delete()
-        self.tag_1.delete()
+    # def tearDown(self):
+    #     self.vote_1.delete()
+    #     self.vote_2.delete()
+    #     self.bill_1.delete()
+    #     self.bill_2.delete()
+    #     self.bill_3.delete()
+    #     self.jacob.delete()
+    #     self.mk_1.delete()
+    #     self.tag_1.delete()

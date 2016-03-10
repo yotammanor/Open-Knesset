@@ -634,6 +634,7 @@ class BillListView(BillListMixin, HashnavListView):
             context['title'] = _('Bills published in government booklet '
                                  'number %s') % gov_booklet
         else:
+            # TODO: WTF!?
             r[0][2] = True
         if member:
             context['member'] = get_object_or_404(Member, pk=member)
