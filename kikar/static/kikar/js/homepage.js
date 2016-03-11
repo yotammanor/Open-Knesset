@@ -57,16 +57,19 @@ $(document).ready(function () {
             success: function (data) {
                 offsetHandler.data('offset', data.meta.offset + data.meta.limit);
                 loadingSymbol.hide();
-                data.objects.forEach(function (element, index, array) {
-                    var source = $('#facebook-status-template').html();
-                    var template = Handlebars.compile(source);
-                    var html = template(element);
-                    listContainer.append(html);
-                });
+                var source = $('#facebook-status-template').html();
+                var template = Handlebars.compile(source);
+                if (data.objects && data.objects.length) {
+                    data.objects.forEach(function (element, index, array) {
+
+                        var html = template(element);
+                        listContainer.append(html);
+                    });
+                }
             },
             error: function () {
                 loadingSymbol.hide();
-                listContainer.append("<p>התנצלותינו הכנה, ישנה תקלה בקטעינת הסטאטוס.</p>")
+                listContainer.append("<p>התנצלותינו הכנה, ישנה תקלה בטעינת הסטאטוס.</p>")
             }
         });
     }
