@@ -23,10 +23,16 @@ class BillListViewsTest(TestCase):
     def setUp(self):
         super(BillListViewsTest, self).setUp()
 
-        d = date.today()
+        today = date.today()
+        current_knesset_start = today - timedelta(10)
         self.knesset = Knesset.objects.create(
+            number=2,
+            start_date=current_knesset_start)
+
+        self.previous_knesset = Knesset.objects.create(
             number=1,
-            start_date=d - timedelta(10))
+            end_date=current_knesset_start - timedelta(days=1),
+            start_date=current_knesset_start - timedelta(days=10))
         self.vote_1 = Vote.objects.create(time=datetime.now(),
                                           title='vote 1')
         self.vote_2 = Vote.objects.create(time=datetime.now(),
@@ -41,9 +47,9 @@ class BillListViewsTest(TestCase):
         g.permissions.add(p)
 
         self.adrian.groups.add(g)
-        self.bill_1 = Bill.objects.create(stage='1', title='bill 1', popular_name="The Bill")
-        self.bill_2 = Bill.objects.create(stage='2', title='bill 2')
-        self.bill_3 = Bill.objects.create(stage='2', title='bill 1')
+        self.bill_1 = Bill.objects.create(stage='1', title='bill 1', popular_name="The Bill", stage_date=date.today())
+        self.bill_2 = Bill.objects.create(stage='2', title='bill 2', stage_date=date.today())
+        self.bill_3 = Bill.objects.create(stage='2', title='bill 1', stage_date=date.today())
         self.kp_1 = KnessetProposal.objects.create(booklet_number=2,
                                                    bill=self.bill_1,
                                                    date=date.today())
@@ -102,3 +108,15 @@ class BillListViewsTest(TestCase):
         object_list = res.context['object_list']
         self.assertEqual(map(just_id, object_list), [self.bill_1.id])
 
+    def test_bill_list_filtered_by_knesset_id(self):
+        date_in_previous_knesset = self.previous_knesset.start_date + timedelta(days=1)
+        self.bill_1.stage_date = date_in_previous_knesset
+        self.bill_1.save()
+
+        res = self.client.get(reverse('bill-list'), {'knesset_id': '1'})
+        object_list = res.context['object_list']
+        self.assertItemsEqual( object_list, [self.bill_1])
+
+        res = self.client.get(reverse('bill-list'), {'knesset_id': '2'})
+        object_list = res.context['object_list']
+        self.assertItemsEqual(object_list, [self.bill_2, self.bill_3])

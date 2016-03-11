@@ -575,8 +575,10 @@ class BillManager(models.Manager):
         changed_after = kwargs.get('changed_after', None)
         changed_before = kwargs.get('changed_before', None)
         bill_type = kwargs.get('bill_type', 'all')
+        knesset_id = kwargs.get('knesset_id', 'all')
 
         filter_kwargs = {}
+
         if stage and stage != 'all':
             if stage in BILL_AGRR_STAGES:
                 qs = self.filter(BILL_AGRR_STAGES[stage])
@@ -585,6 +587,12 @@ class BillManager(models.Manager):
                 qs = self.filter(**filter_kwargs)
         else:
             qs = self.all()
+
+        if knesset_id and knesset_id != 'all':
+            knesset = Knesset.objects.get(number=int(knesset_id))
+            period_start = knesset.start_date
+            period_end = knesset.end_date or date.today()
+            qs = qs.filter(stage_date__range=(period_start, period_end))
 
         if kwargs.get('tagged', None):
             if kwargs['tagged'] == 'false':

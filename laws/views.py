@@ -615,6 +615,7 @@ class BillListView(BillListMixin, HashnavListView):
         knesset_booklet = self.request.GET.get('knesset_booklet', False)
         gov_booklet = self.request.GET.get('gov_booklet', False)
         member = self.request.GET.get('member', False)
+
         if stage and stage != 'all':
             for x in r:
                 if x[3] == stage:
