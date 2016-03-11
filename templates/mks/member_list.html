@@ -65,18 +65,18 @@
                 <div class="card card-list">
                     <header><h1>{% trans "Current MKs" %} ({{ title }})</h1></header>
                     <ul>
-                        {% for o in object_list %}
+                        {% for mk in object_list %}
                             <li class="clearfix">
-                                <span class="span2"><a href="{% url 'member-detail' o.id %}"
-                                                       title="{{ o.current_party.name }}">{{ o.name }}</a></span>
+                                <span class="span2"><a href="{% url 'member-detail' mk.id %}"
+                                                       title="{{ mk.current_party.name }}">{{ mk.name }}</a></span>
                         <span class="span1 numeric">
                         {% if bill_stage %}
-                            <a href="{% bills_url o bill_stage %}">{{ o.extra|floatformat }}</a>
+                            <a href="{% bills_url mk bill_stage %}">{{ mk.extra|floatformat }}</a>
                         {% else %}
-                            {{ o.extra|floatformat }}
+                            {{ mk.extra|floatformat }}
                         {% endif %}
                         </span>
-                                <span class="span4">{% bar o.extra 0 max_current "" 0 %}</span>
+                                <span class="span4">{% bar mk.extra 0 max_current "" 0 %}</span>
                             </li>
                         {% endfor %}
                     </ul>
@@ -84,18 +84,18 @@
                 <div class="card card-list">
                     <header><h1>{% trans "Past MKs" %} ({{ title }})</h1></header>
                     <ul>
-                        {% for o in past_mks %}
+                        {% for past_mk in past_mks %}
                             <li class="clearfix">
-                                <span class="span2"><a href="{% url 'member-detail' o.id %}"
-                                                       title="{{ o.current_party.name }}">{{ o.name }}</a></span>
+                                <span class="span2"><a href="{% url 'member-detail' past_mk.id %}"
+                                                       title="{{ past_mk.current_party.name }}">{{ past_mk.name }}</a></span>
                         <span class="span1 numeric">
                         {% if bill_stage %}
-                            <a href="{% bills_url o bill_stage %}">{{ o.extra|floatformat }}</a>
+                            <a href="{% bills_url past_mk bill_stage %}">{{ past_mk.extra|floatformat }}</a>
                         {% else %}
-                            {{ o.extra|floatformat }}
+                            {{ past_mk.extra|floatformat }}
                         {% endif %}
                         </span>
-                                <span class="span4">{% bar o.extra 0 max_past "" 0 %}</span>
+                                <span class="span4">{% bar past_mk.extra 0 max_past "" 0 %}</span>
                             </li>
                         {% endfor %}
                     </ul>
