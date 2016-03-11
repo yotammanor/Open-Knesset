@@ -9,6 +9,7 @@ from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
 from planet.models import Blog
 
+from knesset import utils
 from laws.enums import BillStages
 from links.models import Link
 
@@ -56,6 +57,10 @@ class Knesset(models.Model):
     objects = KnessetManager()
 
     def __unicode__(self):
+        return self.name
+
+    @property
+    def name(self):
         return _(u'Knesset %(number)d') % {'number': self.number}
 
     def get_absolute_url(self):
@@ -369,6 +374,12 @@ class Member(models.Model):
     def get_absolute_url(self):
         return ('member-detail-with-slug',
                 [str(self.id), self.name_with_dashes()])
+
+    def get_current_knesset_bills_by_stage_url(self, stage):
+        current_knesset = Knesset.objects.current_knesset()
+        return utils.reverse_with_query('bill-list',
+                                        query_kwargs={'member': self.id, 'knesset_id': current_knesset.number,
+                                                      'stage': stage})
 
     def NameWithLink(self):
         return '<a href="%s">%s</a>' % (self.get_absolute_url(), self.name)

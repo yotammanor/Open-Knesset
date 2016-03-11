@@ -129,6 +129,11 @@ class TestMember(TestCase):
         self.assertEqual(self.member.bills_stats_first, 0)
         self.assertEqual(self.member.bills_stats_approved, 0)
 
+    def test_member_current_knesset_bills_link(self):
+        url = self.member.get_current_knesset_bills_by_stage_url(stage='first')
+        current_knesset = Knesset.objects.current_knesset().number
+        self.assertEqual(url, '/bill/?member={0}&knesset_id={1}&stage=first'.format(self.member.id, current_knesset))
+
     def given_party_exists_in_knesset(self, party_name, knesset):
         party, create = Party.objects.get_or_create(name='{0}_{1}'.format(party_name, knesset.number),
                                                     knesset=knesset,

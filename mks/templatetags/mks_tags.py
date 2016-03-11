@@ -4,6 +4,7 @@ from links.models import Link
 
 register = template.Library()
 
+
 @register.simple_tag
 def mk(m, icons=''):
     ''' renders a member - m - using its name and displaing the following
@@ -12,7 +13,7 @@ def mk(m, icons=''):
         'x' - removes a member
     '''
 
-    r =  u'<a class="hashnav item dontwrap" id="detail-%(id)s"'
+    r = u'<a class="hashnav item dontwrap" id="detail-%(id)s"'
     r += u'href="%(url)s" title="%(name)s">'
     if 'w' in icons:
         r += '<img class="watched-member" id="watching-%(id)s" src="%(icon_path)s/eye.png">'
@@ -21,13 +22,14 @@ def mk(m, icons=''):
     r += '&nbsp;%(name)s</a>'
 
     c = dict(id=m.id, url=m.get_absolute_url(), name=m.name,
-             icon_path= '%simg' % settings.STATIC_URL)
+             icon_path='%simg' % settings.STATIC_URL)
 
     return r % c
 
+
 @register.inclusion_tag('mks/mk_card.html')
 def mk_card(mk, cls=None):
-    return {'mk': mk, 'cls':cls }
+    return {'mk': mk, 'cls': cls}
 
 
 class GetMemberFor(template.Node):
@@ -35,9 +37,11 @@ class GetMemberFor(template.Node):
     This templatetag return the member associated with a specific object
     curently, only the Post object is supported
     '''
+
     def __init__(self, object_var_name, return_var_name):
         self.object_var_name = object_var_name
         self.return_var_name = return_var_name
+
     def render(self, context):
         p = context[self.object_var_name]
         try:
@@ -46,7 +50,10 @@ class GetMemberFor(template.Node):
             context[self.return_var_name] = None
         return ''
 
+
 import re
+
+
 def do_get_member_for(parser, token):
     try:
         # Splitting by None == splitting by spaces.
@@ -59,5 +66,10 @@ def do_get_member_for(parser, token):
     object_var_name, return_var_name = m.groups()
     return GetMemberFor(object_var_name, return_var_name)
 
+
 register.tag('get_member_for', do_get_member_for)
 
+
+@register.simple_tag
+def bills_url(mk, stage):
+    return mk.get_current_knesset_bills_by_stage_url(stage)
