@@ -1,18 +1,27 @@
-from django.http.response import HttpResponse
+from logging import getLogger
+
+from django.http.response import HttpResponse, HttpResponseBadRequest
 import requests
 
 KIKAR_URL_BASE = 'http://www.kikar.org'
+logger = getLogger(__name__)
 
 
 def get_statuses(request):
     request_params = request.GET.dict()
+    request_path = request_params.get('request_path')
+    if not request_path:
+        return HttpResponseBadRequest()
+
     url = KIKAR_URL_BASE + request_params.pop('request_path')
     if 'filter' in request_params:
         request_filter = request_params.pop('filter').split('=')
         request_params[request_filter[0]] = request_filter[1]
 
-    kikar_res = requests.get(url, params=request_params)
-    print(kikar_res.url)
+    # TODO: Jesus how can this be even tested? should be separated to proxy
+    kikar_res = requests.get(url,
+                             params=request_params)
+    logger.debug(kikar_res.url)
     res = HttpResponse(content=kikar_res.content, content_type='application/json')
     return res
 
@@ -23,8 +32,8 @@ def get_statuses(request):
 
 def get_member(request, **kwargs):
     url = KIKAR_URL_BASE + '/api/v1/member/' + kwargs['pk']
-    print (url)
+    logger.debug(url)
     kikar_res = requests.get(url)
-    print(kikar_res.url)
+    logger.debug(kikar_res.url)
     res = HttpResponse(content=kikar_res.content, content_type='application/json')
     return res
