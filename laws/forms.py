@@ -145,14 +145,12 @@ class VoteSelectForm(forms.Form):
         self.fields['tagged'].choices = new_choices
 
 
-AVAILABLE_KNESSETS = map(lambda x: (x.number, x.name), Knesset.objects.all())
-default_knesset = Knesset.objects.current_knesset()
-CURRENT_KNESSET = (default_knesset.number, default_knesset.name)
+
 
 
 class BillSelectForm(forms.Form):
     """Bill filtering form"""
-    knesset_id = forms.ChoiceField(label=_('Knesset'), choices=AVAILABLE_KNESSETS, required=False,
+    knesset_id = forms.ChoiceField(label=_('Knesset'), required=False,
                                    initial='all')
 
     stage = forms.ChoiceField(label=_('Bill Stage'), choices=BILL_STAGE_CHOICES,
@@ -197,6 +195,8 @@ class BillSelectForm(forms.Form):
         new_stages = list(ALL_CHOICE)
         new_stages.extend(BILL_STAGE_CHOICES)
         self.fields['stage'].choices = new_stages
+
+        AVAILABLE_KNESSETS = map(lambda x: (x.number, x.name), Knesset.objects.all())
 
         new_knessets = list(ALL_CHOICE)
         new_knessets.extend(AVAILABLE_KNESSETS)
