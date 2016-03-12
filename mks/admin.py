@@ -5,6 +5,8 @@ from django.core.cache import cache
 from django.core.cache.utils import make_template_fragment_key
 import urllib
 
+from import_export.admin import ImportExportModelAdmin
+
 from models import Member, Membership, MemberAltname
 from models import CoalitionMembership, Correlation, Party, \
     Award, AwardType, Knesset
@@ -53,14 +55,14 @@ class MemberRelatedVideosInline(generic.GenericTabularInline):
         return qs
 
 
-class CoalitionMembershipAdmin(admin.ModelAdmin):
+class CoalitionMembershipAdmin(ImportExportModelAdmin):
     list_display = ('party', 'start_date', 'end_date')
 
 
 admin.site.register(CoalitionMembership, CoalitionMembershipAdmin)
 
 
-class PartyAdmin(admin.ModelAdmin):
+class PartyAdmin(ImportExportModelAdmin):
     ordering = ('name',)
     list_display = ('name', 'knesset', 'start_date', 'end_date',
                     'is_coalition', 'number_of_members',
@@ -72,7 +74,7 @@ class PartyAdmin(admin.ModelAdmin):
 admin.site.register(Party, PartyAdmin)
 
 
-class MemberAdmin(admin.ModelAdmin):
+class MemberAdmin(ImportExportModelAdmin):
     ordering = ('name',)
     #    fields = ('name','start_date','end_date')
     list_display = ('name', 'gender', 'PartiesString', 'current_party',
@@ -123,7 +125,7 @@ class CorrelationAdmin(admin.ModelAdmin):
 admin.site.register(Correlation, CorrelationAdmin)
 
 
-class MembershipAdmin(admin.ModelAdmin):
+class MembershipAdmin(ImportExportModelAdmin):
     ordering = ('member__name',)
 
 
@@ -137,7 +139,7 @@ class AwardTypeAdmin(admin.ModelAdmin):
 admin.site.register(AwardType, AwardTypeAdmin)
 
 
-class AwardAdmin(admin.ModelAdmin):
+class AwardAdmin(ImportExportModelAdmin):
     list_display = ('member', 'award_type', 'date_given')
     raw_id_fields = ('member',)
 

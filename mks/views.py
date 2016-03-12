@@ -19,6 +19,9 @@ from backlinks.pingback.server import default_server
 from actstream import actor_stream
 from actstream.models import Follow
 from hashnav.detail import DetailView
+from laws.enums import BillStages
+from laws.enums import BillStages
+from laws.vote_choices import BILL_AGRR_STAGES
 from models import Member, Party, Knesset
 from utils import percentile
 from laws.models import MemberVotingStatistics, Bill, VoteAction
@@ -64,7 +67,9 @@ class MemberListView(ListView):
 
     def get_context_data(self, **kwargs):
         if not waffle.flag_is_active(self.request, 'show_member_graph'):
-            self.pages.remove(('graph', _('Graphical view')))
+            graph_view = ('graph', _('Graphical view'))
+            if graph_view in self.pages:
+                self.pages.remove(graph_view)
 
         info = self.kwargs['stat_type']
 
@@ -643,8 +648,7 @@ class PartyListView(ListView):
             for p in chain(context['coalition'], context['opposition']):
                 p.extra = round(float(
                     len(set(Bill.objects.filter(
-                        Q(stage='2') | Q(stage='3') | Q(stage='4') |
-                        Q(stage='5') | Q(stage='6'),
+                        BILL_AGRR_STAGES['pre'],
                         proposers__current_party=p,
                         proposals__date__gt=d).values_list('id', flat=True))
                         )) / p.number_of_seats, 1)
@@ -659,7 +663,7 @@ class PartyListView(ListView):
             for p in chain(context['coalition'], context['opposition']):
                 p.extra = round(float(
                     len(set(Bill.objects.filter(
-                        Q(stage='4') | Q(stage='5') | Q(stage='6'),
+                        BILL_AGRR_STAGES['first'],
                         proposers__current_party=p,
                         proposals__date__gt=d).values_list('id', flat=True))
                         )) / p.number_of_seats, 1)
@@ -676,7 +680,7 @@ class PartyListView(ListView):
                     len(set(Bill.objects.filter(
                         proposers__current_party=p,
                         proposals__date__gt=d,
-                        stage='6').values_list('id', flat=True))
+                        stage=BillStages.APPROVED).values_list('id', flat=True))
                         )) / p.number_of_seats, 1)
                 if p.extra < m:
                     m = p.extra
@@ -790,13 +794,14 @@ def member_auto_complete(request):
     if not 'query' in request.GET:
         raise Http404
 
-    _suggestions = list(Member.objects.values('name', 'id', 'img_url', 'gender', 'is_current').filter(name__icontains=request.GET['query'], is_current=True)[:30])
+    _suggestions = list(Member.objects.values('name', 'id', 'img_url', 'gender', 'is_current').filter(
+        name__icontains=request.GET['query'], is_current=True)[:30])
 
     def _add_value(serialized_member):
         result = {'value': serialized_member['name'], 'data': serialized_member}
         return result
 
-    suggestions = map(lambda x:_add_value(x), _suggestions)
+    suggestions = map(lambda x: _add_value(x), _suggestions)
     result = {'query': request.GET['query'], 'suggestions': suggestions}
 
     return HttpResponse(json.dumps(result), mimetype='application/json')

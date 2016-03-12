@@ -2,6 +2,7 @@
 import re, logging, random, sys, traceback
 from datetime import date, timedelta
 
+from django.contrib.comments import Comment
 from django.db import models, IntegrityError
 from django.contrib.contenttypes import generic
 from django import forms
@@ -20,6 +21,8 @@ from actstream import Action
 from actstream.models import Follow
 
 from laws import constants
+from laws.constants import FIRST_KNESSET_START
+from laws.enums import BillStages
 from mks.models import Party, Knesset
 from tagvotes.models import TagVote
 from knesset.utils import slugify_name
@@ -597,28 +600,31 @@ class BillManager(models.Manager):
         elif bill_type == 'knesset':
             qs = qs.exclude(knesset_proposal=None)
 
+        elif bill_type == 'private':
+            qs = qs.exclude(proposals=None)
+
         if pp_id:
-            pps = PrivateProposal.objects.filter(
+            private_proposals = PrivateProposal.objects.filter(
                 proposal_id=pp_id).values_list(
                 'id', flat=True)
-            if pps:
-                qs = qs.filter(proposals__in=pps)
+            if private_proposals:
+                qs = qs.filter(proposals__in=private_proposals)
             else:
                 qs = qs.none()
 
         if knesset_booklet:
-            kps = KnessetProposal.objects.filter(
+            knesset_proposals = KnessetProposal.objects.filter(
                 booklet_number=knesset_booklet).values_list(
                 'id', flat=True)
-            if kps:
-                qs = qs.filter(knesset_proposal__in=kps)
+            if knesset_proposals:
+                qs = qs.filter(knesset_proposal__in=knesset_proposals)
             else:
                 qs = qs.none()
         if gov_booklet:
-            gps = GovProposal.objects.filter(
+            government_proposals = GovProposal.objects.filter(
                 booklet_number=gov_booklet).values_list('id', flat=True)
-            if gps:
-                qs = qs.filter(gov_proposal__in=gps)
+            if government_proposals:
+                qs = qs.filter(gov_proposal__in=government_proposals)
             else:
                 qs = qs.none()
 
@@ -815,41 +821,41 @@ class Bill(models.Model):
         and only look for updates.
         """
         if not self.stage_date or force_update:  # might be empty if bill is new
-            self.stage_date = date(1948, 5, 13)
+            self.stage_date = FIRST_KNESSET_START
         if self.approval_vote:
             if self.approval_vote.for_votes_count > self.approval_vote.against_votes_count:
-                self.stage = '6'
+                self.stage = BillStages.APPROVED
             else:
-                self.stage = '-6'
+                self.stage = BillStages.FAILED_APPROVAL
             self.stage_date = self.approval_vote.time.date()
             self.save()
             return
         for cm in self.second_committee_meetings.all():
             if not (self.stage_date) or self.stage_date < cm.date:
-                self.stage = '5'
+                self.stage = BillStages.COMMITTEE_CORRECTIONS
                 self.stage_date = cm.date
-        if self.stage == '5':
+        if self.stage == BillStages.COMMITTEE_CORRECTIONS:
             self.save()
             return
         if self.first_vote:
             if self.first_vote.for_votes_count > self.first_vote.against_votes_count:
-                self.stage = '4'
+                self.stage = BillStages.FIRST_VOTE
             else:
-                self.stage = '-4'
+                self.stage = BillStages.FAILED_FIRST_VOTE
             self.stage_date = self.first_vote.time.date()
             self.save()
             return
         try:
             kp = self.knesset_proposal
             if not (self.stage_date) or self.stage_date < kp.date:
-                self.stage = '3'
+                self.stage = BillStages.IN_COMMITTEE
                 self.stage_date = kp.date
         except KnessetProposal.DoesNotExist:
             pass
         try:
             gp = self.gov_proposal
             if not (self.stage_date) or self.stage_date < gp.date:
-                self.stage = '3'
+                self.stage = BillStages.IN_COMMITTEE
                 self.stage_date = gp.date
         except GovProposal.DoesNotExist:
             pass
@@ -857,25 +863,25 @@ class Bill(models.Model):
             if not (self.stage_date) or self.stage_date < cm.date:
                 # if it was converted to discussion, seeing it in
                 # a cm doesn't mean much.
-                if self.stage != '-2.1':
-                    self.stage = '3'
+                if self.stage != BillStages.CONVERTED_TO_DISCUSSION:
+                    self.stage = BillStages.IN_COMMITTEE
                     self.stage_date = cm.date
         for v in self.pre_votes.all():
             if not (self.stage_date) or self.stage_date < v.time.date():
                 for h in CONVERT_TO_DISCUSSION_HEADERS:
                     if v.title.find(h) >= 0:
-                        self.stage = '-2.1'  # converted to discussion
+                        self.stage = BillStages.CONVERTED_TO_DISCUSSION  # converted to discussion
                         self.stage_date = v.time.date()
         for v in self.pre_votes.all():
             if not (self.stage_date) or self.stage_date < v.time.date():
                 if v.for_votes_count > v.against_votes_count:
-                    self.stage = '2'
+                    self.stage = BillStages.PRE_APPROVED
                 else:
-                    self.stage = '-2'
+                    self.stage = BillStages.FAILED_PRE_APPROVAL
                 self.stage_date = v.time.date()
         for pp in self.proposals.all():
             if not (self.stage_date) or self.stage_date < pp.date:
-                self.stage = '1'
+                self.stage = BillStages.PROPOSED
                 self.stage_date = pp.date
         self.save()
         self.generate_activity_stream()

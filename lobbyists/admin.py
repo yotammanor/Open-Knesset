@@ -1,4 +1,6 @@
 from django.contrib import admin
+from import_export.admin import ImportExportModelAdmin
+
 from models import Lobbyist, LobbyistCorporation, LobbyistsChange, LobbyistCorporationAlias
 from django.contrib.contenttypes import generic
 from links.models import Link
@@ -16,13 +18,13 @@ class CorporationAliasInline(admin.TabularInline):
     fk_name = 'main_corporation'
 
 
-class LobbyistAdmin(admin.ModelAdmin):
+class LobbyistAdmin(ImportExportModelAdmin):
     fields = ('person', 'description', 'image_url', 'large_image_url',)
     readonly_fields = ('person',)
     inlines = (LinksInline,)
 
 
-class LobbyistCorporationAdmin(admin.ModelAdmin):
+class LobbyistCorporationAdmin(ImportExportModelAdmin):
     fields = ('name', 'description', 'lobbyists')
     readonly_fields = ('name', 'lobbyists')
     inlines = (LinksInline, CorporationAliasInline)

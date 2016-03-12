@@ -28,6 +28,7 @@ from itertools import groupby
 from hebrew_numbers import gematria_to_int
 from mks.utils import get_all_mk_names
 from knesset_data.protocols.committee import CommitteeMeetingProtocol as KnessetDataCommitteeMeetingProtocol
+from knesset_data.protocols.exceptions import AntiwordException
 
 COMMITTEE_PROTOCOL_PAGINATE_BY = 120
 
@@ -334,10 +335,20 @@ class CommitteeMeeting(models.Model):
                 download_for_existing_meeting
             download_for_existing_meeting(self)
         else:
-            with KnessetDataCommitteeMeetingProtocol.get_from_url(self.src_url) as protocol:
-                self.protocol_text = protocol.text
-                self.protocol_text_update_date = datetime.now()
-                self.save()
+            try:
+                with KnessetDataCommitteeMeetingProtocol.get_from_url(self.src_url) as protocol:
+                    self.protocol_text = protocol.text
+                    self.protocol_text_update_date = datetime.now()
+                    self.save()
+            except AntiwordException, e:
+                logger.error(
+                    e.message,
+                    exc_info=True,
+                    extra={
+                        'output': e.output
+                    }
+                )
+                raise e
 
     def reparse_protocol(self, redownload=True, mks=None, mk_names=None):
         if redownload: self.redownload_protocol()

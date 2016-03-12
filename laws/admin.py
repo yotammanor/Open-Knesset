@@ -1,10 +1,12 @@
+from import_export.admin import ImportExportModelAdmin
+
 from models import Vote, Law, PrivateProposal, KnessetProposal, GovProposal, Bill, GovLegislationCommitteeDecision
 from laws.management.commands.scrape_votes import Command as ScrapeVotesCommand
 from django.utils.translation import ugettext_lazy as _
 from django.contrib import admin
 
 
-class VoteAdmin(admin.ModelAdmin):
+class VoteAdmin(ImportExportModelAdmin):
     #    filter_horizontal = ('voted_for','voted_against','voted_abstain','didnt_vote')
     list_display = (
         '__unicode__', 'short_summary', 'full_text_link', 'votes_count', 'for_votes_count', 'against_votes_count',
@@ -33,7 +35,7 @@ class VoteAdmin(admin.ModelAdmin):
 admin.site.register(Vote, VoteAdmin)
 
 
-class LawAdmin(admin.ModelAdmin):
+class LawAdmin(ImportExportModelAdmin):
     pass
 
 

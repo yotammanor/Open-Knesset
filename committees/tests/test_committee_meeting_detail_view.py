@@ -258,7 +258,7 @@ I have a deadline''')
         return self.client.post(reverse('committee-meeting',
                                         kwargs={'pk': meeting.id}),
                                 {'user_input_type': 'remove-mk',
-                                 'mk_name': mk.name})
+                                 'mk_name_to_remove': mk.name})
 
     def _given_lobbyist_added_to_meeting(self, meeting, lobbyist):
         return self.client.post(reverse('committee-meeting',
