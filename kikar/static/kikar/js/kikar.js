@@ -65,6 +65,9 @@ $(document).ready(function () {
                         var html = template(element);
                         listContainer.append(html);
                     });
+                } else {
+                    loadingSymbol.hide();
+                    listContainer.append("<p>לא נמצאו סטאטוסים</p>");
                 }
             },
             error: function () {
