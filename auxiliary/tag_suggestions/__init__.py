@@ -58,7 +58,7 @@ def get_tags_in_text(text):
     """Returns a dictionary, the keys are tags found in text, and the values are the number of occurrences in text"""
           
     result_dict = {}
-    words = text.split()
+    words = text.split() if text is not None else []
     
     #look for tag in word 
     for tag in all_tags_names():
