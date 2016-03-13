@@ -1,6 +1,6 @@
 
 {% extends is_iframe|yesno:"iframe_base.html,site_base.html" %}
-{% load i18n crispy_forms_tags %}{% load static from staticfiles %}
+{% load i18n crispy_forms_tags waffle_tags %}{% load static from staticfiles %}
 
 {% block extratitle %}{% trans "login" %}{% endblock %}
 
@@ -35,7 +35,9 @@
                     <p><strong>{% trans "Enter using" %}</strong></p>
                     <p>
                         <a class="btn" href="{% url 'social:begin' 'twitter' %}"{% if is_iframe %} target="_top"{% endif %} title="Twitter"><i class="fa fa-lg fa-twitter"></i></a>
-                        <a class="btn" href="{% url 'social:begin' 'google-oauth' %}"{% if is_iframe %} target="_top"{% endif %} title="Google"><i class="fa fa-lg fa-google-plus"></i></a>
+                        {% flag "google auth login" %}
+                            <a class="btn" href="{% url 'social:begin' 'google-oauth' %}"{% if is_iframe %} target="_top"{% endif %} title="Google"><i class="fa fa-lg fa-google-plus"></i></a>
+                        {% endflag %}
                         <a class="btn" href="{% url 'social:begin' 'facebook' %}"{% if is_iframe %} target="_top"{% endif %} title="Facebook"><i class="fa fa-lg fa-facebook"></i></a>
                         <a class="btn" href="{% url 'social:begin' 'github' %}"{% if is_iframe %} target="_top"{% endif %} title="GitHub"><i class="fa fa-lg fa-github"></i></a>
                     </p>
