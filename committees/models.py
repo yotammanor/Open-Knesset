@@ -167,7 +167,7 @@ class Committee(models.Model):
     def protocol_not_yet_published_meetings(self, end_date, limit=10, do_limit=True):
         start_date = self.meetings.all().order_by('-date').first().date + timedelta(days=1) \
             if self.meetings.count() > 0 \
-            else datetime.datetime.now()
+            else datetime.now()
         relevant_events = self.events.filter(when__gt=start_date, when__lte=end_date).order_by('-when')
 
         if do_limit:

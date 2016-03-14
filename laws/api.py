@@ -86,14 +86,14 @@ class VoteResource(BaseResource):
 
     def build_filters(self, filters={}):
         orm_filters = super(VoteResource, self).build_filters(filters)
-        if 'member' in filters:
-            orm_filters["voteaction__member"] = filters['member']
-        if 'member_for' in filters:
-            orm_filters["voteaction__member"] = filters['member_for']
-            orm_filters["voteaction__type"] = 'for'
-        if 'member_against' in filters:
-            orm_filters["voteaction__member"] = filters['member_against']
-            orm_filters["voteaction__type"] = 'against'
+        # if 'member' in filters:
+        #     orm_filters["voteaction__member"] = filters['member']
+        # if 'member_for' in filters:
+        #     orm_filters["voteaction__member"] = filters['member_for']
+        #     orm_filters["voteaction__type"] = 'for'
+        # if 'member_against' in filters:
+        #     orm_filters["voteaction__member"] = filters['member_against']
+        #     orm_filters["voteaction__type"] = 'against'
         if 'tag' in filters:
             # hard-coded the __in filter. not great, but works.
             orm_filters["tagged_items__tag__in"] = \
