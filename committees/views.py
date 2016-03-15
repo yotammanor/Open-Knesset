@@ -24,6 +24,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import DetailView, ListView
 from tagging.models import TaggedItem, Tag
 import models
+from knesset.exceptions import HttpBadRequest
 from models import Committee, CommitteeMeeting, Topic
 from ok_tag.views import BaseTagMemberListView
 from auxiliary.mixins import GetMoreView
@@ -187,23 +188,33 @@ class MeetingDetailView(DetailView):
             cm.find_attending_members(mks, mk_names)
 
     def _handle_remove_lobbyist(self, cm, request):
-        l = Lobbyist.objects.get(person__name=request.POST.get(
-            'lobbyist_name'))
+        lobbyist_name = request.POST.get('lobbyist_name')
+        if not lobbyist_name:
+            raise  Http404()
+        l = Lobbyist.objects.get(person__name=lobbyist_name)
         cm.lobbyists_mentioned.remove(l)
 
     def _handle_add_lobbyist(self, cm, request):
-        l = Lobbyist.objects.get(person__name=request.POST.get(
-            'lobbyist_name'))
+        lobbyist_name = request.POST.get('lobbyist_name')
+        if not lobbyist_name:
+            raise  Http404()
+        l = Lobbyist.objects.get(person__name=lobbyist_name)
         cm.lobbyists_mentioned.add(l)
 
     def _handle_remove_mk(self, cm, request):
-        if not request.POST.get('mk_id'):
+        mk_id = request.POST.get('mk_id')
+        mk_name = request.POST.get('mk_name_to_remove')
+        if not mk_id and mk_name:
             mk_names = Member.objects.values_list('name', flat=True)
-            mk_name = difflib.get_close_matches(request.POST.get('mk_name_to_remove'),
-                                                mk_names)[0]
-            mk = Member.objects.get(name=mk_name)
+
+            possible_matches = difflib.get_close_matches(mk_name, mk_names)
+            if possible_matches:
+                mk_name = possible_matches[0]
+                mk = Member.objects.get(name=mk_name)
+        elif mk_id:
+            mk = Member.objects.get(id=mk_id)
         else:
-            mk = Member.objects.get(id=request.POST.get('mk_id'))
+            raise Http404()
         cm.mks_attended.remove(mk)
         cm.save()  # just to signal, so the attended Action gets created.
         action.send(request.user,
@@ -213,13 +224,21 @@ class MeetingDetailView(DetailView):
                     timestamp=datetime.datetime.now())
 
     def _handle_add_mk(self, cm, request):
-        if not request.POST.get('mk_id'):
+        mk_id = request.POST.get('mk_id')
+        mk_name = request.POST.get('mk_name')
+        if not mk_id and mk_name:
             mk_names = Member.objects.values_list('name', flat=True)
-            mk_name = difflib.get_close_matches(request.POST.get('mk_name'),
-                                                mk_names)[0]
-            mk = Member.objects.get(name=mk_name)
+            possible_matches = difflib.get_close_matches(mk_name, mk_names)
+            if possible_matches:
+                mk_name = possible_matches[0]
+                mk = Member.objects.get(name=mk_name)
+            else:
+                raise Http404()
+
+        elif mk_id:
+            mk = Member.objects.get(id=mk_id)
         else:
-            mk = Member.objects.get(id=request.POST.get('mk_id'))
+            raise Http404()
         cm.mks_attended.add(mk)
         cm.save()  # just to signal, so the attended Action gets created.
         action.send(request.user,
@@ -230,6 +249,8 @@ class MeetingDetailView(DetailView):
 
     def _handle_bill_update(self, cm, request):
         bill_id = request.POST.get('bill_id')
+        if not bill_id:
+            raise Http404()
         if bill_id.isdigit():
             bill = get_object_or_404(Bill, pk=bill_id)
         else:  # not a number, maybe its p/1234

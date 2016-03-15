@@ -177,11 +177,26 @@ I have a deadline''')
         self._verify_mk_has_meeting(meeting, mk_1)
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
         res = self._given_mk_removed_from_meeting(meeting, mk_1)
+        self.assertEqual(res.status_code, 302)
 
         self._verify_mk_does_not_have_meeting(meeting, mk_1)
         res = self._given_mk_added_to_meeting(meeting, mk_1)
         self.assertEqual(res.status_code, 302)
         self._verify_mk_has_meeting(meeting, mk_1)
+
+    def test_post_removing_and_adding_mk_without_params_get_404_response(self):
+        mk_1 = self.mk_1
+        mk_1.name = ''
+        meeting = self.meeting_1
+        self._verify_mk_has_meeting(meeting, mk_1)
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        res = self._given_mk_removed_from_meeting(meeting, mk_1)
+        self.assertEqual(res.status_code, 404)
+
+        self._verify_mk_has_meeting(meeting, mk_1)
+        res = self._given_mk_added_to_meeting(meeting, mk_1)
+        self.assertEqual(res.status_code, 404)
+
 
     def test_post_adds_bill_to_committee_meeting(self):
         bill_1 = self.bill_1
