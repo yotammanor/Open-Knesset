@@ -3,13 +3,15 @@ from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 from datetime import date
 from tagging.models import Tag
+
+from mks.models import Knesset
 from models import (Vote, Bill, KnessetProposal, BillBudgetEstimation,
                     CONVERT_TO_DISCUSSION_HEADERS)
 from vote_choices import (ORDER_CHOICES, TAGGED_CHOICES, TYPE_CHOICES,
                           SIMPLE_TYPE_CHOICES, BILL_TAGGED_CHOICES,
                           BILL_STAGE_CHOICES, BILL_AGRR_STAGES)
 
-STAGE_CHOICES = (
+ALL_CHOICE = (
     ('all', _('All')),
 )
 
@@ -143,8 +145,13 @@ class VoteSelectForm(forms.Form):
         self.fields['tagged'].choices = new_choices
 
 
+
+
+
 class BillSelectForm(forms.Form):
     """Bill filtering form"""
+    knesset_id = forms.ChoiceField(label=_('Knesset'), required=False,
+                                   initial='all')
 
     stage = forms.ChoiceField(label=_('Bill Stage'), choices=BILL_STAGE_CHOICES,
                               required=False, initial='all')
@@ -185,9 +192,15 @@ class BillSelectForm(forms.Form):
         new_choices.extend([(t.name, t.name) for t in tags])
         self.fields['tagged'].choices = new_choices
 
-        new_stages = list(STAGE_CHOICES)
+        new_stages = list(ALL_CHOICE)
         new_stages.extend(BILL_STAGE_CHOICES)
         self.fields['stage'].choices = new_stages
+
+        AVAILABLE_KNESSETS = map(lambda x: (x.number, x.name), Knesset.objects.all())
+
+        new_knessets = list(ALL_CHOICE)
+        new_knessets.extend(AVAILABLE_KNESSETS)
+        self.fields['knesset_id'].choices = new_knessets
 
     def clean(self):
         super(BillSelectForm, self).clean()

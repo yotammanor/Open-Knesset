@@ -615,6 +615,7 @@ class BillListView(BillListMixin, HashnavListView):
         knesset_booklet = self.request.GET.get('knesset_booklet', False)
         gov_booklet = self.request.GET.get('gov_booklet', False)
         member = self.request.GET.get('member', False)
+
         if stage and stage != 'all':
             for x in r:
                 if x[3] == stage:
@@ -634,6 +635,7 @@ class BillListView(BillListMixin, HashnavListView):
             context['title'] = _('Bills published in government booklet '
                                  'number %s') % gov_booklet
         else:
+            # TODO: WTF!?
             r[0][2] = True
         if member:
             context['member'] = get_object_or_404(Member, pk=member)

@@ -117,6 +117,8 @@ class MemberListView(ListView):
 
         context['object_list'] = qs
 
+        context['default_knesset_id'] = Knesset.objects.current_knesset().number
+
         if info not in ('graph', 'abc'):
             context['max_current'] = qs[0].extra
 
@@ -467,7 +469,7 @@ class MemberDetailView(DetailView):
                 'bills_statistics': bills_statistics,
                 'agendas': agendas,
                 'presence': presence,
-                'current_knesset_start_date': date(2009, 2, 24),
+                # 'current_knesset_start_date': date(2009, 2, 24), #obviously wrong, but does not look like used in template
                 'factional_discipline': factional_discipline,
                 'votes_against_own_bills': votes_against_own_bills,
                 'general_discipline': general_discipline,
