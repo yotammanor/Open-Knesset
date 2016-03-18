@@ -14,6 +14,7 @@
 30 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py okscrape lobbyists --dblog
 #20 05 * * 1,3,5 /oknesset_data/oknesset/Open-Knesset/manage.py update_sitemap
 26 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py scrape_votes
+43 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py update_links_from_kikar
 
 # following is part of knesset-data project (https://github.com/hasadna/knesset-data)
 # you should set the github auth token here (but only on the server of course)
