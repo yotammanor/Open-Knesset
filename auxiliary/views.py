@@ -17,6 +17,7 @@ from django.views.decorators.http import require_http_methods
 from django.views.generic import TemplateView, DetailView, ListView
 from okscraper_django.models import ScraperRun
 
+from auxiliary.constants import COMING_SOON_MAIN_PAGE_EVENTS_TO_FETCH
 from committees.models import CommitteeMeeting
 from events.models import Event
 from laws.models import Vote, Bill
@@ -112,31 +113,6 @@ def main(request):
          annotation-added (to meeting), ignore annotated (by user)
          comment-added
     """
-    # context = cache.get('main_page_context')
-    # if not context:
-    #    context = {
-    #        'title': _('Home'),
-    #        'hide_crumbs': True,
-    #    }
-    #    actions = list(main_actions()[:10])
-    #
-    #    annotations = get_annotations(
-    #        annotations=[a.target for a in actions if a.verb != 'comment-added'],
-    #        comments=[x.target for x in actions if x.verb == 'comment-added'])
-    #    context['annotations'] = annotations
-    #    b = get_debated_bills()
-    #    if b:
-    #        context['bill'] = get_debated_bills()[0]
-    #    else:
-    #        context['bill'] = None
-    #    public_agenda_ids = Agenda.objects.filter(is_public=True
-    #                                             ).values_list('id',flat=True)
-    #    if len(public_agenda_ids) > 0:
-    #        context['agenda_id'] = random.choice(public_agenda_ids)
-    #    context['topics'] = Topic.objects.filter(status__in=PUBLIC_TOPIC_STATUS)\
-    #                                     .order_by('-modified')\
-    #                                     .select_related('creator')[:10]
-    #    cache.set('main_page_context', context, 300) # 5 Minutes
 
     # did we post the TidbitSuggest form ?
     if request.method == 'POST':
@@ -150,12 +126,15 @@ def main(request):
 
         return form.get_response()
 
-    NUMOF_EVENTS = 8
-    events = Event.objects.get_upcoming()
+    events = Event.objects.get_not_empty_upcoming()
 
     # Reduce the number of sql queries, by prefetching the objects and setting
     # them on the objects
-    upcoming = list(events[:NUMOF_EVENTS])
+    upcoming = list(events[:COMING_SOON_MAIN_PAGE_EVENTS_TO_FETCH])
+    # TODO: @alonisser: this looks like an optimization
+    # I don't understand what it supposed to optimize
+    # It obviously does it wrong since it introduces a bug
+    # in the more events view there is not optimization and no bug..
 
     generics = {}
     for item in upcoming:
@@ -172,7 +151,7 @@ def main(request):
     for item in upcoming:
         if item.which_pk:
             setattr(item, '_which_object_cache',
-                    relations[item.which_type_id].get(item.which_pk))
+                    relations[item.which_type_id].get(int(item.which_pk)))
 
     context = {
         'title': _('Home'),
@@ -181,8 +160,8 @@ def main(request):
         'tidbits': Tidbit.active.all().order_by('?'),
         'suggestion_forms': {'tidbit': TidbitSuggestionForm()},
         'events': upcoming,
-        'INITIAL_EVENTS': NUMOF_EVENTS,
-        'events_more': events.count() > NUMOF_EVENTS,
+        'INITIAL_EVENTS': COMING_SOON_MAIN_PAGE_EVENTS_TO_FETCH,
+        'events_more': events.count() > COMING_SOON_MAIN_PAGE_EVENTS_TO_FETCH,
     }
     template_name = '%s.%s%s' % ('main', settings.LANGUAGE_CODE, '.html')
     return render_to_response(template_name, context,
