@@ -12,13 +12,13 @@
 
         function setRating() { // will reuse it for ok-more callback
             $('[data-provider="rating"]').raty({
-                score: function() {
+                score: function () {
                     return $(this).data('rating');
                 }
             }).removeAttr('data-provider');
         }
 
-        $(document).ready(function() {
+        $(document).ready(function () {
             setRating();
             $('a[rel=popover]').popover({
                 offset: 10,
@@ -27,18 +27,15 @@
                 html: true,
                 placement: 'right',
                 template: '<div class="popover" onmouseover="$(this).mouseleave(function() {$(this).hide(); });"><div class="arrow"></div><div class="popover-inner"><h3 class="popover-title"></h3><div class="popover-content"><p></p></div></div></div>',
-                content: function() {
+                content: function () {
                     return $(this).siblings('.tip').html();
                 }
 
-            }).mouseenter(function(e) {
+            }).mouseenter(function (e) {
                 $('a[data-original-title]').not(this).popover('hide');
                 $(this).popover('show');
             });
         });
-
-
-
 
 
     </script>
@@ -116,9 +113,9 @@
                         {% endfor %}
                         {% if more_unpublished_available %}
                             <li><a href="all_unpublished_protocols/">{% trans 'more...' %}</a></li>
+                        {% else %}
+                            <li>{% include "_feature_unavailable_message.html" %}</li>
                         {% endif %}
-                    {% else %}
-                        <li>{% include "_feature_unavailable_message.html" %}</li>
                     {% endflag %}
                 </ul>
             </section>
@@ -134,6 +131,26 @@
                         <li><a href="all_meetings/">{% trans 'more...' %}</a></li>
                     {% endif %}
                 </ul>
+            </section>
+            <section class="card card-list card-list-latest" id="kikar-statuses-section" style="display: none"
+                     data-type="search" data-id="{{ object.name }}">
+                {% include 'kikar/_facebook_status_section_update_elem.html' %}
+                <header>
+                    <h2>
+                        <i class="fa fa-facebook-square"></i>
+                        {% trans "Facebook Statuses" %} {% trans "(where the commmittee's name is mentioned)" %}
+                    </h2>
+                </header>
+                <ul id="kikar-facebook-updates-ul"
+                    data-filter='feed__is_current=true&content__contains={{ object.name }}'>
+                </ul>
+                <footer style="text-align: center">
+                    <span id="loading-statuses-symbol"><i class="fa fa-2x fa-spinner fa-spin"></i> </span>
+                    <button id="statuses-more" class="btn btn-mini btn-expand-fb"
+                            data-target="#kikar-facebook-updates-ul"
+                            data-offset='0'>{% trans "More Facebook Statuses" %} +
+                    </button>
+                </footer>
             </section>
             {% ifnotequal object.type 'plenum' %}
                 <section class="card card-list">

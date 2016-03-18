@@ -186,7 +186,7 @@ INSTALLED_APPS = (
     'okscraper_django',
     'lobbyists',
     'kikar',
-    'ok_tag'
+    'ok_tag',
 )
 
 TEMPLATE_CONTEXT_PROCESSORS = (
