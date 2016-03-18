@@ -81,7 +81,7 @@ class CommitteeMeetingAdmin(ImportExportModelAdmin):
     list_display = ('__unicode__', 'date', 'committee_type', 'protocol_parts')
     list_filter = ('committee', 'committee__type', MissingProtocolListFilter)
     search_fields = ['id', 'topics']
-    actions = ['redownload_and_reparse_protocol', 'reparse_protocol']
+    actions = ['redownload_and_reparse_protocol', 'reparse_protocol', 'update_metadata_from_dataservice']
 
     def committee_type(self, obj):
         return obj.committee.type
@@ -102,6 +102,9 @@ class CommitteeMeetingAdmin(ImportExportModelAdmin):
             meeting.reparse_protocol(redownload=False, mks=mks, mk_names=mk_names)
         self.message_user(request, "successfully reparsed %s meetings" % qs.count())
 
+    def update_metadata_from_dataservice(self, request, qs):
+        [cm.update_from_dataservice() for cm in qs]
+        self.message_user(request, "successfully updated %s meetings" % qs.count())
 
 admin.site.register(CommitteeMeeting, CommitteeMeetingAdmin)
 

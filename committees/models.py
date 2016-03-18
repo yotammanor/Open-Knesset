@@ -360,6 +360,22 @@ class CommitteeMeeting(models.Model):
             self.create_protocol_parts(delete_existing=True)
             self.find_attending_members(mks, mk_names)
 
+    def update_from_dataservice(self, dataservice_object=None):
+        from committees.management.commands.scrape_committee_meetings import Command as ScrapeCommitteeMeetingCommand
+        from knesset_data.dataservice.committees import CommitteeMeeting as DataserviceCommitteeMeeting
+        if dataservice_object is None:
+            ds_meetings = [
+                ds_meeting for ds_meeting
+                in DataserviceCommitteeMeeting.get(self.committee.knesset_id, self.date - timedelta(days=1), self.date + timedelta(days=1))
+                if str(ds_meeting.id) == str(self.knesset_id)
+            ]
+            if len(ds_meetings) != 1:
+                raise Exception('could not found corresponding dataservice meeting')
+            dataservice_object = ds_meetings[0]
+        meeting_transformed = ScrapeCommitteeMeetingCommand().get_committee_meeting_fields_from_dataservice(dataservice_object)
+        [setattr(self, k, v) for k,v in meeting_transformed.iteritems()]
+        self.save()
+
     @property
     def plenum_meeting_number(self):
         res = None

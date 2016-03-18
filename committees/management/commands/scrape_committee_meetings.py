@@ -48,7 +48,7 @@ class Command(BaseKnessetDataserviceCommand):
         meeting.reparse_protocol(mks=mks, mk_names=mk_names)
 
     def _create_object(self, dataservice_meeting, committee):
-        meeting_transformed = dict(self._translate_ds_to_model(dataservice_meeting))
+        meeting_transformed = self.get_committee_meeting_fields_from_dataservice(dataservice_meeting)
         meeting = CommitteeMeeting.objects.create(committee=committee, **meeting_transformed)
         self._log_info('creating meeting %s'%meeting.pk)
         self._reparse_protocol(meeting)
@@ -104,3 +104,12 @@ class Command(BaseKnessetDataserviceCommand):
             self._log_info(u'Processing {} committee (knesset ID {})'.format(c_name, c_knesset_id))
             for ds_meeting in self._get_meetings(c_knesset_id, from_date, to_date):
                 self._update_meetings(committee, ds_meeting)
+
+    def get_committee_meeting_fields_from_dataservice(self, ds_meeting):
+        """
+        this method is public to allow using it from shell to update existing meetings
+        """
+        meeting_transformed = dict(self._translate_ds_to_model(ds_meeting))
+        if meeting_transformed['topics'] is None or meeting_transformed['topics'] == '':
+            meeting_transformed['topics'] = ds_meeting.session_content
+        return meeting_transformed
