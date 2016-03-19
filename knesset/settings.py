@@ -231,7 +231,7 @@ file_logger.addHandler(h)
 # Console loggers, Best practice always log to stdout and stderr and let third party environment to deal with logging
 # See 12 factor app http://12factor.net/logs
 # Todo refactor this to support stderr and out and more dynamic config supporting sentry etc
-console_logger = logging.getLogger('') #root logger
+console_logger = logging.getLogger('')  # root logger
 console_logger.setLevel(logging.WARNING)
 stdout_handler = logging.StreamHandler(stream=sys.stdout)
 
@@ -277,7 +277,6 @@ HITCOUNT_KEEP_HIT_ACTIVE = {'hours': 1}
 HITCOUNT_HITS_PER_IP_LIMIT = 0
 HITCOUNT_EXCLUDE_USER_GROUP = ()
 
-TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 NOSE_ARGS = ['--with-xunit']
 
 SERIALIZATION_MODULES = {
@@ -343,6 +342,9 @@ KIKAR_BASE_URL = 'http://www.kikar.org'
 # if you add a local_settings.py file, it will override settings here
 # but please, don't commit it to git.
 DEBUG_TOOLBAR_PATCH_SETTINGS = False
+
+TEST_RUNNER = 'knesset.common_test_runner.KnessetTestRunner'
+
 try:
     from local_settings import *
 except ImportError:
