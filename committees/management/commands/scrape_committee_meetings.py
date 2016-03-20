@@ -40,6 +40,8 @@ class Command(BaseKnessetDataserviceCommand):
                     help="scrape meetings with dates from today minus X days"),
         make_option('--to_days', dest='todays', default=0, type=int,
                     help="scrape meetings with dates until today minus X days"),
+        make_option('--committee-ids', dest='committeeids', default='', type=str,
+                    help='comma-separated list of committee ids to iterate over (default=all committees)')
     )
 
     @staticmethod
@@ -95,10 +97,12 @@ class Command(BaseKnessetDataserviceCommand):
 
     def _handle_noargs(self, **options):
         from_date, to_date = self._extract_cmd_args(options['fromdays'], options['todays'])
+        committee_ids = Committee.objects.all().values_list('pk', flat=True) if options['committeeids'] == '' else options['committeeids'].split(',')
+
         self._log_info('Scraping from {} to {}'.format(from_date, to_date))
 
         # filter is used to discard plenum and invalid knesset_id's
-        for committee in Committee.objects.filter(knesset_id__gt=0):
+        for committee in Committee.objects.filter(knesset_id__gt=0, pk__in=committee_ids):
             c_name, c_knesset_id = committee.name, committee.knesset_id
 
             self._log_info(u'Processing {} committee (knesset ID {})'.format(c_name, c_knesset_id))
