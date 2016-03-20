@@ -182,6 +182,16 @@ class MemberAltname(models.Model):
     member = models.ForeignKey('Member')
     name = models.CharField(max_length=64)
 
+    def save(self, **kwargs):
+        super(MemberAltname, self).save(**kwargs)
+        [person.add_alias(self.name) for person in self.member.person.all()]
+
+    def delete(self, **kwargs):
+        persons = list(self.member.person.all())
+        name = self.name
+        super(MemberAltname, self).delete(**kwargs)
+        [person.del_alias(name) for person in persons]
+
 
 class Member(models.Model):
     id = models.IntegerField(primary_key=True,
