@@ -2,6 +2,7 @@
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from django.db import models
+import datetime
 
 from django.core.urlresolvers import reverse
 from django.db.models import Q, Max
@@ -281,6 +282,9 @@ class Member(models.Model):
     def party_at(self, date):
         """Returns the party this memeber was at given date
         """
+        # make sure date is not a datetime object
+        if isinstance(date, datetime.datetime):
+            date = datetime.date(date.year, date.month, date.day)
         memberships = Membership.objects.filter(member=self).order_by('-start_date')
         for membership in memberships:
             if (not membership.start_date or membership.start_date <= date) and \

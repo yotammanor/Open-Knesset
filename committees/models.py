@@ -437,22 +437,13 @@ class CommitteeMeeting(models.Model):
         if mks is None and mk_names is None:
             logger.debug('get_all_mk_names')
             mks, mk_names = get_all_mk_names()
-        try:
-            with KnessetDataCommitteeMeetingProtocol.get_from_text(self.protocol_text) as protocol:
-                attended_mk_names = protocol.find_attending_members(mk_names)
-                for name in attended_mk_names:
-                    i = mk_names.index(name)
-                    if not mks[i].party_at(self.date):  # not a member at time of this meeting?
-                        continue  # then don't search for this MK.
-                    self.mks_attended.add(mks[i])
-        except Exception:
-            exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-            logger.debug("%s%s",
-                         ''.join(traceback.format_exception(exceptionType,
-                                                            exceptionValue,
-                                                            exceptionTraceback)
-                                 ),
-                         '\nCommitteeMeeting.id=' + str(self.id))
+        with KnessetDataCommitteeMeetingProtocol.get_from_text(self.protocol_text) as protocol:
+            attended_mk_names = protocol.find_attending_members(mk_names)
+            for name in attended_mk_names:
+                i = mk_names.index(name)
+                if not mks[i].party_at(self.date):  # not a member at time of this meeting?
+                    continue  # then don't search for this MK.
+                self.mks_attended.add(mks[i])
         logger.debug('meeting %d now has %d attending members' % (
             self.id,
             self.mks_attended.count()))
