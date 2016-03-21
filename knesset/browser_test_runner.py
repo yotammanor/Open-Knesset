@@ -18,6 +18,7 @@ sauce_platforms = [
     {"platform": "Linux", "browserName": "firefox", "version": "29"}
 ]
 
+
 class Runner(DiscoverRunner):
     """
     The browser test runner modifies the following from the default django runner:
@@ -28,24 +29,24 @@ class Runner(DiscoverRunner):
 
     option_list = (
         make_option('-t', '--top-level-directory',
-            action='store', dest='top_level', default=None,
-            help='Top level of project for unittest discovery.'),
+                    action='store', dest='top_level', default=None,
+                    help='Top level of project for unittest discovery.'),
         make_option('-p', '--pattern', action='store', dest='pattern',
-            default="browser_cases*.py",
-            help='The test matching pattern. Defaults to browser_cases*.py.'),
+                    default="browser_cases*.py",
+                    help='The test matching pattern. Defaults to browser_cases*.py.'),
         make_option('--full-initialization', action='store_true', dest='fullinitialization',
-            default=False,
-            help='this should only be used when running ci - it initializes the environment from scratch'),
+                    default=False,
+                    help='this should only be used when running ci - it initializes the environment from scratch'),
         make_option('--sauce-user', action='store', dest='sauceuser',
-            default='',
-            help='SauceLabs username (required if browser=Sauce, see https://docs.saucelabs.com/reference/sauce-connect/#managing-multiple-tunnels)'),
+                    default='',
+                    help='SauceLabs username (required if browser=Sauce, see https://docs.saucelabs.com/reference/sauce-connect/#managing-multiple-tunnels)'),
         make_option('--sauce-accesskey', action='store', dest='sauceaccesskey',
-            default='',
-            help='SauceLabs access key (required if browser=Sauce)'),
+                    default='',
+                    help='SauceLabs access key (required if browser=Sauce)'),
         make_option('--browser', action='store', dest='browser',
-            default='Firefox',
-            help='The browser to use for selenium tests default is "Firefox", can also run remotely on sauce labs - see docs')
-        )
+                    default='Firefox',
+                    help='The browser to use for selenium tests default is "Firefox", can also run remotely on sauce labs - see docs')
+    )
 
     def __init__(self, *args, **kwargs):
         global browser, sauce_username, sauce_accesskey
@@ -71,7 +72,8 @@ class Runner(DiscoverRunner):
 
     def create_superuser(self):
         print('Creating test superuser (admin/123456)')
-        management.call_command('createsuperuser', interactive=False, username='admin', email='OpenKnessetAdmin@mailinator.com')
+        management.call_command('createsuperuser', interactive=False, username='admin',
+                                email='OpenKnessetAdmin@mailinator.com')
         command = changepassword.Command()
         command._get_pass = lambda *args: '123456'
         command.execute('admin')
