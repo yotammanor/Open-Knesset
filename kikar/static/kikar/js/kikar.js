@@ -69,6 +69,10 @@ $(document).ready(function () {
                     loadingSymbol.hide();
                     listContainer.append("<p>לא נמצאו סטאטוסים</p>");
                 }
+
+                if (!data.meta.next) {
+                    offsetHandler.hide();
+                }
             },
             error: function () {
                 loadingSymbol.hide();
