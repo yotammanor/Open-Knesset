@@ -9,18 +9,26 @@ from django.db import models
 from django.conf import settings
 from django.contrib.contenttypes import generic
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _, ugettext
 from persons.models import Person
 
+
 class EventManager(models.Manager):
     """This is a manager for Event class"""
+
     def get_upcoming(self):
         if settings.DEBUG:
-            now = datetime(2011,11,11)
+            # TODO: WTF?
+            now = datetime(2011, 11, 11)
         else:
             now = datetime.now()
 
         return self.filter(when__gte=now).order_by('when')
+
+    def get_not_empty_upcoming(self):
+        return self.get_upcoming().exclude(Q(what=None) | Q(what=''))
+
 
 class Event(models.Model):
     ''' holds the when, who, what, where and which fields of events
@@ -37,9 +45,9 @@ class Event(models.Model):
     # key 1957, contains repetition of the subject.
     what = models.TextField()
     where = models.TextField(default=_("earth"))
-    which_type   = models.ForeignKey(ContentType,
-            verbose_name=_('content type'),
-            related_name="event_for_%(class)s", null=True)
+    which_type = models.ForeignKey(ContentType,
+                                   verbose_name=_('content type'),
+                                   related_name="event_for_%(class)s", null=True)
     which_pk = models.TextField(_('object ID'), null=True)
     which_object = generic.GenericForeignKey(ct_field="which_type", fk_field="which_pk")
     why = models.TextField(null=True)
@@ -49,6 +57,7 @@ class Event(models.Model):
     link = models.URLField(blank=True, null=True)
 
     objects = EventManager()
+
     @property
     def is_future(self):
         return self.when > datetime.now()
@@ -56,7 +65,7 @@ class Event(models.Model):
     def get_summary(self, length):
         """ this is used for the title of the event in the calendar view (icalendar) """
         return (self.what[:length - 3] + '...'
-                 if len(self.what) >= length else self.what)
+                if len(self.what) >= length else self.what)
 
     @property
     def which(self):
