@@ -5,20 +5,16 @@ import logging
 from django.core.urlresolvers import reverse
 from tastypie.constants import ALL
 import tastypie.fields as fields
-
+from dateutil import parser
 from agendas.templatetags.agendas_tags import agendas_for
 
 from apis.resources.base import BaseResource
-from mks.models import Member, Party
+
 from mks.api import MemberResource
-from video.utils import get_videos_queryset
-from video.api import VideoResource
-from links.models import Link
-from links.api import LinkResource
+
 from models import Law, Bill, Vote, VoteAction, PrivateProposal
 
 from simple.management.commands.syncdata_globals import p_explanation
-from agendas.models import AgendaVote
 
 from datetime import datetime, timedelta
 
@@ -75,7 +71,7 @@ class VoteResource(BaseResource):
 
     votes = fields.ToManyField(VoteActionResource,
                                attribute=lambda bundle: VoteAction.objects.filter(
-                                       vote=bundle.obj).select_related('member'),
+                                   vote=bundle.obj).select_related('member'),
                                null=True,
                                full=True)
     agendas = fields.ListField()
@@ -86,14 +82,7 @@ class VoteResource(BaseResource):
 
     def build_filters(self, filters={}):
         orm_filters = super(VoteResource, self).build_filters(filters)
-        # if 'member' in filters:
-        #     orm_filters["voteaction__member"] = filters['member']
-        # if 'member_for' in filters:
-        #     orm_filters["voteaction__member"] = filters['member_for']
-        #     orm_filters["voteaction__type"] = 'for'
-        # if 'member_against' in filters:
-        #     orm_filters["voteaction__member"] = filters['member_against']
-        #     orm_filters["voteaction__type"] = 'against'
+
         if 'tag' in filters:
             # hard-coded the __in filter. not great, but works.
             orm_filters["tagged_items__tag__in"] = \
@@ -104,8 +93,8 @@ class VoteResource(BaseResource):
             # the to_date needs to be incremented by a day since when humans say to_date=2014-07-30 they
             # actually mean midnight between 30 to 31. python on the other hand interperts this as midnight between
             # 29 and 30
-            to_date = datetime.strptime(filters["to_date"], "%Y-%M-%d") + timedelta(days=1)
-            orm_filters["time__lte"] = to_date.strftime("%Y-%M-%d")
+            to_date = parser.parse(filters["to_date"]) + timedelta(days=1)
+            orm_filters["time__lte"] = to_date.strftime("%Y-%m-%d")
         return orm_filters
 
     def dehydrate_agendas(self, bundle):
@@ -115,10 +104,10 @@ class VoteResource(BaseResource):
         for avote in agendavotes:
             agenda = avote.agenda
             resource_uri = reverse(
-                    'api_dispatch_detail',
-                    kwargs={
-                        'resource_name': 'agenda', 'api_name': 'v2',
-                        'pk': agenda.pk})
+                'api_dispatch_detail',
+                kwargs={
+                    'resource_name': 'agenda', 'api_name': 'v2',
+                    'pk': agenda.pk})
 
             agenda_bundle = {
                 'name': agenda.name,
@@ -148,10 +137,10 @@ def detailed_agendas(agenda_list):
     for xagenda in agenda_list:
         agenda = xagenda.agenda
         resource_uri = reverse(
-                'api_dispatch_detail',
-                kwargs={
-                    'resource_name': 'agenda', 'api_name': 'v2',
-                    'pk': agenda.pk})
+            'api_dispatch_detail',
+            kwargs={
+                'resource_name': 'agenda', 'api_name': 'v2',
+                'pk': agenda.pk})
         result.append({
             'name': agenda.name,
             'image': agenda.image.url if agenda.image else None,
