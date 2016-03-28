@@ -16,13 +16,14 @@ from mks.models import Knesset, Party, Member
 just_id = lambda x: x.id
 APP = 'laws'
 
+
 class APIv2Test(TestCase):
     def setUp(self):
         super(APIv2Test, self).setUp()
         d = date.today()
         self.knesset = Knesset.objects.create(
-                number=1,
-                start_date=d - timedelta(10))
+            number=1,
+            start_date=d - timedelta(10))
         self.url_prefix = '/api/v2'
         self.vote_1 = Vote.objects.create(time=datetime.now(),
                                           title='vote 1')
@@ -131,6 +132,11 @@ class APIv2Test(TestCase):
 
     def test_vote_exports_does_not_break_on_missing_date_from_filter(self):
         uri = '/api/v2/vote/?vtype=second-call&order=time&from_date=&to_date=2016-02-13'
+        res = self.client.get(uri, format='json')
+        self.assertEqual(res.status_code, 200)
+
+    def test_vote_api_does_not_break_on_other_date_formats(self):
+        uri = '/api/v2/vote/?vtype=second-call&order=time&from_date=&to_date=13-02-2016'
         res = self.client.get(uri, format='json')
         self.assertEqual(res.status_code, 200)
 
