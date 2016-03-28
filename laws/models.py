@@ -467,6 +467,30 @@ class Vote(models.Model):
         (page, vote_src_url) = SyncdataCommand().read_votes_page(self.src_id)
         return page
 
+    def update_from_knesset_data(self):
+        from knesset_data.html_scrapers.votes import HtmlVote
+        resolve_vote_types = {
+            'voted for': u'for',
+            'voted against': u'against',
+            'abstain': u'abstain',
+            'did not vote': u'no-vote',
+        }
+        html_votes = HtmlVote.get_from_vote_id(self.src_id).member_votes
+        for vote_type in ['for', 'against', 'abstain']:
+            expected_member_ids = [int(member_id) for member_id, member_vote_type in html_votes if
+                                   resolve_vote_types[member_vote_type] == vote_type]
+            actual_member_ids = [int(member_id) for member_id in
+                                 self.actions.filter(type=vote_type).values_list('member_id', flat=True)]
+            if len(expected_member_ids) > len(actual_member_ids):
+                missing_member_ids = [member_id for member_id in expected_member_ids if member_id not in actual_member_ids]
+                for member_id in missing_member_ids:
+                    logger.info('fixing for member id %s'%member_id)
+                    vote_action, created = VoteAction.objects.get_or_create(member=Member.objects.get(pk=member_id), vote=self, defaults={'type': vote_type})
+                    if created:
+                        vote_action.save()
+            elif len(expected_member_ids) != len(actual_member_ids):
+                raise Exception('strange mismatch in members, actual has more members then expected, this is unexpected')
+
     def reparse_members_from_votes_page(self, page=None):
         from simple.management.commands.syncdata import Command as SyncdataCommand
         page = self.redownload_votes_page() if page is None else page

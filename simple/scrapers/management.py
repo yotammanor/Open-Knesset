@@ -132,10 +132,10 @@ class BaseKnessetDataserviceCollectionCommand(BaseKnessetDataserviceCommand):
         self._log_info('done, created %s objects'%len(oknesset_objects))
 
     def _get_validate_header_row(self):
-        raise NotImplementedError('_get_validate_header_row should be implemented by extending classes')
+        return ['knesset object id', 'open knesset object id', 'error']
 
     def _get_validate_error_row(self, dataservice_object, oknesset_object, error):
-        raise NotImplementedError('_get_validate_error_row should be implemented by extending classes')
+        return [dataservice_object.id, oknesset_object.id if oknesset_object else '', error]
 
     def _get_validate_order_by(self):
         return 'id', 'asc'
@@ -166,7 +166,7 @@ class BaseKnessetDataserviceCollectionCommand(BaseKnessetDataserviceCommand):
             else:
                 error = 'could not find corresponding object in DB'
                 self._log_warn(error)
-                writer.writerow(self._get_validate_error_row(dataservice_object, '', error.encode('utf-8')))
+                writer.writerow(self._get_validate_error_row(dataservice_object, None, error.encode('utf-8')))
         else:
             for attr_name, expected_value in self._get_dataservice_model_kwargs(dataservice_object).iteritems():
                 actual_value = getattr(oknesset_object, attr_name)
@@ -179,20 +179,15 @@ class BaseKnessetDataserviceCollectionCommand(BaseKnessetDataserviceCommand):
                         error = 'value mismatch for %s (expected="%s", actual="%s")'%(attr_name, expected_value, actual_value)
                         self._log_warn(error)
                         writer.writerow(self._get_validate_error_row(dataservice_object, oknesset_object, error.encode('utf-8')))
-            error = self._validate_dataservice_oknesset_object(dataservice_object, oknesset_object)
+            error = self._validate_dataservice_oknesset_object(dataservice_object, oknesset_object, writer, fix)
             if error:
                 self._log_warn(error)
                 writer.writerow([dataservice_object.id, oknesset_object.id, error.encode('utf-8')])
-            # validate the vote counts
-            for type_title, oknesset_count, dataservice_count in zip(
-                ('for', 'against', 'abstain'),
-                [oknesset_object.actions.filter(type=t).count() for t in 'for', 'against', 'abstain'],
-                [int(getattr(dataservice_object, t)) for t in 'total_for', 'total_against', 'total_abstain']
-            ):
-                if oknesset_count != dataservice_count:
-                    error = 'mismatch in %s count (expected=%s, actual=%s)'%(type_title, dataservice_count, oknesset_count)
-                    self._log_warn(error)
-                    writer.writerow(self._get_validate_error_row(dataservice_object, oknesset_object, error.encode('utf-8')))
+
+    def _validate_dataservice_oknesset_object(self, dataservice_object, oknesset_object, writer, fix):
+        # allows extending classes to add custom validations, extending classes can either return an error string which will be written
+        # or, optionally - add rows directly to the writer, allowing more flexibility
+        return None
 
     def _validate_pages(self, out, pages, skip_to_src_id, try_to_fix):
         writer = csv.writer(out)
