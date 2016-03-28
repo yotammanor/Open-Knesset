@@ -25,35 +25,22 @@ class Command(BaseKnessetDataserviceCollectionCommand):
         # model attribute name | dataservice attribute name, or lambda to get the value
         'src_id': 'id',
         'title': lambda vote: u'{vote} - {sess}'.format(vote=vote.item_dscr, sess=vote.sess_item_dscr),
-        'time_string': lambda vote: u'יום %s'%hebrew_strftime(vote.datetime),
+        'time_string': lambda vote: u'יום %s' % hebrew_strftime(vote.datetime),
         'importance': lambda vote: 1,
         'time': 'datetime',
         'meeting_number': "session_num",
         'vote_number': 'nbr_in_sess',
-        'src_url': lambda vote: "http://www.knesset.gov.il/vote/heb/Vote_Res_Map.asp?vote_id_t=%s"%vote.id
+        'src_url': lambda vote: "http://www.knesset.gov.il/vote/heb/Vote_Res_Map.asp?vote_id_t=%s" % vote.id
     }
 
     VALIDATE_FIELDS_TO_AUTOFIX = ['title', 'src_url']
-
-    option_list = BaseKnessetDataserviceCollectionCommand.option_list + (
-        make_option('--validate-votes-pages', dest='validatevotepages',
-                    help="validate votes between (and including) given page range\npages in this case are based on vote id ascending, so you'll have the same page number each time"),
-        make_option('--validate-skip-to', dest='validateskipto',
-                    help="skip to the given vote id (for use with --validate-votes-pages)"),
-        make_option('--create-vote-src-id', dest='createvotesrcid',
-                    help="create the given vote/s from the comma-separated src ids (assuming they don't already exist in DB)"),
-        make_option('--validate-output-file', dest='validateoutputfile',
-                    help="where to write the validation results to (defaults to stdout)"),
-        make_option('--validate-fix', dest='validatefix', action='store_true',
-                    help="try to fix some problems directly in DB which are safe to automatically fix")
-    )
 
     help = "Scrape votes data from the knesset"
 
     def _update_or_create_vote(self, dataservice_vote, oknesset_vote=None):
         vote_kwargs = self._get_dataservice_model_kwargs(dataservice_vote)
         if oknesset_vote:
-            [setattr(oknesset_vote, k, v) for k,v in vote_kwargs.iteritems()]
+            [setattr(oknesset_vote, k, v) for k, v in vote_kwargs.iteritems()]
             oknesset_vote.save()
         else:
             oknesset_vote = Vote.objects.create(**vote_kwargs)
@@ -61,9 +48,9 @@ class Command(BaseKnessetDataserviceCollectionCommand):
         oknesset_vote.update_vote_properties()
         SyncdataCommand().find_synced_protocol(oknesset_vote)
         Link.objects.create(
-                title=u'ההצבעה באתר הכנסת',
-                url='http://www.knesset.gov.il/vote/heb/Vote_Res_Map.asp?vote_id_t=%s' % oknesset_vote.src_id,
-                content_type=ContentType.objects.get_for_model(oknesset_vote), object_pk=str(oknesset_vote.id)
+            title=u'ההצבעה באתר הכנסת',
+            url='http://www.knesset.gov.il/vote/heb/Vote_Res_Map.asp?vote_id_t=%s' % oknesset_vote.src_id,
+            content_type=ContentType.objects.get_for_model(oknesset_vote), object_pk=str(oknesset_vote.id)
         )
         return oknesset_vote
         # if v.full_text_url != None:
@@ -88,6 +75,9 @@ class Command(BaseKnessetDataserviceCollectionCommand):
         qs = Vote.objects.filter(src_id=dataservice_vote.id)
         return qs.exists()
 
+    def _get_existing_object(self, dataservice_object):
+        return Vote.objects.get(src_id=dataservice_object.id)
+
     def _create_new_object(self, dataservice_vote):
         return self._update_or_create_vote(dataservice_vote)
 
@@ -106,24 +96,23 @@ class Command(BaseKnessetDataserviceCollectionCommand):
             vote_src_id = oknesset_vote.src_id
             dataservice_vote = self.DATASERVICE_CLASS.get(vote_src_id)
             VoteAction.objects.filter(vote=oknesset_vote).delete()
-            Link.objects.filter(content_type=ContentType.objects.get_for_model(oknesset_vote), object_pk=oknesset_vote.id).delete()
+            Link.objects.filter(content_type=ContentType.objects.get_for_model(oknesset_vote),
+                                object_pk=oknesset_vote.id).delete()
             recreated_votes.append(self._update_or_create_vote(dataservice_vote, oknesset_vote))
         return recreated_votes
 
-    def _get_validate_header_row(self):
-        return ['knesset vote id', 'open knesset vote id', 'error']
-
-    def _get_validate_error_row(self, dataservice_object, oknesset_object, error):
-        return [dataservice_object.id, oknesset_object.id, error]
-
     def _get_validate_first_object_title(self, dataservice_object):
-        return 'date: %s'%dataservice_object.datetime
+        return 'date: %s' % dataservice_object.datetime
 
     def _validate_attr_actual_expected(self, attr_name, actual_value, expected_value):
         if attr_name == 'time_string':
             # remove some unprintable artifacts which for some reason are in the old scraper's votes
-            actual_value = actual_value.replace(u"\u200f", "").replace(u"\xa0"," ")
+            actual_value = actual_value.replace(u"\u200f", "").replace(u"\xa0", " ")
         elif attr_name == 'title' and actual_value != expected_value:
             # try a slightly different format which exists in DB in some cases
             actual_value = actual_value.replace(u" - הצעת חוק", u" - חוק")
         return super(Command, self)._validate_attr_actual_expected(attr_name, actual_value, expected_value)
+
+    def _validate_dataservice_oknesset_object(self, dataservice_object, oknesset_object, writer, fix):
+        oknesset_object.update_from_knesset_data()
+        return None
