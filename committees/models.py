@@ -109,11 +109,17 @@ class Committee(models.Model):
                                 "%s.committee_id=%%s" % meeting_tn],
                          params=[self.id]).distinct()
 
-    def members_by_presence(self, ids=None):
+    def members_by_presence(self, ids=None, from_date=None):
         """Return the members with computed presence percentage.
         If ids is not provided, this will return committee members. if ids is
         provided, this will return presence data for the given members.
         """
+
+        if from_date is not None:
+            include_this_year = False
+        else:
+            # this is compatibility mode to support existing views
+            include_this_year = True
 
         def count_percentage(res_set, total_count):
             return (100 * res_set.count() / total_count) if total_count else 0
@@ -129,20 +135,21 @@ class Committee(models.Model):
                             self.chairpersons.all() |
                             self.replacements.all()).distinct())
 
-        d = Knesset.objects.current_knesset().start_date
+        d = Knesset.objects.current_knesset().start_date if from_date is None else from_date
         meetings_with_mks = self.meetings.filter(
             mks_attended__isnull=False).distinct()
         all_meet_count = meetings_with_mks.filter(
             date__gte=d).count()
-        year_meet_count = filter_this_year(meetings_with_mks).count()
+        year_meet_count = filter_this_year(meetings_with_mks).count() if include_this_year else None
         for m in members:
             all_member_meetings = m.committee_meetings.filter(committee=self,
                                                               date__gte=d)
-            year_member_meetings = filter_this_year(all_member_meetings)
             m.meetings_percentage = count_percentage(all_member_meetings,
                                                      all_meet_count)
-            m.meetings_percentage_year = count_percentage(year_member_meetings,
-                                                          year_meet_count)
+            if include_this_year:
+                year_member_meetings = filter_this_year(all_member_meetings)
+                m.meetings_percentage_year = count_percentage(year_member_meetings,
+                                                              year_meet_count)
 
         members.sort(key=lambda x: x.meetings_percentage, reverse=True)
         return members
