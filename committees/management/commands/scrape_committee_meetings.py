@@ -57,14 +57,19 @@ class Command(BaseKnessetDataserviceCommand):
         return meeting
 
     def _has_existing_object(self, ds_meeting):
-        # if we find meetings for the same committee on same date - we assume meeting already exists
-        # this case is mostly for old meetings that we don't have their knesset id - so we want to
-        # prevent duplicate meetings
-        qs = CommitteeMeeting.objects.filter(
-            Q(knesset_id=ds_meeting.id) | Q(date=ds_meeting.datetime),
-            committee__knesset_id=ds_meeting.committee_id
-        )
-        return bool(qs)
+        qs = CommitteeMeeting.objects.filter(committee__knesset_id=ds_meeting.committee_id)
+        if qs.filter(knesset_id=ds_meeting.id).exists():
+            # there is an existing meeting with the same src knesset id
+            return True
+        elif qs.filter(date=ds_meeting.datetime, knesset_id=None).exists():
+            # there is an existing meeting on the same date but without a src knesset id
+            # this meeting was scraped before the knesset-data improvements so we can't know for sure
+            # if it's not the same meeting
+            # for this case we assume it's the same meeting to prevent duplicated meetings
+            return True
+        else:
+            # no existing meeting
+            return False
 
     def _update_meetings(self, committee, ds_meeting):
         if not ds_meeting.url:
