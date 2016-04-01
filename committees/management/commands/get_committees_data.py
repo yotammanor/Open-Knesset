@@ -7,6 +7,7 @@ from datetime import datetime
 from committees.models import Committee
 from mks.models import Member, Knesset
 
+
 class Command(NoArgsDbLogCommand):
     help = "Get committees data in csv format"
 
@@ -22,14 +23,16 @@ class Command(NoArgsDbLogCommand):
     def _handle_members_attendance(self, fromdate):
         committees = Committee.objects.exclude(type='plenum').exclude(hide=True)
         since_title = fromdate.strftime('%d/%m/%Y') if fromdate else u'תחילת כנסת נוכחית'
-        self.csvwriter.writerow([u'ועדה'.encode('utf-8'), u'ח"כ'.encode('utf-8'), (u'אחוז נוכחות מ%s'%since_title).encode('utf-8')])
-        member_ids = Member.objects.filter(current_party__knesset=Knesset.objects.current_knesset()).values_list('pk', flat=True)
+        self.csvwriter.writerow(
+            [u'ועדה'.encode('utf-8'), u'ח"כ'.encode('utf-8'), (u'אחוז נוכחות מ%s' % since_title).encode('utf-8')])
+        member_ids = Member.objects.filter(current_party__knesset=Knesset.objects.current_knesset()).values_list('pk',
+                                                                                                                 flat=True)
         for committee in committees:
-            self._log_debug('processing committee %s'%committee.pk)
+            self._log_debug('processing committee %s' % committee.pk)
             members = committee.members_by_presence(ids=member_ids, from_date=fromdate)
             for member in members:
-                self.csvwriter.writerow([committee.name.encode('utf-8'), member.name.encode('utf-8'), member.meetings_percentage])
-
+                self.csvwriter.writerow(
+                    [committee.name.encode('utf-8'), member.name.encode('utf-8'), member.meetings_percentage])
 
     def _handle_noargs(self, **options):
         if options.get('outputfile', '') == '':
