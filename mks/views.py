@@ -71,7 +71,7 @@ class MemberListView(ListView):
             if graph_view in self.pages:
                 self.pages.remove(graph_view)
 
-        info = self.kwargs['stat_type']
+        requested_info_type = self.kwargs['stat_type']
 
         original_context = super(MemberListView,
                                  self).get_context_data(**kwargs)
@@ -80,52 +80,57 @@ class MemberListView(ListView):
             is_current=True).select_related('current_party')
 
         # Do we have it in the cache ? If so, update and return
-        context = cache.get('object_list_by_%s' % info) or {}
+        context = cache.get('object_list_by_%s' % requested_info_type) or {}
 
         if context:
             original_context.update(context)
             return original_context
 
+        pages_dict = dict(self.pages)
+        if requested_info_type not in pages_dict.keys():
+            raise Http404
+
+        context['title'] = pages_dict[requested_info_type]
         context['friend_pages'] = self.pages
-        context['stat_type'] = info
-        context['title'] = dict(self.pages)[info]
+        context['stat_type'] = requested_info_type
+
         context[
             'csv_path'] = self._resolve_csv_export_request()
         context['past_mks'] = Member.current_knesset.filter(is_current=False)
 
         # We make sure qs are lists so that the template can get min/max
-        if info == 'abc':
+        if requested_info_type == 'abc':
             pass
-        elif info == 'bills_proposed':
+        elif requested_info_type == 'bills_proposed':
             qs = self._get_by_bills_proposed(context, qs)
-        elif info == 'bills_pre':
+        elif requested_info_type == 'bills_pre':
             qs = self._get_by_bills_pre(context, qs)
-        elif info == 'bills_first':
+        elif requested_info_type == 'bills_first':
             qs = self._get_by_bills_first(context, qs)
-        elif info == 'bills_approved':
+        elif requested_info_type == 'bills_approved':
             qs = self._get_by_bills_approved(context, qs)
-        elif info == 'votes':
+        elif requested_info_type == 'votes':
             qs = self._get_by_votes(context, qs)
-        elif info == 'presence':
+        elif requested_info_type == 'presence':
             qs = self._get_by_presence(context, qs)
-        elif info == 'committees':
+        elif requested_info_type == 'committees':
             qs = self._get_by_committees(context, qs)
-        elif info == 'followers':
+        elif requested_info_type == 'followers':
             qs = self._get_by_followers(context, qs)
-        elif info == 'graph':
+        elif requested_info_type == 'graph':
             pass
 
         context['object_list'] = qs
 
         context['default_knesset_id'] = Knesset.objects.current_knesset().number
 
-        if info not in ('graph', 'abc'):
+        if requested_info_type not in ('graph', 'abc'):
             context['max_current'] = qs[0].extra
 
             if context['past_mks']:
                 context['max_past'] = context['past_mks'][0].extra
 
-        cache.set('object_list_by_%s' % info, context, settings.LONG_CACHE_TIME)
+        cache.set('object_list_by_%s' % requested_info_type, context, settings.LONG_CACHE_TIME)
         original_context.update(context)
         return original_context
 
