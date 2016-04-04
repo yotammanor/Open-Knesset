@@ -44,7 +44,7 @@ lawsurlpatterns = patterns(
     url(r'^bill/auto_complete/$',
         bill_auto_complete, name='bill-auto-complete'),
     url(r'^bill/auto_complete_knesset_proposal/$',
-        knesset_proposal_auto_complete, name='bill-auto-complete'),
+        knesset_proposal_auto_complete, name='knesset-proposal-auto-complete'),
     url(r'^bill/(?P<slug>[\w\-\"]+)/(?P<pk>\d+)/$',
         bill_detail_view, name='bill-detail-with-slug'),
     url(r'^vote/$', vote_list_view, name='vote-list'),
