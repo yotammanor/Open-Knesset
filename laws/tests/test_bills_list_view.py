@@ -1,17 +1,15 @@
 # encoding: utf-8
 #
-
-import unittest
+import json
 from datetime import date, timedelta, datetime
 
-from django.conf import settings
 from django.contrib.auth.models import User, Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.urlresolvers import reverse
 from django.test import TestCase
 from tagging.models import Tag
 
-from laws.models import Vote, Bill, KnessetProposal, BillBudgetEstimation
+from laws.models import Vote, Bill, KnessetProposal, Law
 
 from mks.models import Knesset, Member
 
@@ -52,21 +50,13 @@ class BillListViewsTest(TestCase):
         self.bill_3 = Bill.objects.create(stage='2', title='bill 1', stage_date=date.today())
         self.kp_1 = KnessetProposal.objects.create(booklet_number=2,
                                                    bill=self.bill_1,
+                                                   title='first_kp',
                                                    date=date.today())
         self.mk_1 = Member.objects.create(name='mk 1')
         self.tag_1 = Tag.objects.create(name='tag1')
 
-    def teardown(self):
+    def tearDown(self):
         super(BillListViewsTest, self).tearDown()
-
-        # self.vote_1.delete()
-        # self.vote_2.delete()
-        # self.bill_1.delete()
-        # self.bill_2.delete()
-        # self.bill_3.delete()
-        # self.jacob.delete()
-        # self.mk_1.delete()
-        # self.tag_1.delete()
 
     def test_bill_list_returns_bills(self):
         res = self.client.get(reverse('bill-list'))
@@ -115,8 +105,30 @@ class BillListViewsTest(TestCase):
 
         res = self.client.get(reverse('bill-list'), {'knesset_id': '1'})
         object_list = res.context['object_list']
-        self.assertItemsEqual( object_list, [self.bill_1])
+        self.assertItemsEqual(object_list, [self.bill_1])
 
         res = self.client.get(reverse('bill-list'), {'knesset_id': '2'})
         object_list = res.context['object_list']
         self.assertItemsEqual(object_list, [self.bill_2, self.bill_3])
+
+    def test_knesset_proposal_autocomplete_with_booklet_id(self):
+        law = self.given_law_exists('a_law')
+        self.given_proposal_is_connected_to_law(self.kp_1, law)
+        res = self.client.get(reverse('knesset-proposal-auto-complete'), {'query': 2})
+        result = json.loads(res.content)['suggestions']
+        self.assertItemsEqual(result, ['05/04/2016 - a_law - first_kp'])
+
+    def test_knesset_proposal_autocomplete_with_law_title(self):
+        law = self.given_law_exists('a_law')
+        self.given_proposal_is_connected_to_law(self.kp_1, law)
+        res = self.client.get(reverse('knesset-proposal-auto-complete'), {'query': 'a_law'})
+        result = json.loads(res.content)['suggestions']
+        self.assertItemsEqual(result, ['05/04/2016 - a_law - first_kp'])
+
+    def given_law_exists(self, title):
+        law, create = Law.objects.get_or_create(title=title)
+        return law
+
+    def given_proposal_is_connected_to_law(self, proposal, law):
+        proposal.law = law
+        proposal.save()

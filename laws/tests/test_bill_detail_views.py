@@ -50,16 +50,8 @@ class BillDetailViewsTest(TestCase):
         self.mk_1 = Member.objects.create(name='mk 1')
         self.tag_1 = Tag.objects.create(name='tag1')
 
-    def teardown(self):
+    def tearDown(self):
         super(BillDetailViewsTest, self).tearDown()
-        # self.vote_1.delete()
-        # self.vote_2.delete()
-        # self.bill_1.delete()
-        # self.bill_2.delete()
-        # self.bill_3.delete()
-        # self.jacob.delete()
-        # self.mk_1.delete()
-        # self.tag_1.delete()
 
     def testBillDetail(self):
         res = self.client.get(reverse('bill-detail',

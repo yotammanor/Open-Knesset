@@ -1,11 +1,11 @@
-from django import forms
-from django.db.models import Q
-from django.utils.translation import ugettext_lazy as _
 from datetime import date
+
+from django import forms
+from django.utils.translation import ugettext_lazy as _
 from tagging.models import Tag
 
 from mks.models import Knesset
-from models import (Vote, Bill, KnessetProposal, BillBudgetEstimation,
+from models import (Vote, Bill, BillBudgetEstimation,
                     CONVERT_TO_DISCUSSION_HEADERS)
 from vote_choices import (ORDER_CHOICES, TAGGED_CHOICES, TYPE_CHOICES,
                           SIMPLE_TYPE_CHOICES, BILL_TAGGED_CHOICES,
@@ -212,3 +212,5 @@ class BillSelectForm(forms.Form):
             self.cleaned_data['stage'] = self.data.get('stage')
 
         return self.cleaned_data
+
+

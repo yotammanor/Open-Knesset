@@ -218,7 +218,7 @@ class Member(models.Model):
     is_current = models.BooleanField(default=True, db_index=True)
     blog = models.OneToOneField(Blog, blank=True, null=True)
     place_of_residence = models.CharField(blank=True, null=True, max_length=100,
-                                          help_text=_('an accurate place of residence (for example, an address'))
+                                              help_text=_('an accurate place of residence (for example, an address'))
     area_of_residence = models.CharField(blank=True, null=True, max_length=100,
                                          help_text=_('a general area of residence (for example, "the negev"'))
     place_of_residence_lat = models.CharField(

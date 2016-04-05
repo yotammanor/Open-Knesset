@@ -51,9 +51,9 @@ def bill_tags_cloud(request, min_posts_count=1):
         title = _('Bills by tag')
         tags_cloud = Tag.objects.cloud_for_model(Bill)
     return render_to_response(
-            "laws/bill_tags_cloud.html",
-            {"tags_cloud": tags_cloud, "title": title, "member": member},
-            context_instance=RequestContext(request))
+        "laws/bill_tags_cloud.html",
+        {"tags_cloud": tags_cloud, "title": title, "member": member},
+        context_instance=RequestContext(request))
 
 
 class BillTagsView(BaseTagMemberListView):
@@ -105,53 +105,13 @@ class BillTagsView(BaseTagMemberListView):
         return context
 
 
-# TODO: already converted to generic ListView above,
-# remove once verified working
-#
-# def bill_tag(request, tag):
-#    tag_instance = get_tag(tag)
-#    if tag_instance is None:
-#        raise Http404(_('No Tag found matching "%s".') % tag)
-#
-#    extra_context = {'tag':tag_instance}
-#    extra_context['tag_url'] = reverse('bill-tag',args=[tag_instance])
-#    if 'member' in request.GET:
-#        try:
-#            member_id = int(request.GET['member'])
-#        except ValueError:
-#            raise Http404(_('No Member found matching "%s".') % request.GET['member'])
-#        extra_context['member'] = get_object_or_404(Member, pk=request.GET['member'])
-#        extra_context['member_url'] = reverse('member-detail',args=[extra_context['member'].id])
-#        extra_context['title'] = _('Bills tagged %(tag)s by %(member)s') % {'tag': tag, 'member':extra_context['member'].name}
-#        qs = extra_context['member'].bills.all()
-#    else: # only tag is given
-#        extra_context['title'] = _('Bills tagged %(tag)s') % {'tag': tag}
-#        qs = Bill
-#
-#    queryset = TaggedItem.objects.get_by_model(qs, tag_instance)
-#    bill_proposers = [b.proposers.all() for b in TaggedItem.objects.get_by_model(Bill, tag_instance)]
-#    d = {}
-#    for bill in bill_proposers:
-#        for p in bill:
-#            d[p] = d.get(p,0)+1
-#    # now d is a dict: MK -> number of proposals in this tag
-#    mks = d.keys()
-#    for mk in mks:
-#        mk.count = d[mk]
-#    mks = tagging.utils.calculate_cloud(mks)
-#    extra_context['members'] = mks
-#    return object_list(request, queryset,
-#    #return tagged_object_list(request, queryset_or_model=qs, tag=tag,
-#        template_name='laws/bill_list_by_tag.html', extra_context=extra_context)
-
-
 @require_http_methods(["GET"])
 def bill_auto_complete(request):
     if not 'query' in request.GET:
         raise Http404
 
     options = Bill.objects.filter(
-            full_title__icontains=request.GET['query'])[:30]
+        full_title__icontains=request.GET['query'])[:30]
     data = []
     suggestions = []
     for i in options:
@@ -180,9 +140,9 @@ def vote_tags_cloud(request, min_posts_count=1):
         title = _('Votes by tag')
         tags_cloud = Tag.objects.cloud_for_model(Vote)
     return render_to_response(
-            "laws/vote_tags_cloud.html",
-            {"tags_cloud": tags_cloud, "title": title, "member": member},
-            context_instance=RequestContext(request))
+        "laws/vote_tags_cloud.html",
+        {"tags_cloud": tags_cloud, "title": title, "member": member},
+        context_instance=RequestContext(request))
 
 
 class VoteTagsView(BaseTagMemberListView):
@@ -226,7 +186,7 @@ class VoteTagsView(BaseTagMemberListView):
 
         if self.member:
             context['title'] = ugettext_lazy(
-                    'Votes tagged %(tag)s by %(member)s') % {
+                'Votes tagged %(tag)s by %(member)s') % {
                                    'tag': self.tag_instance.name, 'member': self.member.name}
         else:  # only tag is given
             context['title'] = ugettext_lazy('Votes tagged %(tag)s') % {
@@ -409,12 +369,12 @@ class BillDetailView(DetailView):
                  'total': votes[1] - votes[-1],
                  'count': count}
         (score['for_percent'], score['against_percent']) = votes_to_bar_widths(
-                count, score['for'], score['against'])
+            count, score['for'], score['against'])
 
         # Count only votes by users that are members of parties
         party_member_votes = voting.models.Vote.objects.get_for_object(
-                bill).filter(user__profiles__party__isnull=False,
-                             is_archived=False)
+            bill).filter(user__profiles__party__isnull=False,
+                         is_archived=False)
         votes_for = party_member_votes.filter(direction=1).count()
         votes_against = party_member_votes.filter(direction=-1).count()
         count = votes_for + votes_against
@@ -422,14 +382,14 @@ class BillDetailView(DetailView):
                               'total': votes_for - votes_against,
                               'count': count}
         (party_voting_score['for_percent'], party_voting_score['against_percent']) = votes_to_bar_widths(
-                count, party_voting_score['for'], party_voting_score['against'])
+            count, party_voting_score['for'], party_voting_score['against'])
 
         # Count only votes by users that are members of the party of the viewing
         # user
         if userprofile and userprofile.party:
             user_party_member_votes = voting.models.Vote.objects.get_for_object(
-                    bill).filter(user__profiles__party=userprofile.party,
-                                 is_archived=False)
+                bill).filter(user__profiles__party=userprofile.party,
+                             is_archived=False)
             votes_for = user_party_member_votes.filter(direction=1).count()
             votes_against = user_party_member_votes.filter(direction=-1).count()
             count = votes_for + votes_against
@@ -438,7 +398,7 @@ class BillDetailView(DetailView):
                                        'count': count}
             (user_party_voting_score['for_percent'],
              user_party_voting_score['against_percent']) = votes_to_bar_widths(
-                    count, user_party_voting_score['for'], user_party_voting_score['against'])
+                count, user_party_voting_score['for'], user_party_voting_score['against'])
         else:
             user_party_voting_score = None
 
@@ -876,12 +836,16 @@ def vote_auto_complete(request):
 
 @require_http_methods(["GET"])
 def knesset_proposal_auto_complete(request):
-    if not 'query' in request.GET:
+    if not request.GET.get('query'):
         raise Http404
 
     q = request.GET['query']
-    options = KnessetProposal.objects.filter(
-            Q(booklet_number=q) |
+    if q.isdigit():
+        options = KnessetProposal.objects.filter(booklet_number=q)[0:30]
+
+    else:
+        options = KnessetProposal.objects.filter(
+
             Q(title__icontains=q) |
             Q(law__title__icontains=q))[:30]
 
