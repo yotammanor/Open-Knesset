@@ -3,6 +3,7 @@ import urllib2
 from BeautifulSoup import BeautifulStoneSoup
 import re
 import logging
+from knesset.utils import send_chat_notification
 
 logger = logging.getLogger("open-knesset.parse_gov_legislation_comm")
 
@@ -24,6 +25,7 @@ class ParseGLC:
             except urllib2.URLError:
                 retry_count += 1
                 if retry_count >= 10:
+                    send_chat_notification(__name__, "URL failed too many times", {"url": url})
                     raise urllib2.URLError('URL %s failed too many times' % url)
         html_page = re.sub("(?s)<!--.*?-->"," ", html_page) # cut anything that looks suspicious
         html_page = re.sub("(?s)<script>.*?</script>"," ", html_page)

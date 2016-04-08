@@ -31,6 +31,8 @@ from simple.management.utils import antiword
 
 import socket
 
+from knesset.utils import send_chat_notification
+
 ENCODING = 'utf8'
 
 DATA_ROOT = getattr(settings, 'DATA_ROOT',
@@ -1692,6 +1694,9 @@ class Command(NoArgsDbLogCommand):
                         self.__getattribute__(func).__call__()
                     except:
                         exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
+                        send_chat_notification(__name__,
+                                               "caught exception in one of the sync data update commands",
+                                               {'exception': traceback.format_exc(), 'func': func})
                         logger.error("Caught execption in syncdata update phase %s\n%s",
                                      func,
                                      ''.join(traceback.format_exception(exceptionType,

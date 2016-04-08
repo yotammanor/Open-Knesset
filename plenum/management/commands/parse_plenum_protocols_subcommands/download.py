@@ -6,6 +6,7 @@ from django.conf import settings
 from committees.models import Committee, CommitteeMeeting
 from simple.management.utils import antiword
 import logging
+from knesset.utils import send_chat_notification
 
 URL="http://www.knesset.gov.il/plenum/heb/plenum_queue.aspx"
 ROBOTS_URL="http://www.knesset.gov.il/robots.txt"
@@ -31,6 +32,7 @@ def _get_committees_index_page(full):
         return unicode(urllib2.urlopen(url).read(), encoding)
     except:
         logger.error('could not fetch committees_index_page, exception: '+traceback.format_exc())
+        send_chat_notification(__name__, "could not fetch committees index page", {'url': url})
         return ''
 
 def _copy(url, to, recopy=False):

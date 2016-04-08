@@ -10,6 +10,8 @@ from knesset_data.dataservice.committees import CommitteeMeeting as DataserviceC
 from mks.utils import get_all_mk_names
 from simple.scrapers import hebrew_strftime
 from simple.scrapers.management import BaseKnessetDataserviceCommand
+from knesset.utils import send_chat_notification
+import traceback
 
 ERR_MSG = 'failed to get meetings for committee {}'
 
@@ -91,7 +93,12 @@ class Command(BaseKnessetDataserviceCommand):
             err_msg_report = ERR_MSG_REPORT.format(committee_id, str(e))
             DataserviceCommitteeMeeting.error_report(err_msg, err_msg_report)
             self._log_error(err_msg)
-
+            send_chat_notification(__name__,
+                                   "Received unexpected exception from DataServiceCommitteeMeeting.get()",
+                                   {'exception': traceback.format_exc(),
+                                    'committee_id': committee_id,
+                                    'from_date': from_date,
+                                    'to_date': to_date})
         return []
 
     @staticmethod

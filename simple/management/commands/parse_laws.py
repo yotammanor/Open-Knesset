@@ -17,6 +17,7 @@ import parse_knesset_bill_pdf
 from parse_government_bill_pdf import GovProposalParser
 from laws.models import Bill, Law, GovProposal
 from mks.models import Knesset
+from knesset.utils import send_chat_notification
 
 logger = logging.getLogger("open-knesset.parse_laws")
 
@@ -38,6 +39,7 @@ class ParseLaws(object):
                 html_page = urllib2.urlopen(self.url).read().decode('windows-1255').encode('utf-8')
             except urllib2.URLError:
                 logger.error("can't open URL: %s" % self.url)
+                send_chat_notification(__name__, 'failed to open url', {'url': self.url, 'params': None})
                 return None
             try:
                 soup = BeautifulSoup(html_page)
@@ -50,6 +52,7 @@ class ParseLaws(object):
                     soup = BeautifulSoup(html_page)
                 except HTMLParseError, e:
                     logger.debug("error parsing URL: %s - %s" % (self.url, e))
+                    send_chat_notification(__name__, 'failed to parse url', {'url': self.url, 'params': None})
                     return None
             return soup
         else:
@@ -58,12 +61,14 @@ class ParseLaws(object):
                 url_data = urllib2.urlopen(self.url,data)
             except urllib2.URLError:
                 logger.error("can't open URL: %s" % self.url)
+                send_chat_notification(__name__, 'failed to open url', {'url': self.url, 'params': data})
                 return None
             html_page = url_data.read().decode('windows-1255').encode('utf-8')
             try:
                 soup = BeautifulSoup(html_page)
             except HTMLParseError, e:
                 logger.debug("error parsing URL: %s - %s" % (self.url, e))
+                send_chat_notification(__name__, 'failed to parse url', {'url': self.url, 'params': data})
                 return None
             return soup
 

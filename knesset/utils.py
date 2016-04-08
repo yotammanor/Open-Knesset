@@ -171,3 +171,15 @@ def reverse_with_query(viewname, args=None, kwargs=None, query_kwargs=None):
         return u'{0}?{1}'.format(requested_url, urlencode(query_kwargs))
 
     return requested_url
+
+def send_chat_notification(file, text, data):
+    from django_slack import slack_message
+    if getattr(settings, 'SLACK_BACKEND', None) in (None, 'django_slack.backends.DisabledBackend'):
+        text = ("{text}\n"
+                "{data}\n"
+                "-- {file}").format(file=file, text=text, data=data)
+        print "-- SLACK MESSAGE"
+        print text
+        print "----"
+    else:
+        slack_message('django-slack/test.slack', {"text" : text})
