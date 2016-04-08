@@ -65,7 +65,7 @@ class MemberViewsTestCase(TestCase):
                                                      party=self.mk_1.current_party)
         self.domain = 'http://' + Site.objects.get_current().domain
 
-    def testMemberList(self):
+    def test_member_by_bills_pre(self):
         res = self.client.get(reverse('member-list'))
         self.assertEqual(res.status_code, 301)
 
@@ -74,6 +74,11 @@ class MemberViewsTestCase(TestCase):
         self.assertTemplateUsed(res, 'mks/member_list.html')
         object_list = res.context['object_list']
         self.assertItemsEqual(map(just_id, object_list), [self.mk_1.id, self.mk_2.id])
+
+    def test_member_by_non_active_stat_is_404(self):
+        endpoint = 'member/by/graaph/'
+        res = self.client.get(endpoint)
+        self.assertEqual(res.status_code, 404)
 
     def testMemberDetail(self):
         res = self.client.get(reverse('member-detail', args=[self.mk_1.id]))

@@ -1,36 +1,38 @@
 # encoding: utf-8
-import re, logging, random, sys, traceback
+import logging
+import random
+import re
+import sys
+import traceback
 from datetime import date, timedelta
 
-from django.contrib.comments import Comment
-from django.db import models, IntegrityError
-from django.contrib.contenttypes import generic
-from django import forms
-from django.utils.translation import ugettext_lazy as _
-from django.utils.safestring import mark_safe
-from django.utils.html import escape
-from django.core.cache import cache
-from django.conf import settings
-from django.contrib.auth.models import User
-
-from tagging.models import Tag, TaggedItem
-from tagging.forms import TagField
 import voting
-from tagging.utils import get_tag
 from actstream import Action
 from actstream.models import Follow
+from django.conf import settings
+from django.contrib.auth.models import User
+from django.contrib.comments import Comment
+from django.contrib.contenttypes import generic
+from django.core.cache import cache
+from django.db import models, IntegrityError
+from django.db.models.signals import post_save
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
+from django.utils.translation import ugettext_lazy as _
+from tagging.models import Tag, TaggedItem
+from tagging.utils import get_tag
 
+from knesset.utils import slugify_name
 from laws import constants
 from laws.constants import FIRST_KNESSET_START
 from laws.enums import BillStages
-from mks.models import Party, Knesset
-from tagvotes.models import TagVote
-from knesset.utils import slugify_name
+
 from laws.vote_choices import (TYPE_CHOICES, BILL_STAGE_CHOICES,
                                BILL_AGRR_STAGES, BILL_STAGES)
-
+from mks.models import Party, Knesset
+from ok_tag.forms import TagForm
 from ok_tag.models import add_tags_to_related_objects
-from django.db.models.signals import post_save
+from tagvotes.models import TagVote
 
 logger = logging.getLogger("open-knesset.laws.models")
 VOTE_ACTION_TYPE_CHOICES = (
@@ -359,6 +361,8 @@ class Vote(models.Model):
         return tags.sorted(cmp=lambda x, y: cmp(x.score, y.score))
 
     def tag_form(self):
+        # Ugly hack around import problems
+        # from ok_tag.forms import TagForm
         tf = TagForm()
         tf.tags = self.tags
         tf.initial = {'tags': ', '.join([str(t) for t in self.tags])}
@@ -511,10 +515,6 @@ class Vote(models.Model):
                 va.save()
 
 
-class TagForm(forms.Form):
-    tags = TagField()
-
-
 class Law(models.Model):
     title = models.CharField(max_length=1000)
     merged_into = models.ForeignKey('Law', related_name='duplicates', blank=True, null=True)
@@ -536,6 +536,7 @@ class Law(models.Model):
         for kp in another_law.laws_knessetproposal_related.all():
             kp.law = self
             kp.save()
+        # TODO: is it missing a type of proposals? government?
         for bill in another_law.bills.all():
             bill.law = self
             bill.save()
