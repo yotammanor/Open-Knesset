@@ -58,3 +58,5 @@ knesset-data==1.0.0
 
 django-waffle==0.11
 django-import-export==0.4.2
+
+https://github.com/OriHoch/django-slack/archive/django1.6-5.2.2.zip

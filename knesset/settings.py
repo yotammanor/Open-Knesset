@@ -187,6 +187,7 @@ INSTALLED_APPS = (
     'lobbyists',
     'kikar',
     'ok_tag',
+    'django_slack'
 )
 
 TEMPLATE_CONTEXT_PROCESSORS = (
