@@ -3,9 +3,12 @@ from django.core.cache import cache
 from django.db import models, connection
 from django.db.models import Q
 
+# from agendas.models import Agenda
+
+
 class KnessetManager(models.Manager):
     """This is a manager for Knesset class"""
-    
+
     def __init__(self):
         super(KnessetManager, self).__init__()
         self._current_knesset = None
@@ -15,7 +18,7 @@ class KnessetManager(models.Manager):
             try:
                 self._current_knesset = self.get_query_set().order_by('-number')[0]
             except IndexError:
-                #FIX: should document when and why this should happen
+                # FIX: should document when and why this should happen
                 return None
         return self._current_knesset
 
@@ -44,13 +47,15 @@ class BetterManager(models.Manager):
             ret[possible_names.index(m.name)] = m
         return ret
 
+
 class PartyManager(BetterManager):
     def parties_during_range(self, ranges=None):
+        from agendas.models import Agenda
         filters_folded = Agenda.generateSummaryFilters(ranges, 'start_date', 'end_date')
         return self.filter(filters_folded)
 
-class CurrentKnessetPartyManager(models.Manager):
 
+class CurrentKnessetPartyManager(models.Manager):
     def __init__(self):
         super(CurrentKnessetPartyManager, self).__init__()
         self._current = None
@@ -74,11 +79,13 @@ class CurrentKnessetPartyManager(models.Manager):
 class CurrentKnessetMembersManager(models.Manager):
     "Adds the ability to filter on current knesset"
 
-    def get_query_set(self):
+    def get_queryset(self):
         from mks.models import Knesset
-        qs = super(CurrentKnessetMembersManager, self).get_query_set()
+        qs = super(CurrentKnessetMembersManager, self).get_queryset()
+        # TODO: Strange? why should we filter by knesset and not other options?
         qs = qs.filter(current_party__knesset=Knesset.objects.current_knesset())
         return qs
+
 
 class MembershipManager(models.Manager):
     def membership_in_range(self, ranges=None, only_current_mks=False):
