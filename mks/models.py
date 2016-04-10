@@ -198,9 +198,9 @@ class Member(models.Model):
                              help_text="Pay attention that the value of this field must correspond to the official Knesset member id")
     name = models.CharField(max_length=64)
     parties = models.ManyToManyField(
-        Party, related_name='all_members', through='Membership')
+        'Party', related_name='all_members', through='Membership')
     current_party = models.ForeignKey(
-        Party, related_name='members', blank=True, null=True)
+        'Party', related_name='members', blank=True, null=True)
     current_position = models.PositiveIntegerField(blank=True, default=999)
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
@@ -218,7 +218,7 @@ class Member(models.Model):
     is_current = models.BooleanField(default=True, db_index=True)
     blog = models.OneToOneField(Blog, blank=True, null=True)
     place_of_residence = models.CharField(blank=True, null=True, max_length=100,
-                                              help_text=_('an accurate place of residence (for example, an address'))
+                                          help_text=_('an accurate place of residence (for example, an address'))
     area_of_residence = models.CharField(blank=True, null=True, max_length=100,
                                          help_text=_('a general area of residence (for example, "the negev"'))
     place_of_residence_lat = models.CharField(
@@ -377,12 +377,17 @@ class Member(models.Model):
             return None
 
     def committee_meetings_per_month(self):
-        d = Knesset.objects.current_knesset().start_date
+
         service_time = self.service_time()
         if not service_time or not self.id:
             return 0
-        return round(self.committee_meetings.filter(
-            date__gt=d).count() * 30.0 / service_time, 2)
+        return round(self.committee_meeting_count_current_knesset * 30.0 / service_time, 2)
+
+    @property
+    def committee_meeting_count_current_knesset(self):
+        d = Knesset.objects.current_knesset().start_date
+        return self.committee_meetings.filter(
+            date__gt=d).count()
 
     @models.permalink
     def get_absolute_url(self):
