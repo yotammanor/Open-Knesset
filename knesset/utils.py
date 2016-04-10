@@ -18,6 +18,7 @@ from django.utils.encoding import smart_str, smart_unicode
 from django.conf import settings
 from mailer import send_html_mail
 from actstream.models import Action
+import traceback
 
 
 def limit_by_request(qs, request):
@@ -182,4 +183,8 @@ def send_chat_notification(file, text, data):
         print text
         print "----"
     else:
-        slack_message('django-slack/test.slack', {"text" : text})
+        slack_message('django-slack/text.slack', {"text" : text})
+
+def send_chat_exception_notification(file, text_prefix, data, exception):
+    data.update({'traceback': traceback.format_exc()})
+    send_chat_notification(file, text_prefix+" "+str(exception.message), data)
