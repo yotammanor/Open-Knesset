@@ -19,7 +19,7 @@ class Command(NoArgsCommand):
     def handle_noargs(self, **options):
         csv_writer = UnicodeCsvWriter()
         report_data = [
-            ['mk_pk', 'mk_name', 'committee', 'is_current', 'current_party', 'total_count', 'monthly_average']]
+            ['mk_pk', 'mk_name', 'committee', 'is_current', 'current_party', 'total_count']]
         for mk in Member.current_knesset.all():
             member_committees = mk.participated_in_committees_for_current_knesset
             for committee in member_committees:
@@ -32,13 +32,3 @@ class Command(NoArgsCommand):
                 report_data.append(mk_attendance)
 
         csv_writer.write(report_data, 'detailed_attendance_report.csv', mode='w')
-
-
-
-
-        #     self._invalidate_cache()
-        #
-        # def _invalidate_cache(self):
-        #     for info_type in self.info_types:
-        #         if cache.get('object_list_by_%s' % info_type):
-        #             cache.delete('object_list_by_%s' % info_type)
