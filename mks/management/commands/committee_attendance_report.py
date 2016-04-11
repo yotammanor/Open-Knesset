@@ -21,7 +21,7 @@ class Command(NoArgsCommand):
         for mk in Member.current_knesset.all():
             mk_attendance = MemberAttendance(mk_pk=mk.pk, mk_name=mk.name, is_current=mk.is_current,
                                              current_party=mk.current_party.name,
-                                             total_count=mk.committee_meeting_count_current_knesset,
+                                             total_count=mk.total_meetings_count_current_knesset,
                                              monthly_average=mk.committee_meetings_per_month())
 
             logger.info(u'attendance for {0} {1}'.format(mk.pk, mk.name))

@@ -1,5 +1,7 @@
 # encoding: utf-8
 from datetime import date
+
+import itertools
 from dateutil.relativedelta import relativedelta
 from django.db import models
 import datetime
@@ -381,13 +383,29 @@ class Member(models.Model):
         service_time = self.service_time()
         if not service_time or not self.id:
             return 0
-        return round(self.committee_meeting_count_current_knesset * 30.0 / service_time, 2)
+        return round(self.total_meetings_count_current_knesset * 30.0 / service_time, 2)
 
-    @property
-    def committee_meeting_count_current_knesset(self):
+    def committee_meeting_current_knesset(self):
         d = Knesset.objects.current_knesset().start_date
         return self.committee_meetings.filter(
-            date__gt=d).count()
+            date__gte=d)
+
+    @property
+    def participated_in_committees_for_current_knesset(self):
+        committee_meetings = list(self.committee_meeting_current_knesset())
+        committees = []
+        for committee, meetings in itertools.groupby(committee_meetings, lambda x: x.committee.name):
+            committees.append(committee)
+
+        return committees
+
+
+    def total_meetings_count_for_committee(self, committee_name):
+        return self.committee_meeting_current_knesset().filter(committee__name=committee_name).count()
+
+    @property
+    def total_meetings_count_current_knesset(self):
+        return self.committee_meeting_current_knesset().count()
 
     @models.permalink
     def get_absolute_url(self):
