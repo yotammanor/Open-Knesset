@@ -393,12 +393,11 @@ class Member(models.Model):
     @property
     def participated_in_committees_for_current_knesset(self):
         committee_meetings = list(self.committee_meeting_current_knesset())
-        committees = []
+        committees = set()
         for committee, meetings in itertools.groupby(committee_meetings, lambda x: x.committee.name):
-            committees.append(committee)
+            committees.add(committee)
 
         return committees
-
 
     def total_meetings_count_for_committee(self, committee_name):
         return self.committee_meeting_current_knesset().filter(committee__name=committee_name).count()
