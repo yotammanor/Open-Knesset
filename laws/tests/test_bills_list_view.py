@@ -116,16 +116,14 @@ class BillListViewsTest(TestCase):
         self.given_proposal_is_connected_to_law(self.kp_1, law)
         res = self.client.get(reverse('knesset-proposal-auto-complete'), {'query': 2})
         result = json.loads(res.content)['suggestions']
-        # TODO: find out why this assertion fails (see https://travis-ci.org/hasadna/Open-Knesset/builds/121636263)
-        # self.assertItemsEqual(result, ['05/04/2016 - a_law - first_kp'])
+        self.assertItemsEqual(result, ['{0} - a_law - first_kp'.format(date.today().strftime('%d/%m/%Y'))])
 
     def test_knesset_proposal_autocomplete_with_law_title(self):
         law = self.given_law_exists('a_law')
         self.given_proposal_is_connected_to_law(self.kp_1, law)
         res = self.client.get(reverse('knesset-proposal-auto-complete'), {'query': 'a_law'})
         result = json.loads(res.content)['suggestions']
-        # TODO: find out why this assertion fails (see https://travis-ci.org/hasadna/Open-Knesset/builds/121636263)
-        # self.assertItemsEqual(result, ['05/04/2016 - a_law - first_kp'])
+        self.assertItemsEqual(result, ['{0} - a_law - first_kp'.format(date.today().strftime('%d/%m/%Y'))])
 
     def given_law_exists(self, title):
         law, create = Law.objects.get_or_create(title=title)
