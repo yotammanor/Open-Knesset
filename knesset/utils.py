@@ -173,6 +173,7 @@ def reverse_with_query(viewname, args=None, kwargs=None, query_kwargs=None):
 
     return requested_url
 
+
 def send_chat_notification(file, text, data):
     from django_slack import slack_message
     if getattr(settings, 'SLACK_BACKEND', None) in (None, 'django_slack.backends.DisabledBackend'):
@@ -183,8 +184,21 @@ def send_chat_notification(file, text, data):
         print text
         print "----"
     else:
-        slack_message('django-slack/text.slack', {"text" : text})
+        slack_message('django-slack/text.slack', {"text": text})
+
 
 def send_chat_exception_notification(file, text_prefix, data, exception):
     data.update({'traceback': traceback.format_exc()})
-    send_chat_notification(file, text_prefix+" "+str(exception.message), data)
+    send_chat_notification(file, text_prefix + " " + str(exception.message), data)
+
+
+def get_thousands_string(f):
+    """
+    Get a nice string representation of a field of 1000's of NIS, which is int or None.
+    """
+    if f is None:
+        return "N/A"
+    elif f == 0:
+        return "0 NIS"
+    else:
+        return "%d000 NIS" % f
