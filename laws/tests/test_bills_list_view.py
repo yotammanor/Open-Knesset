@@ -9,7 +9,7 @@ from django.core.urlresolvers import reverse
 from django.test import TestCase
 from tagging.models import Tag
 
-from laws.models import Vote, Bill, KnessetProposal, Law
+from laws.models import Vote, Bill, KnessetProposal, Law, PrivateProposal
 
 from mks.models import Knesset, Member
 
@@ -111,6 +111,22 @@ class BillListViewsTest(TestCase):
         object_list = res.context['object_list']
         self.assertItemsEqual(object_list, [self.bill_2, self.bill_3])
 
+    def test_bill_list_filtered_by_member_and_knesset_id_filters_by_proposals_date_in_knesset(self):
+        date_in_previous_knesset = self.previous_knesset.start_date + timedelta(days=1)
+        self.given_member_proposed_bill(self.mk_1, self.bill_1, date_in_previous_knesset)
+        self.given_member_proposed_bill(self.mk_1, self.bill_2, date.today())
+        self.given_member_proposed_bill(self.mk_1, self.bill_3, date.today())
+
+
+        res = self.client.get(reverse('bill-list'), {'knesset_id': '1', 'member': self.mk_1.id})
+        object_list = res.context['object_list']
+        self.assertItemsEqual(object_list, [self.bill_1])
+
+        res = self.client.get(reverse('bill-list'), {'knesset_id': '2', 'member': self.mk_1.id})
+        object_list = res.context['object_list']
+        self.assertItemsEqual(object_list, [self.bill_2, self.bill_3])
+
+
     def test_knesset_proposal_autocomplete_with_booklet_id(self):
         law = self.given_law_exists('a_law')
         self.given_proposal_is_connected_to_law(self.kp_1, law)
@@ -128,6 +144,12 @@ class BillListViewsTest(TestCase):
     def given_law_exists(self, title):
         law, create = Law.objects.get_or_create(title=title)
         return law
+
+    def given_member_proposed_bill(self, member, bill, proposal_date=None):
+        proposal_date = proposal_date or datetime.date.today()
+        proposal, created = PrivateProposal.objects.get_or_create(bill=bill, title='a', date=proposal_date)
+        proposal.proposers.add(member)
+        bill.proposers.add(member)
 
     def given_proposal_is_connected_to_law(self, proposal, law):
         proposal.law = law

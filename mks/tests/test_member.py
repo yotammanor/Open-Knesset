@@ -3,7 +3,7 @@ import datetime
 from django.test import TestCase
 
 from laws.enums import BillStages
-from laws.models import Bill
+from laws.models import Bill, PrivateProposal
 from mks.models import Knesset, Party, Member, Membership, MemberAltname
 from mks.tests.base import ten_days_ago, two_days_ago
 
@@ -118,10 +118,10 @@ class TestMember(TestCase):
 
     def test_member_bill_statistics_calculation_does_not_count_bills_before_current_knesset(self):
         first_bill = self.given_bill_exists('first_bill')
-        self.given_member_proposed_bill(self.member, first_bill)
-
         date_in_previous_knesset = self.previous_knesset.start_date + datetime.timedelta(days=1)
-        self.given_bill_stage(first_bill, stage=BillStages.PROPOSED, stage_date=date_in_previous_knesset)
+        self.given_member_proposed_bill(self.member, first_bill, date_in_previous_knesset)
+
+        self.given_bill_stage(first_bill, stage=BillStages.PROPOSED)
         self.member.recalc_bill_statistics()
 
         self.assertEqual(self.member.bills_stats_proposed, 0)
@@ -162,5 +162,8 @@ class TestMember(TestCase):
             bill.stage_date = datetime.datetime.now()
         bill.save()
 
-    def given_member_proposed_bill(self, member, bill):
+    def given_member_proposed_bill(self, member, bill, proposal_date=None):
+        proposal_date = proposal_date or datetime.date.today()
+        proposal, created = PrivateProposal.objects.get_or_create(bill=bill, title='a', date=proposal_date)
+        proposal.proposers.add(member)
         bill.proposers.add(member)

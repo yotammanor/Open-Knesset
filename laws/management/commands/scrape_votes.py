@@ -1,5 +1,5 @@
 # encoding: utf-8
-from knesset_data.dataservice.votes import Vote as DataserviceVote, VoteMember as DataserviceVoteMember
+from knesset_data.dataservice.votes import Vote as DataserviceVote
 from knesset_data.html_scrapers.votes import HtmlVote
 from laws.models import Vote, VoteAction
 from simple.scrapers import hebrew_strftime
@@ -8,9 +8,6 @@ from mks.models import Member
 from simple.management.commands.syncdata import Command as SyncdataCommand
 from links.models import Link
 from django.contrib.contenttypes.models import ContentType
-from optparse import make_option
-from sys import stdout
-import csv
 
 
 class VoteScraperException(Exception):

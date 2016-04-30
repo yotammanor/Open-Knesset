@@ -3,13 +3,19 @@ from django.db.models.signals import m2m_changed, post_save
 from django.contrib.contenttypes.models import ContentType
 from actstream import action
 from actstream.models import Action
+from tagging.models import TaggedItem
 
 from knesset.utils import cannonize, disable_for_loaddata
+from laws.models.bill import Bill
+from laws.models.candidate_list_model_statistics import CandidateListVotingStatistics
+from laws.models.member_voting_statistics import MemberVotingStatistics
+from laws.models.party_voting_statistics import PartyVotingStatistics
+from laws.models.proposal import PrivateProposal
+from laws.models.vote_action import VoteAction
 from mks.models import Member, Party
-from laws.models import PrivateProposal, VoteAction, MemberVotingStatistics, \
-    PartyVotingStatistics, CandidateListVotingStatistics
-from polyorg.models import CandidateList
 
+from polyorg.models import CandidateList
+from ok_tag.models import add_tags_to_related_objects
 
 def record_bill_proposal(**kwargs):
     if kwargs['action'] != "post_add":
@@ -71,3 +77,11 @@ def handle_mk_save(sender, created, instance, **kwargs):
 
 
 post_save.connect(handle_mk_save, sender=Member)
+
+
+def add_tags_to_bill_related_objects(sender, instance, **kwargs):
+    bill_ct = ContentType.objects.get_for_model(instance)
+    for ti in TaggedItem.objects.filter(content_type=bill_ct, object_id=instance.id):
+        add_tags_to_related_objects(sender, ti, **kwargs)
+
+post_save.connect(add_tags_to_bill_related_objects, sender=Bill)
