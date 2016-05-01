@@ -1,12 +1,13 @@
+# encoding: utf-8
 from datetime import date
 
 from django import forms
 from django.utils.translation import ugettext_lazy as _
 from tagging.models import Tag
 
+from laws.constants import CONVERT_TO_DISCUSSION_HEADERS
 from mks.models import Knesset
-from models import (Vote, Bill, BillBudgetEstimation,
-                    CONVERT_TO_DISCUSSION_HEADERS)
+from models import (Vote, Bill, BillBudgetEstimation)
 from vote_choices import (ORDER_CHOICES, TAGGED_CHOICES, TYPE_CHOICES,
                           SIMPLE_TYPE_CHOICES, BILL_TAGGED_CHOICES,
                           BILL_STAGE_CHOICES, BILL_AGRR_STAGES)

@@ -1,6 +1,8 @@
+# encoding: utf-8
 from django import template
 
-from laws.models import VoteAction, VOTE_ACTION_TYPE_CHOICES, MemberVotingStatistics
+from laws.enums import VOTE_ACTION_TYPE_CHOICES
+from laws.models import VoteAction, MemberVotingStatistics
 from mks.models import Knesset
 from datetime import date, timedelta
 from django.utils.translation import ugettext_lazy as _

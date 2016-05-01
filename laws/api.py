@@ -1,3 +1,4 @@
+# encoding: utf-8
 '''
 API for the laws app
 '''

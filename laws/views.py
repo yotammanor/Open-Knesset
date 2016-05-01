@@ -11,6 +11,7 @@ from actstream import action
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse
+from django.db import DatabaseError
 from django.http import (HttpResponseRedirect, HttpResponse, Http404,
                          HttpResponseBadRequest, HttpResponseForbidden)
 from django.views.decorators.http import require_http_methods
@@ -23,6 +24,7 @@ from django.db.models import Q
 from tagging.models import Tag, TaggedItem
 
 from agendas.models import Agenda, UserSuggestedVote
+from laws.vote_choices import BILL_STAGE_CHOICES
 from ok_tag.views import BaseTagMemberListView
 from auxiliary.mixins import CsvView
 from forms import VoteSelectForm, BillSelectForm, BudgetEstimateForm
@@ -31,7 +33,6 @@ from hashnav import DetailView, ListView as HashnavListView
 from knesset.utils import notify_responsible_adult
 from mks.models import Member
 from models import Bill, BillBudgetEstimation, Vote, KnessetProposal, VoteAction
-from models import BILL_STAGE_CHOICES
 
 logger = logging.getLogger("open-knesset.laws.views")
 

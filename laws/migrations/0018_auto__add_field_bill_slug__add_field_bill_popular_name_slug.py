@@ -4,7 +4,8 @@ from south.db import db
 from south.v2 import SchemaMigration
 from django.db import models
 
-from laws.models import slugify_name
+from knesset.utils import slugify_name
+
 
 class Migration(SchemaMigration):
 

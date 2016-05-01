@@ -2,6 +2,8 @@
 from datetime import date
 
 import itertools
+
+import waffle
 from dateutil.relativedelta import relativedelta
 from django.db import models
 import datetime
@@ -14,6 +16,7 @@ from planet.models import Blog
 
 from knesset import utils
 from laws.enums import BillStages
+
 from links.models import Link
 
 from mks.managers import (
@@ -478,6 +481,30 @@ class Member(models.Model):
         return self.current_party.is_coalition
 
     def recalc_bill_statistics(self):
+        if waffle.switch_is_active('use_old_statistics'):
+            self._calc_bill_statistics_by_bill_stage_date()
+        else:
+            self._calc_bill_statistics_by_proposal_dates()
+
+    def _calc_bill_statistics_by_proposal_dates(self):
+        current_knesset = Knesset.objects.current_knesset()
+        knesset_range = current_knesset.start_date, current_knesset.end_date or date.today()
+        member_bills = self.bills.get_bills_by_private_proposal_date_for_member(knesset_range, member=self)
+        self.bills_stats_proposed = member_bills.count()
+        self.bills_stats_pre = member_bills.filter(
+
+            stage__in=[BillStages.PRE_APPROVED, BillStages.IN_COMMITTEE, BillStages.FIRST_VOTE,
+                       BillStages.COMMITTEE_CORRECTIONS, BillStages.APPROVED, BillStages.FAILED_FIRST_VOTE,
+                       BillStages.FAILED_APPROVAL]).count()
+        self.bills_stats_first = member_bills.filter(
+            stage__in=[BillStages.FIRST_VOTE, BillStages.COMMITTEE_CORRECTIONS, BillStages.APPROVED,
+                       BillStages.FAILED_APPROVAL]).count()
+        self.bills_stats_approved = member_bills.filter(
+            stage=BillStages.APPROVED).count()
+        self.save()
+
+    def _calc_bill_statistics_by_bill_stage_date(self):
+        # Deprecated method, here to allow reverting if needed
         d = Knesset.objects.current_knesset().start_date
         self.bills_stats_proposed = self.bills.filter(
             stage_date__gte=d).count()
