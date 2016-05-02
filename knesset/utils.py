@@ -206,4 +206,5 @@ def get_thousands_string(f):
 
 
 def get_cache_key(str):
+    str = str.encode('utf-8')
     return hashlib.sha1(str).hexdigest()
