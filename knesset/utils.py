@@ -20,6 +20,7 @@ from django.conf import settings
 from mailer import send_html_mail
 from actstream.models import Action
 import traceback
+import hashlib
 
 
 def limit_by_request(qs, request):
@@ -203,3 +204,8 @@ def get_thousands_string(f):
         return "0 NIS"
     else:
         return "%d000 NIS" % f
+
+
+def get_cache_key(str):
+    str = str.encode('utf-8')
+    return hashlib.sha1(str).hexdigest()

@@ -28,7 +28,8 @@ class FlatPageAdmin(DjangoFlatPageAdmin):
     def save_model(self, request, obj, form, change):
         super(FlatPageAdmin, self).save_model(request, obj, form, change)
         from django.core.cache import cache
-        cache.delete('flatpage_block_%s' % obj.url)
+        from knesset.utils import get_cache_key
+        cache.delete('flatpage_block_%s' % get_cache_key(obj.url))
 
 
 admin.site.unregister(FlatPage)
