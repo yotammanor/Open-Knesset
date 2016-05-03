@@ -10,7 +10,9 @@ There are several initial requirements for Open-Knesset, mainly:
 - pip
 - git
 
-For simple installation using http://c9.io/ cloud IDE, just create an empty c9.io Django workspace - then follow the linux instructions.
+For simple installation using http://c9.io/ cloud IDE, just clone an existing open knesset workspace: https://c9.io/orihoch/oknesset/
+
+Once inside the worksapce, continue with the "Initial Testing, Development DB & Server" section
 
 The section will guide you on:
 
