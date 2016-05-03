@@ -106,6 +106,7 @@ run:
 
 .. code-block:: sh
 
+    pip install --upgrade pip
     pip install -r Open-Knesset/requirements.txt
     
 And wait ...
