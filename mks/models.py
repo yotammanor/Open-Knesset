@@ -405,6 +405,11 @@ class Member(models.Model):
     def total_meetings_count_for_committee(self, committee_name):
         return self.committee_meeting_current_knesset().filter(committee__name=committee_name).count()
 
+    def get_active_committees(self):
+        return itertools.chain(self.committees.exclude(hide=True),
+                               self.chaired_committees.exclude(hide=True),
+                               )
+
     @property
     def total_meetings_count_current_knesset(self):
         return self.committee_meeting_current_knesset().count()
@@ -453,12 +458,6 @@ class Member(models.Model):
         """Roles list (splitted by pipe)"""
 
         return [x.strip() for x in self.get_role.split('|')]
-
-    @property
-    def committees(self):
-        """Committee list (splitted by comma)"""
-
-        return [x.strip() for x in self.committees.split(',')]
 
     @property
     def is_minister(self):
@@ -573,6 +572,12 @@ class Member(models.Model):
     @property
     def convictions(self):
         return self.awards_and_convictions.filter(award_type__valence__lt=0)
+
+        # @property
+        # def committees(self):
+        #     """Committee list (splitted by comma)"""
+        #
+        #     return [x.strip() for x in self.committees.split(',')]
 
 
 class WeeklyPresence(models.Model):

@@ -19,7 +19,7 @@ from backlinks.pingback.server import default_server
 from actstream import actor_stream
 from actstream.models import Follow
 from hashnav.detail import DetailView
-from laws.enums import BillStages
+
 from laws.enums import BillStages
 from laws.vote_choices import BILL_AGRR_STAGES
 from models import Member, Party, Knesset
@@ -358,13 +358,14 @@ class MemberDetailView(DetailView):
                                  'average_monthly_committee_presence_percentile')
 
             bills_statistics = {}
+            # TODO: can move to an offline job
             self.calc_bill_stats(member, bills_statistics, 'proposed')
             self.calc_bill_stats(member, bills_statistics, 'pre')
             self.calc_bill_stats(member, bills_statistics, 'first')
             self.calc_bill_stats(member, bills_statistics, 'approved')
 
             agendas = self.get_agenda_data(member)
-
+            # TODO: Move to model or service
             factional_discipline = VoteAction.objects.select_related(
                 'vote').filter(member=member,
                                against_party=True,
@@ -431,9 +432,7 @@ class MemberDetailView(DetailView):
 
             committees_presence = []
             has_protocols_not_published = False
-            committees = chain(member.committees.all(),
-                               member.chaired_committees.all(),
-                               )
+            committees = member.get_active_committees()
             for committee in committees:
                 committee_member = committee.members_by_presence(ids=[member.id])[0]
                 committees_presence.append({"committee": committee,
