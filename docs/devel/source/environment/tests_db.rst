@@ -13,6 +13,7 @@ an initial development db.
       less typing
     - Run the manage.py commands from the `Open-Knesset` directory, with the
       virtualenv activated.
+    - If you used the c9.io worksapce, you should run the following command to get you in the write directory: cd oknesset/Open-Knesset/ && . ../bin/activate
 
 
 Running Tests
