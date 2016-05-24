@@ -7,6 +7,8 @@ import difflib
 import logging
 
 import tagging
+from django.db.models import Q
+
 import auxiliary.tag_suggestions
 from actstream import action
 from django.contrib import messages
@@ -190,16 +192,24 @@ class MeetingDetailView(DetailView):
     def _handle_remove_lobbyist(self, cm, request):
         lobbyist_name = request.POST.get('lobbyist_name')
         if not lobbyist_name:
-            raise  Http404()
-        l = Lobbyist.objects.get(person__name=lobbyist_name)
-        cm.lobbyists_mentioned.remove(l)
+            raise Http404()
+        try:
+            lobbyist_to_remove = Lobbyist.objects.get(
+                Q(Q(person__name=lobbyist_name) | Q(person__aliases__name=lobbyist_name)))
+            cm.lobbyists_mentioned.remove(lobbyist_to_remove)
+        except Lobbyist.DoesNotExist:
+            raise Http404()
 
     def _handle_add_lobbyist(self, cm, request):
         lobbyist_name = request.POST.get('lobbyist_name')
         if not lobbyist_name:
-            raise  Http404()
-        l = Lobbyist.objects.get(person__name=lobbyist_name)
-        cm.lobbyists_mentioned.add(l)
+            raise Http404()
+        try:
+            lobbyist_to_add = Lobbyist.objects.get(
+                Q(Q(person__name=lobbyist_name) | Q(person__aliases__name=lobbyist_name)))
+            cm.lobbyists_mentioned.add(lobbyist_to_add)
+        except Lobbyist.DoesNotExist:
+            raise Http404()
 
     def _handle_remove_mk(self, cm, request):
         mk_id = request.POST.get('mk_id')

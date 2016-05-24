@@ -12,7 +12,7 @@ from laws.models import Bill
 from lobbyists.models import Lobbyist
 from mks.models import Member, Knesset
 from committees.models import Committee, CommitteeMeeting
-from persons.models import Person
+from persons.models import Person, PersonAlias
 
 just_id = lambda x: x.id
 APP = 'committees'
@@ -219,6 +219,26 @@ I have a deadline''')
         res = self._given_lobbyist_removed_from_meeting(meeting, lobbyist)
         self._verify_lobbyist_not_mentioned_in_meetings(lobbyist, meeting)
 
+    def test_post_adds_and_removes_lobbyist_by_aliased_name(self):
+        lobbyist = self._setup_lobbyist()
+        alias = self._setup_alias_for_person(lobbyist.person)
+        meeting = self.meeting_1
+        self._verify_lobbyist_not_mentioned_in_meetings(lobbyist, meeting)
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        res = self._given_lobbyist_added_to_meeting(meeting, lobbyist_name=alias.name)
+        self.assertEqual(res.status_code, 302)
+        self._verify_lobbyist_mentioned_in_meetings(lobbyist, meeting)
+
+        res = self._given_lobbyist_removed_from_meeting(meeting, lobbyist_name=alias.name)
+        self._verify_lobbyist_not_mentioned_in_meetings(lobbyist, meeting)
+
+    def test_adding_non_existent_lobbyist_returns_404(self):
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        meeting = self.meeting_1
+        res = self._given_lobbyist_added_to_meeting(meeting, lobbyist_name='non existing')
+        self.assertEqual(res.status_code, 404)
+
+
     def test_add_tag_committee_login_required(self):
         url = reverse('add-tag-to-object',
                       kwargs={'app': APP,
@@ -275,17 +295,19 @@ I have a deadline''')
                                 {'user_input_type': 'remove-mk',
                                  'mk_name_to_remove': mk.name})
 
-    def _given_lobbyist_added_to_meeting(self, meeting, lobbyist):
+    def _given_lobbyist_added_to_meeting(self, meeting, lobbyist=None, lobbyist_name=None):
+        lobbyist_name = lobbyist.person.name if lobbyist else lobbyist_name
         return self.client.post(reverse('committee-meeting',
                                         kwargs={'pk': meeting.id}),
                                 {'user_input_type': 'add-lobbyist',
-                                 'lobbyist_name': lobbyist.person.name})
+                                 'lobbyist_name': lobbyist_name})
 
-    def _given_lobbyist_removed_from_meeting(self, meeting, lobbyist):
+    def _given_lobbyist_removed_from_meeting(self, meeting, lobbyist=None, lobbyist_name=None):
+        lobbyist_name = lobbyist.person.name if lobbyist else lobbyist_name
         return self.client.post(reverse('committee-meeting',
                                         kwargs={'pk': meeting.id}),
                                 {'user_input_type': 'remove-lobbyist',
-                                 'lobbyist_name': lobbyist.person.name})
+                                 'lobbyist_name': lobbyist_name})
 
     def _verify_mk_does_not_have_meeting(self, meeting, mk_1):
         self.assertFalse(meeting in mk_1.committee_meetings.all())
@@ -315,3 +337,6 @@ I have a deadline''')
     def _setup_lobbyist(self, name='kressni'):
         person = Person.objects.create(name=name)
         return Lobbyist.objects.create(person=person)
+
+    def _setup_alias_for_person(self, person, alias_name='alias_name'):
+        return PersonAlias.objects.create(person=person, name=alias_name)
