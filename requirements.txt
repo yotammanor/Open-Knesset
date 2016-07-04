@@ -36,7 +36,7 @@ django-avatar==2.0
 -e git://github.com/spreeker/django-voting2.git#egg=django-voting2
 django-debug-toolbar<1.4
 nose
-django-nose
+django-nose==1.4.3
 django-devserver==0.8.0
 ipython
 django-tinymce==1.5.2
