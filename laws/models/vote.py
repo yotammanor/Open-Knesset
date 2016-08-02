@@ -227,9 +227,9 @@ class Vote(models.Model):
         against_party_ids = [party_at_or_error(va.member, vote_date=d).id for va in self.against_votes()]
         party_against_votes = [sum([x == party_id for x in against_party_ids]) for party_id in party_ids]
 
-        party_stands_for = [float(fv) > constants.STANDS_FOR_THRESHOLD * (fv + av) for (fv, av) in
+        party_stands_for = [float(for_votes) > constants.STANDS_FOR_THRESHOLD * (for_votes + against_votes) for (for_votes, against_votes) in
                             zip(party_for_votes, party_against_votes)]
-        party_stands_against = [float(av) > constants.STANDS_FOR_THRESHOLD * (fv + av) for (fv, av) in
+        party_stands_against = [float(against_votes) > constants.STANDS_FOR_THRESHOLD * (for_votes + against_votes) for (for_votes, against_votes) in
                                 zip(party_for_votes, party_against_votes)]
 
         party_stands_for = dict(zip(party_ids, party_stands_for))
