@@ -58,7 +58,9 @@ admin.site.register(KnessetProposal, KnessetProposalAdmin)
 
 
 class GovProposalAdmin(admin.ModelAdmin):
-    pass
+    search_fields = ('title', 'booklet_number')
+    list_display = ('bill', 'booklet_number', 'knesset_id', 'date')
+    list_filter = ('knesset_id', )
 
 
 admin.site.register(GovProposal, GovProposalAdmin)
