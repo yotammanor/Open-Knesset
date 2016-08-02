@@ -36,7 +36,8 @@ admin.site.register(Vote, VoteAdmin)
 
 
 class LawAdmin(ImportExportModelAdmin):
-    pass
+    search_fields = ('title', )
+    list_display = ('title', 'merged_into')
 
 
 admin.site.register(Law, LawAdmin)
