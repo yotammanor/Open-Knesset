@@ -262,14 +262,14 @@ class ParseGovLaws(ParseKnessetLaws):
         if existing_count >= 1:
             if existing_count > 1:
                 logger.warn("found two objects with the url %s. Taking the first" % pdf_url)
-            link = Link.objects.filter(url=pdf_url).iterator().next()
+            link = Link.objects.filter(url=pdf_url).first()
         filename = None
         if existing_count > 0:
             files = [f for f in link.linkedfile_set.order_by('last_updated') if f.link_file.name != '']
             if len(files) > 0:
                 link_file = files[0]
                 filename = link_file.link_file.path
-                logger.debug('reusing %s from %s' % (pdf_url, filename))
+                logger.debug('trying reusing %s from %s' % (pdf_url, filename))
                 if not os.path.exists(filename):
                     # for some reason the file can't be found, we'll just d/l
                     # it again
@@ -378,11 +378,8 @@ class ParseGovLaws(ParseKnessetLaws):
             title += ' ' + data['comment']
         if len(title) <= 1:
             title = u'חוק חדש'
-        current_knesset = Knesset.objects.current_knesset()
-        if data['date'] > current_knesset.start_date:
-            k_id = current_knesset.pk
-        else:
-            k_id = 18
+
+        k_id = Knesset.objects.get_knesset_by_date(data['date']).pk
 
         if gp is None:  # create new GovProposal, or look for an identical one
             (gp, created) = GovProposal.objects.get_or_create(
