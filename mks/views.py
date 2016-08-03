@@ -304,6 +304,7 @@ class MemberDetailView(DetailView):
         outdict[outpercentileprop] = percentile(avg, var, member_val) if var != 0 else 0
 
     def calc_bill_stats(self, member, bills_statistics, stattype):
+        # TODO: Jesus why is this a not savd as a property on mk? re calculating each time?
         self.calc_percentile(member,
                              bills_statistics,
                              'bills_stats_%s' % stattype,
@@ -337,7 +338,7 @@ class MemberDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super(MemberDetailView, self).get_context_data(**kwargs)
         member = context['object']
-        d = Knesset.objects.current_knesset().start_date
+        current_knesset_start_date = Knesset.objects.current_knesset().start_date
         if self.request.user.is_authenticated():
             p = self.request.user.profiles.get()
             watched = member in p.members
@@ -369,14 +370,14 @@ class MemberDetailView(DetailView):
             factional_discipline = VoteAction.objects.select_related(
                 'vote').filter(member=member,
                                against_party=True,
-                               vote__time__gt=d)
+                               vote__time__gt=current_knesset_start_date)
 
             votes_against_own_bills = VoteAction.objects.select_related(
                 'vote').filter(member=member,
                                against_own_bill=True,
-                               vote__time__gt=d)
+                               vote__time__gt=current_knesset_start_date)
 
-            general_discipline_params = {'member': member, 'vote__time__gt': d}
+            general_discipline_params = {'member': member, 'vote__time__gt': current_knesset_start_date}
             is_coalition = member.current_party.is_coalition
             if is_coalition:
                 general_discipline_params['against_coalition'] = True
