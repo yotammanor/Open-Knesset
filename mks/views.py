@@ -555,171 +555,171 @@ class PartyListView(ListView):
 
         if info == 'votes-per-seat':
             m = 0
-            for p in chain(context['coalition'], context['opposition']):
-                p.extra = p.voting_statistics.votes_per_seat()
-                if p.extra > m:
-                    m = p.extra
+            for party in chain(context['coalition'], context['opposition']):
+                party.extra = party.voting_statistics.votes_per_seat()
+                if party.extra > m:
+                    m = party.extra
             context['norm_factor'] = m / 20
             context['baseline'] = 0
 
         if info == 'discipline':
             m = 100
-            for p in context['coalition']:
-                p.extra = p.voting_statistics.discipline()
-                if p.extra < m:
-                    m = p.extra
-            for p in context['opposition']:
-                p.extra = p.voting_statistics.discipline()
-                if p.extra < m:
-                    m = p.extra
+            for party in context['coalition']:
+                party.extra = party.voting_statistics.discipline()
+                if party.extra < m:
+                    m = party.extra
+            for party in context['opposition']:
+                party.extra = party.voting_statistics.discipline()
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = (100.0 - m) / 15
             context['baseline'] = m - 2
 
         if info == 'coalition-discipline':
             m = 100
-            for p in context['coalition']:
-                p.extra = p.voting_statistics.coalition_discipline()
-                if p.extra < m:
-                    m = p.extra
-            for p in context['opposition']:
-                p.extra = p.voting_statistics.coalition_discipline()
-                if p.extra < m:
-                    m = p.extra
+            for party in context['coalition']:
+                party.extra = party.voting_statistics.coalition_discipline()
+                if party.extra < m:
+                    m = party.extra
+            for party in context['opposition']:
+                party.extra = party.voting_statistics.coalition_discipline()
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = (100.0 - m) / 15
             context['baseline'] = m - 2
 
         if info == 'residence-centrality':
             m = 10
-            for p in context['coalition']:
-                rc = [member.residence_centrality for member in p.members.all() if
+            for party in context['coalition']:
+                rc = [member.residence_centrality for member in party.members.all() if
                       member.residence_centrality]
                 if rc:
-                    p.extra = round(float(sum(rc)) / len(rc), 1)
+                    party.extra = round(float(sum(rc)) / len(rc), 1)
                 else:
-                    p.extra = 0
-                if p.extra < m:
-                    m = p.extra
-            for p in context['opposition']:
-                rc = [member.residence_centrality for member in p.members.all() if
+                    party.extra = 0
+                if party.extra < m:
+                    m = party.extra
+            for party in context['opposition']:
+                rc = [member.residence_centrality for member in party.members.all() if
                       member.residence_centrality]
                 if rc:
-                    p.extra = round(float(sum(rc)) / len(rc), 1)
+                    party.extra = round(float(sum(rc)) / len(rc), 1)
                 else:
-                    p.extra = 0
-                if p.extra < m:
-                    m = p.extra
+                    party.extra = 0
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = (10.0 - m) / 15
             context['baseline'] = m - 1
 
         if info == 'residence-economy':
             m = 10
-            for p in context['coalition']:
-                rc = [member.residence_economy for member in p.members.all() if
+            for party in context['coalition']:
+                rc = [member.residence_economy for member in party.members.all() if
                       member.residence_economy]
                 if rc:
-                    p.extra = round(float(sum(rc)) / len(rc), 1)
+                    party.extra = round(float(sum(rc)) / len(rc), 1)
                 else:
-                    p.extra = 0
-                if p.extra < m:
-                    m = p.extra
-            for p in context['opposition']:
-                rc = [member.residence_economy for member in p.members.all() if
+                    party.extra = 0
+                if party.extra < m:
+                    m = party.extra
+            for party in context['opposition']:
+                rc = [member.residence_economy for member in party.members.all() if
                       member.residence_economy]
                 if rc:
-                    p.extra = round(float(sum(rc)) / len(rc), 1)
+                    party.extra = round(float(sum(rc)) / len(rc), 1)
                 else:
-                    p.extra = 0
-                if p.extra < m:
-                    m = p.extra
+                    party.extra = 0
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = (10.0 - m) / 15
             context['baseline'] = m - 1
 
         if info == 'bills-proposed':
             m = 9999
-            d = Knesset.objects.current_knesset().start_date
-            for p in chain(context['coalition'], context['opposition']):
-                p.extra = round(float(
+            start_date = Knesset.objects.current_knesset().start_date
+            for party in chain(context['coalition'], context['opposition']):
+                party.extra = round(float(
                     len(set(Bill.objects.filter(
-                        proposers__current_party=p,
-                        proposals__date__gt=d).values_list('id', flat=True))
-                        )) / p.number_of_seats, 1)
-                if p.extra < m:
-                    m = p.extra
+                        proposers__current_party=party,
+                        proposals__date__gt=start_date).values_list('id', flat=True))
+                        )) / party.number_of_seats, 1)
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = m / 2
             context['baseline'] = 0
 
         if info == 'bills-pre':
             m = 9999
-            d = Knesset.objects.current_knesset().start_date
-            for p in chain(context['coalition'], context['opposition']):
-                p.extra = round(float(
+            start_date = Knesset.objects.current_knesset().start_date
+            for party in chain(context['coalition'], context['opposition']):
+                party.extra = round(float(
                     len(set(Bill.objects.filter(
                         BILL_AGRR_STAGES['pre'],
-                        proposers__current_party=p,
-                        proposals__date__gt=d).values_list('id', flat=True))
-                        )) / p.number_of_seats, 1)
-                if p.extra < m:
-                    m = p.extra
+                        proposers__current_party=party,
+                        proposals__date__gt=start_date).values_list('id', flat=True))
+                        )) / party.number_of_seats, 1)
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = m / 2
             context['baseline'] = 0
 
         if info == 'bills-first':
             m = 9999
-            d = Knesset.objects.current_knesset().start_date
-            for p in chain(context['coalition'], context['opposition']):
-                p.extra = round(float(
+            start_date = Knesset.objects.current_knesset().start_date
+            for party in chain(context['coalition'], context['opposition']):
+                party.extra = round(float(
                     len(set(Bill.objects.filter(
                         BILL_AGRR_STAGES['first'],
-                        proposers__current_party=p,
-                        proposals__date__gt=d).values_list('id', flat=True))
-                        )) / p.number_of_seats, 1)
-                if p.extra < m:
-                    m = p.extra
+                        proposers__current_party=party,
+                        proposals__date__gt=start_date).values_list('id', flat=True))
+                        )) / party.number_of_seats, 1)
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = m / 2
             context['baseline'] = 0
 
         if info == 'bills-approved':
             m = 9999
-            d = Knesset.objects.current_knesset().start_date
-            for p in chain(context['coalition'], context['opposition']):
-                p.extra = round(float(
+            start_date = Knesset.objects.current_knesset().start_date
+            for party in chain(context['coalition'], context['opposition']):
+                party.extra = round(float(
                     len(set(Bill.objects.filter(
-                        proposers__current_party=p,
-                        proposals__date__gt=d,
+                        proposers__current_party=party,
+                        proposals__date__gt=start_date,
                         stage=BillStages.APPROVED).values_list('id', flat=True))
-                        )) / p.number_of_seats, 1)
-                if p.extra < m:
-                    m = p.extra
+                        )) / party.number_of_seats, 1)
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = m / 2
             context['baseline'] = 0
 
         if info == 'presence':
             m = 9999
-            for p in chain(context['coalition'], context['opposition']):
+            for party in chain(context['coalition'], context['opposition']):
                 awp = [member.average_weekly_presence() for member in
-                       p.members.all()]
+                       party.members.all()]
                 awp = [a for a in awp if a]
                 if awp:
-                    p.extra = round(float(sum(awp)) / len(awp), 1)
+                    party.extra = round(float(sum(awp)) / len(awp), 1)
                 else:
-                    p.extra = 0
-                if p.extra < m:
-                    m = p.extra
+                    party.extra = 0
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = m / 2
             context['baseline'] = 0
 
         if info == 'committees':
             m = 9999
-            for p in chain(context['coalition'], context['opposition']):
+            for party in chain(context['coalition'], context['opposition']):
                 cmpm = [member.committee_meetings_per_month() for member in
-                        p.members.all()]
+                        party.members.all()]
                 cmpm = [c for c in cmpm if c]
                 if cmpm:
-                    p.extra = round(float(sum(cmpm)) / len(cmpm), 1)
+                    party.extra = round(float(sum(cmpm)) / len(cmpm), 1)
                 else:
-                    p.extra = 0
-                if p.extra < m:
-                    m = p.extra
+                    party.extra = 0
+                if party.extra < m:
+                    m = party.extra
             context['norm_factor'] = m / 2
             context['baseline'] = 0
 
