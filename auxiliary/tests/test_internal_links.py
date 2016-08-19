@@ -1,19 +1,18 @@
+# -*- coding: utf-8 -*
 import datetime
 import re
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
-from django.test import TestCase
+from django.test.testcases import TestCase
 from django.utils import translation
 from tagging.models import Tag, TaggedItem
 
 from agendas.models import Agenda
-from auxiliary.mixins import CsvView
 from committees.models import Committee
-from knesset.sitemap import sitemaps
 from laws.models import Vote, VoteAction, Bill
-from mks.models import Member, Party, WeeklyPresence, Knesset
+from mks.models import Knesset, Party, Member, WeeklyPresence
 
 
 class InternalLinksTest(TestCase):
@@ -125,40 +124,3 @@ class InternalLinksTest(TestCase):
                 # f = open('internal_links_tested.txt','wt')
                 # f.write('\n'.join(visited_links))
                 # f.close()
-
-
-class SiteMapTest(TestCase):
-    def setUp(self):
-        pass
-
-    def test_sitemap(self):
-        res = self.client.get(reverse('sitemap'))
-        self.assertEqual(res.status_code, 200)
-        for s in sitemaps.keys():
-            res = self.client.get(reverse('sitemaps', kwargs={'section': s}))
-            self.assertEqual(res.status_code, 200, 'sitemap %s returned %d' %
-                             (s, res.status_code))
-
-
-class CsvViewTest(TestCase):
-    class TestModel(object):
-        def __init__(self, value):
-            self.value = value
-
-        def squared(self):
-            return self.value ** 2
-
-    class ConcreteCsvView(CsvView):
-        filename = 'test.csv'
-        list_display = (("value", "value"),
-                        ("squared", "squared"))
-
-    def test_csv_view(self):
-        view = self.ConcreteCsvView()
-        view.model = self.TestModel
-        view.queryset = [self.TestModel(2), self.TestModel(3)]
-        response = view.dispatch(None)
-        rows = response.content.splitlines()
-        self.assertEqual(len(rows), 3)
-        self.assertEqual(rows[1], '2,4')
-        self.assertEqual(rows[2], '3,9')
