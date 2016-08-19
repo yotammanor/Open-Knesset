@@ -16,6 +16,8 @@ from mks.models import Knesset, Party, Member, WeeklyPresence
 
 
 class InternalLinksTest(TestCase):
+    fixtures = ['auxiliary/fixtures/flatpages.json']
+
     def setUp(self):
         Knesset.objects._current_knesset = None
         # self.vote_1 = Vote.objects.create(time=datetime.now(),title='vote 1')
@@ -107,15 +109,12 @@ class InternalLinksTest(TestCase):
                 res0 = self.client.get(link)
 
                 if link in temp_redirects:
-                    self.assertEqual(res0.status_code, 302,
-                                     msg="internal (temporary) redirect %s from page %s seems to be broken" % (
-                                     link, page))
+                    self.verify_temp_redirected_response(res0, link, page)
+
                 elif link in redirects:
-                    self.assertEqual(res0.status_code, 301,
-                                     msg="internal redirect %s from page %s seems to be broken" % (link, page))
+                    self.verify_redirected_response(res0, link, page)
                 else:
-                    self.assertEqual(res0.status_code, 200,
-                                     msg="internal link %s from page %s seems to be broken" % (link, page))
+                    self.verify_ok_response(res0, link, page)
                 visited_links.add(link)
 
                 # generate a txt file report of the visited links. for debugging the test
@@ -124,3 +123,14 @@ class InternalLinksTest(TestCase):
                 # f = open('internal_links_tested.txt','wt')
                 # f.write('\n'.join(visited_links))
                 # f.close()
+
+    def verify_redirected_response(self, res, link, page):
+        self.assertEqual(res.status_code, 301,
+                         msg="internal redirect %s from page %s seems to be broken" % (link, page))
+
+    def verify_temp_redirected_response(self, res, link, page):
+        self.assertEqual(res.status_code, 302,
+                         msg="internal redirect %s from page %s seems to be broken" % (link, page))
+
+    def verify_ok_response(self, res, link, page):
+        self.assertEqual(res.status_code, 200, msg="internal link %s from page %s seems to be broken" % (link, page))
