@@ -4,7 +4,8 @@ from django.conf.urls import include, url, patterns
 from django.contrib import admin
 from django.views.generic import RedirectView
 from django.views.decorators.cache import cache_page
-from django.contrib.sitemaps import views as sitemaps_views
+# from django.contrib.sitemaps import views as sitemaps_views
+from fastsitemaps import views as sitemaps_views
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns, static
 
 from planet import views as planet_views
@@ -68,11 +69,11 @@ urlpatterns = patterns('',
     (r'^feeds/annotations/$', feeds.Annotations()),
     #(r'^sitemap\.xml$', redirect_to, {'url': '/static/sitemap.xml'}),
     url(r'^sitemap\.xml$',
-        cache_page(settings.LONG_CACHE_TIME)(sitemaps_views.index),
-        {'sitemaps': sitemaps_dict, 'sitemap_url_name': 'sitemaps'},
+        'fastsitemaps.views.index',
+        {'sitemaps': sitemaps_dict},
         name='sitemap'),
     url(r'^sitemap-(?P<section>.+)\.xml$',
-        cache_page(settings.LONG_CACHE_TIME)(sitemaps_views.sitemap),
+        'fastsitemaps.views.sitemap',
         {'sitemaps': sitemaps_dict},
         name='sitemaps'),
     (r'^planet/', include('planet.urls')),

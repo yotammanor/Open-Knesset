@@ -1,22 +1,23 @@
+# -*- coding: utf-8 -*
 import datetime
 import re
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
-from django.test import TestCase
+from django.test.testcases import TestCase
 from django.utils import translation
 from tagging.models import Tag, TaggedItem
 
 from agendas.models import Agenda
-from auxiliary.mixins import CsvView
 from committees.models import Committee
-from knesset.sitemap import sitemaps
 from laws.models import Vote, VoteAction, Bill
-from mks.models import Member, Party, WeeklyPresence, Knesset
+from mks.models import Knesset, Party, Member, WeeklyPresence
 
 
 class InternalLinksTest(TestCase):
+    fixtures = ['auxiliary/fixtures/flatpages.json']
+
     def setUp(self):
         Knesset.objects._current_knesset = None
         # self.vote_1 = Vote.objects.create(time=datetime.now(),title='vote 1')
@@ -108,15 +109,12 @@ class InternalLinksTest(TestCase):
                 res0 = self.client.get(link)
 
                 if link in temp_redirects:
-                    self.assertEqual(res0.status_code, 302,
-                                     msg="internal (temporary) redirect %s from page %s seems to be broken" % (
-                                     link, page))
+                    self.verify_temp_redirected_response(res0, link, page)
+
                 elif link in redirects:
-                    self.assertEqual(res0.status_code, 301,
-                                     msg="internal redirect %s from page %s seems to be broken" % (link, page))
+                    self.verify_redirected_response(res0, link, page)
                 else:
-                    self.assertEqual(res0.status_code, 200,
-                                     msg="internal link %s from page %s seems to be broken" % (link, page))
+                    self.verify_ok_response(res0, link, page)
                 visited_links.add(link)
 
                 # generate a txt file report of the visited links. for debugging the test
@@ -126,39 +124,13 @@ class InternalLinksTest(TestCase):
                 # f.write('\n'.join(visited_links))
                 # f.close()
 
+    def verify_redirected_response(self, res, link, page):
+        self.assertEqual(res.status_code, 301,
+                         msg="internal redirect %s from page %s seems to be broken" % (link, page))
 
-class SiteMapTest(TestCase):
-    def setUp(self):
-        pass
+    def verify_temp_redirected_response(self, res, link, page):
+        self.assertEqual(res.status_code, 302,
+                         msg="internal redirect %s from page %s seems to be broken" % (link, page))
 
-    def test_sitemap(self):
-        res = self.client.get(reverse('sitemap'))
-        self.assertEqual(res.status_code, 200)
-        for s in sitemaps.keys():
-            res = self.client.get(reverse('sitemaps', kwargs={'section': s}))
-            self.assertEqual(res.status_code, 200, 'sitemap %s returned %d' %
-                             (s, res.status_code))
-
-
-class CsvViewTest(TestCase):
-    class TestModel(object):
-        def __init__(self, value):
-            self.value = value
-
-        def squared(self):
-            return self.value ** 2
-
-    class ConcreteCsvView(CsvView):
-        filename = 'test.csv'
-        list_display = (("value", "value"),
-                        ("squared", "squared"))
-
-    def test_csv_view(self):
-        view = self.ConcreteCsvView()
-        view.model = self.TestModel
-        view.queryset = [self.TestModel(2), self.TestModel(3)]
-        response = view.dispatch(None)
-        rows = response.content.splitlines()
-        self.assertEqual(len(rows), 3)
-        self.assertEqual(rows[1], '2,4')
-        self.assertEqual(rows[2], '3,9')
+    def verify_ok_response(self, res, link, page):
+        self.assertEqual(res.status_code, 200, msg="internal link %s from page %s seems to be broken" % (link, page))
