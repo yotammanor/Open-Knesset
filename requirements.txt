@@ -18,7 +18,7 @@ BeautifulSoup
 vobject
 feedparser
 gdata
-gunicorn
+gunicorn==19.6.0
 python-social-auth==0.2.1
 oauth==1.0.1
 python-dateutil==1.5
@@ -45,11 +45,11 @@ django-storages==1.1.8
 boto==2.20.1
 BeautifulSoup4
 okscraper-django==0.0.12
-ujson
+ujson==1.35
 selenium
 sauceclient
 django-sslify>=0.2.0
-django-cors-headers
+django-cors-headers==1.1.0
 pyjwt
 django-sslserver
 python-hebrew-numbers==0.1.0
