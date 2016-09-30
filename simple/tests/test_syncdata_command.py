@@ -1,5 +1,5 @@
-#encoding: utf-8
-import re, os, datetime, cPickle,logging
+# encoding: utf-8
+import re, os, datetime, cPickle, logging
 
 from django.test import TestCase
 from django.test.client import Client
@@ -8,31 +8,38 @@ from simple.management.commands import parse_knesset_bill_pdf
 from simple.management.commands.parse_government_bill_pdf import pdftools
 from simple.management.commands.parse_laws import GovProposalParser
 
-logger = logging.getLogger("open-knesset.simple")
+logger = logging.getLogger(__name__)
 
 TESTDATA = 'testdata'
 GOV_BILL_TEST_FILE = os.path.join(TESTDATA, '566.pdf')
 GOV_BILL_CORRECT_OUTPUT = os.path.join(TESTDATA, '566.correct.pickle')
 
-class SyncdataTest(TestCase):
 
+class SyncdataTest(TestCase):
     def setUp(self):
+        super(SyncdataTest, self).setUp()
+        # My of MY.. what a terrible idea this is
         self.dir = os.path.abspath(os.path.join(settings.PROJECT_ROOT, 'tests'))
 
+    def tearDown(self):
+        super(SyncdataTest, self).tearDown()
+
     def test_parse_knesset_bill_pdf_text(self):
-        try:
-            results = parse_knesset_bill_pdf.parse_pdf_text(os.path.join(self.dir,'knesset_proposal_366.txt'), "local-testing-cache/knesset_proposal_366.txt")
-            self.assertEqual(len(results), 4)
-            expected_date = datetime.date(2011,2,1)
-            self.assertEqual(results[0]['date'], expected_date)
-            expected_title = "הצעת חוק האזרחות (תיקון מס' 10) (ביטול אזרחות בשל הרשעה בעבירה), התשע\"א1102".decode('utf8')
-            self.assertEqual(results[0]['title'], expected_title)
-            expected_original = u'2377/18'
-            self.assertEqual(results[0]['original_ids'][0], expected_original)
-            expected_title = "הצעת חוק הביטוח הלאומי (תיקון מס' 126) (הארכת התכנית הניסיונית), התשע\"א1102".decode('utf8')
-            self.assertEqual(results[3]['title'], expected_title)
-        except IOError:
-            pass
+
+        results = parse_knesset_bill_pdf.parse_pdf_text(os.path.join(self.dir, 'knesset_proposal_366.txt'),
+                                                        "local-testing-cache/knesset_proposal_366.txt")
+        self.assertEqual(len(results), 4)
+        expected_date = datetime.date(2011, 2, 1)
+        self.assertEqual(results[0]['date'], expected_date)
+        expected_title = "הצעת חוק האזרחות (תיקון מס' 10) (ביטול אזרחות בשל הרשעה בעבירה), התשע\"א1102".decode(
+            'utf8')
+        self.assertEqual(results[0]['title'], expected_title)
+        expected_original = u'2377/18'
+        self.assertEqual(results[0]['original_ids'][0], expected_original)
+        expected_title = "הצעת חוק הביטוח הלאומי (תיקון מס' 126) (הארכת התכנית הניסיונית), התשע\"א1102".decode(
+            'utf8')
+        self.assertEqual(results[3]['title'], expected_title)
+
 
     def test_pdftools_version(self):
         if pdftools.PDFTOTEXT is None:
@@ -52,15 +59,21 @@ class SyncdataTest(TestCase):
     def tearDown(self):
         pass
 
+
 if __name__ == '__main__':
     # hack the sys.path to include knesset and the level above it
     import sys
     import os
+
     this_dir = os.path.dirname(os.path.realpath(sys.modules[__name__].__file__))
     sys.path.append(os.path.join(this_dir, '../'))
     sys.path.append(os.path.join(this_dir, '../../'))
+
+
     # test tester
     class Tester(SyncdataTest):
         def runTest(self, *args, **kw):
             pass
+
+
     Tester().test_parse_government_bill_pdf()
