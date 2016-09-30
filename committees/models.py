@@ -463,9 +463,11 @@ class CommitteeMeeting(models.Model):
             if main_corporation not in ret:
                 ret.append(main_corporation)
         for lobbyist in self.main_lobbyists_mentioned:
-            corporation = LobbyistCorporation.objects.get(id=lobbyist.cached_data['latest_corporation']['id'])
-            if corporation not in ret and corporation.main_corporation == corporation:
-                ret.append(corporation)
+            latest_corporation = lobbyist.cached_data.get('latest_corporation')
+            if latest_corporation:
+                corporation = LobbyistCorporation.objects.get(id=latest_corporation['id'])
+                if corporation not in ret and corporation.main_corporation == corporation:
+                    ret.append(corporation)
         return ret
 
     @cached_property
