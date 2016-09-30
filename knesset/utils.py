@@ -81,6 +81,8 @@ def clean_string(s):
         s = s.replace('\xe2\x80\x9d', '').replace('\xe2\x80\x93', '')
     return s
 
+def clean_string_no_quotes(a_str):
+    return clean_string(a_str).replace('"', '')
 
 def cannonize(s):
     s = clean_string(s)
