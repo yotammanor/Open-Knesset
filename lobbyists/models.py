@@ -10,7 +10,6 @@ import json
 
 
 class LobbyistHistoryManager(models.Manager):
-
     def latest(self):
         return self.filter(scrape_time__isnull=False).latest('scrape_time')
 
@@ -36,9 +35,11 @@ class LobbyistHistory(models.Model):
         if not corporation_ids:
             corporation_ids = []
             for lobbyist in self.lobbyists.all():
-                corporation_id = lobbyist.cached_data['latest_corporation']['id']
-                if corporation_id not in corporation_ids:
-                    corporation_ids.append(corporation_id)
+                latest_corporation = lobbyist.cached_data.get('latest_corporation')
+                if latest_corporation:
+                    corporation_id = latest_corporation['id']
+                    if corporation_id not in corporation_ids:
+                        corporation_ids.append(corporation_id)
             cache.set('LobbyistHistory_%d_corporation_ids' % self.id, corporation_ids, 86400)
         return LobbyistCorporation.objects.filter(id__in=corporation_ids)
 
@@ -48,7 +49,7 @@ class LobbyistHistory(models.Model):
         Returns all the main corporations (e.g. without alias corporations and without 1 lobbyist corporations)
         """
         alias_corporation_ids = [ca.alias_corporation.id for ca in LobbyistCorporationAlias.objects.all()]
-        return self.corporations.exclude(id__in = alias_corporation_ids)
+        return self.corporations.exclude(id__in=alias_corporation_ids)
 
     def clear_corporations_cache(self):
         cache.delete('LobbyistHistory_%d_corporation_ids' % self.id)
@@ -66,9 +67,10 @@ class Lobbyist(models.Model):
     person = models.ForeignKey('persons.Person', blank=True, null=True, related_name='lobbyist')
     source_id = models.CharField(blank=True, null=True, max_length=20)
     description = models.TextField(blank=True, null=True)
-    image_url = models.URLField(blank=True, null=True, help_text="This image dimensions should be 75x110, it will be displayed on lists of lobbyists")
-    large_image_url = models.URLField(blank=True, null=True, help_text="This image can be larger and will be displayed in the lobbyist page")
-
+    image_url = models.URLField(blank=True, null=True,
+                                help_text="This image dimensions should be 75x110, it will be displayed on lists of lobbyists")
+    large_image_url = models.URLField(blank=True, null=True,
+                                      help_text="This image can be larger and will be displayed in the lobbyist page")
 
     @cached_property
     def latest_data(self):
@@ -76,11 +78,12 @@ class Lobbyist(models.Model):
 
     @cached_property
     def latest_corporation(self):
-        return self.lobbyistcorporationdata_set.filter(
-            scrape_time__isnull=False)\
-            .select_related('corporation')\
-            .latest('scrape_time')\
-            .corporation
+        corporation_data = self.lobbyistcorporationdata_set.filter(
+            scrape_time__isnull=False)
+        if corporation_data.exists():
+            return corporation_data.select_related('corporation') \
+                .latest('scrape_time') \
+                .corporation
 
     @cached_property
     def cached_data(self):
@@ -96,11 +99,14 @@ class Lobbyist(models.Model):
                     'permit_type': self.latest_data.permit_type,
                     'scrape_time': self.latest_data.scrape_time,
                 },
-                'latest_corporation': {
-                    'name': self.latest_corporation.name,
-                    'id': self.latest_corporation.id,
-                },
             }
+            if self.latest_corporation:
+                data.update(
+                    {'latest_corporation': {
+                        'name': self.latest_corporation.name,
+                        'id': self.latest_corporation.id,
+                    },
+                    })
             cache.set('Lobbyist_cached_data_%s' % self.id, data, 86400)
         return data
 
@@ -109,9 +115,8 @@ class Lobbyist(models.Model):
 
 
 class LobbyistDataManager(models.Manager):
-
     def latest_lobbyist_corporation(self, corporation_id):
-        return self.filter(corporation_id = corporation_id, scrape_time__isnull=False).latest('scrape_time')
+        return self.filter(corporation_id=corporation_id, scrape_time__isnull=False).latest('scrape_time')
 
     def get_corporation_lobbyists(self, corporation_id):
         lobbyists = []
@@ -142,13 +147,11 @@ class LobbyistData(models.Model):
 
     objects = LobbyistDataManager()
 
-
     def __unicode__(self):
-        return '%s %s'%(self.first_name, self.family_name)
+        return '%s %s' % (self.first_name, self.family_name)
 
 
 class LobbyistCorporationManager(models.Manager):
-
     def current_corporations(self):
         return LobbyistHistory.objects.latest().corporations
 
@@ -192,8 +195,9 @@ class LobbyistCorporation(models.Model):
 
     @cached_property
     def alias_corporations(self):
-        alias_corporation_ids = [ac.alias_corporation.id for ac in LobbyistCorporationAlias.objects.filter(main_corporation=self)]
-        return LobbyistCorporation.objects.filter(id__in = alias_corporation_ids)
+        alias_corporation_ids = [ac.alias_corporation.id for ac in
+                                 LobbyistCorporationAlias.objects.filter(main_corporation=self)]
+        return LobbyistCorporation.objects.filter(id__in=alias_corporation_ids)
 
     @cached_property
     def cached_data(self):
@@ -211,11 +215,11 @@ class LobbyistCorporation(models.Model):
 
     @cached_property
     def main_corporation(self):
-        lcas =  LobbyistCorporationAlias.objects.filter(main_corporation = self)
+        lcas = LobbyistCorporationAlias.objects.filter(main_corporation=self)
         if lcas.count() > 0:
             return self
         else:
-            lcas = LobbyistCorporationAlias.objects.filter(alias_corporation = self)
+            lcas = LobbyistCorporationAlias.objects.filter(alias_corporation=self)
             if lcas.count() > 0:
                 for lca in lcas:
                     return lca.main_corporation
@@ -234,7 +238,6 @@ class LobbyistCorporation(models.Model):
 
 
 class LobbyistCorporationAliasManager(models.Manager):
-
     def create(self, *args, **kwargs):
         if len(args) > 1:
             for id in args[1:]:
@@ -253,7 +256,8 @@ class LobbyistCorporationAlias(models.Model):
     This model allows to link this corporations so we can treat them as the same corporation
     """
     main_corporation = models.ForeignKey('lobbyists.LobbyistCorporation', related_name='lobbyistcorporationalias_main')
-    alias_corporation = models.ForeignKey('lobbyists.LobbyistCorporation', related_name='lobbyistcorporationalias_alias', unique=True)
+    alias_corporation = models.ForeignKey('lobbyists.LobbyistCorporation',
+                                          related_name='lobbyistcorporationalias_alias', unique=True)
 
     objects = LobbyistCorporationAliasManager()
 
@@ -323,4 +327,7 @@ class LobbyistsChange(models.Model):
     extra_data = models.TextField(null=True, blank=True)
 
     def __unicode__(self):
-        return u'Lobbyists Change: {date} - {content_type} - {object} - {type}'.format(date=self.date, content_type=self.content_type, object=self.content_object, type=self.type)
+        return u'Lobbyists Change: {date} - {content_type} - {object} - {type}'.format(date=self.date,
+                                                                                       content_type=self.content_type,
+                                                                                       object=self.content_object,
+                                                                                       type=self.type)
