@@ -5,6 +5,8 @@ import os
 
 import difflib
 import logging
+
+import itertools
 import tagging
 import voting
 from actstream import action
@@ -23,7 +25,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.db.models import Q
 from tagging.models import Tag, TaggedItem
 
-from agendas.models import Agenda, UserSuggestedVote
+from agendas.models import Agenda, UserSuggestedVote, Link
 from laws.vote_choices import BILL_STAGE_CHOICES
 from ok_tag.views import BaseTagMemberListView
 from auxiliary.mixins import CsvView
@@ -360,7 +362,14 @@ class BillDetailView(DetailView):
             userprofile = None
 
         # compute data for user votes on this bill
-        context['proposers'] = bill.proposers.select_related('current_party')
+        proposers = bill.proposers.select_related('current_party')
+        links = list(Link.objects.for_model(Member))
+        links_by_member = {}
+        for k, g in itertools.groupby(links, lambda x: x.object_pk):
+            links_by_member[str(k)] = list(g)
+        for proposer in proposers:
+            proposer.cached_links = links_by_member.get(str(proposer.pk), [])
+        context['proposers'] = proposers
         votes = voting.models.Vote.objects.get_object_votes(bill)
         if 1 not in votes: votes[1] = 0
         if -1 not in votes: votes[-1] = 0
