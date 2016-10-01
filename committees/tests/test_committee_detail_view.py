@@ -4,10 +4,10 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group, Permission
 from django.contrib.contenttypes.models import ContentType
-import unittest
-from annotatetext.models import Annotation
-from actstream.models import Action
+
 from tagging.models import Tag, TaggedItem
+
+from committees.tests.base import BaseCommitteeTestCase
 from laws.models import Bill
 from mks.models import Member, Knesset
 from committees.models import Committee, CommitteeMeeting
@@ -16,7 +16,7 @@ just_id = lambda x: x.id
 APP = 'committees'
 
 
-class CommitteeDetailViewTest(TestCase):
+class CommitteeDetailViewTest(BaseCommitteeTestCase):
     def setUp(self):
         super(CommitteeDetailViewTest, self).setUp()
         self.knesset = Knesset.objects.create(number=1,
@@ -67,7 +67,7 @@ I have a deadline''')
         self.mk_1.delete()
         self.topic.delete()
 
-    def testCommitteeList(self):
+    def test_committee_list_view(self):
         res = self.client.get(reverse('committee-list'))
         self.assertEqual(res.status_code, 200)
         self.assertTemplateUsed(res, 'committees/committee_list.html')
@@ -86,6 +86,41 @@ I have a deadline''')
         self.assertEqual(map(just_id, object_list),
                          [self.meeting_1.id, self.meeting_2.id, ],
                          'object_list has wrong objects: %s' % object_list)
+
+    def test_committee_does_not_return_non_active_current_knesset_members(self):
+        non_current_mk = Member.objects.create(name='mk is no more', is_current=False)
+        self.given_mk_is_added_to_committee(self.committee_1, non_current_mk)
+        self.given_mk_is_added_to_committee(self.committee_1, self.mk_1)
+
+        res = self.client.get(self.committee_1.get_absolute_url())
+        self.assertEqual(res.status_code, 200)
+
+        self.verify_expected_members_in_context(res, [self.mk_1.pk])
+        self.verify_unexpected_members_not_in_context(res, [non_current_mk.pk])
+
+    def test_committee_does_not_return_non_active_current_knesset_members_who_were_replacements(self):
+        non_current_mk = Member.objects.create(name='mk is no more', is_current=False)
+        self.given_mk_is_added_to_committee(self.committee_1, non_current_mk)
+        self.given_mk_is_added_to_committee_as_replacment(self.committee_1, non_current_mk)
+        self.given_mk_is_added_to_committee(self.committee_1, self.mk_1)
+
+        res = self.client.get(self.committee_1.get_absolute_url())
+        self.assertEqual(res.status_code, 200)
+
+        self.verify_expected_members_in_context(res, [self.mk_1.pk])
+        self.verify_unexpected_members_not_in_context(res, [non_current_mk.pk])
+
+    def test_committee_does_not_return_non_active_current_knesset_members_who_were_person(self):
+        non_current_mk = Member.objects.create(name='mk is no more', is_current=False)
+        self.given_mk_is_added_to_committee(self.committee_1, non_current_mk)
+        self.given_mk_is_added_to_committee_as_chairperson(self.committee_1, non_current_mk)
+        self.given_mk_is_added_to_committee(self.committee_1, self.mk_1)
+
+        res = self.client.get(self.committee_1.get_absolute_url())
+        self.assertEqual(res.status_code, 200)
+
+        self.verify_expected_members_in_context(res, [self.mk_1.pk])
+        self.verify_unexpected_members_not_in_context(res, [non_current_mk.pk])
 
     def test_committeemeeting_by_tag(self):
         res = self.client.get('%s?tagged=false' % reverse('committee-all-meetings'))
