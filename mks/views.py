@@ -267,9 +267,12 @@ class MemberDetailView(DetailView):
         .select_related('current_party',
                         'current_party__knesset',
                         'voting_statistics',
-                        'awards',
-                        'awards__award_type') \
-        .prefetch_related('parties')
+                        ) \
+        .prefetch_related('parties',
+                          'mmm_documents',
+                          'awards_and_convictions',
+                          'person',
+                          'awards_and_convictions__award_type')
 
     MEMBER_INITIAL_DATA = 2
 
@@ -340,8 +343,8 @@ class MemberDetailView(DetailView):
         member = context['object']
         current_knesset_start_date = Knesset.objects.current_knesset().start_date
         if self.request.user.is_authenticated():
-            p = self.request.user.profiles.get()
-            watched = member in p.members
+            profile = self.request.user.profiles.get()
+            watched = profile.is_watching_member(member)
             cached_context = None
         else:
             watched = False
@@ -418,6 +421,7 @@ class MemberDetailView(DetailView):
             for action in actor_stream(member).filter(verb='attended'):
                 i = i + 1
                 if i == 20:
+                    # JESUS what language are we writing here? and is this a way to do a "limit"?
                     break
                 committee_type = (action and action.target and
                                   action.target.committee and
