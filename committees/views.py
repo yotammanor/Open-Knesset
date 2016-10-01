@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*
 import datetime
 import json
 import re
@@ -6,7 +7,9 @@ import colorsys
 import difflib
 import logging
 
+import itertools
 import tagging
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 
 import auxiliary.tag_suggestions
@@ -149,13 +152,22 @@ class MeetingDetailView(DetailView):
         context['paginate_by'] = models.COMMITTEE_PROTOCOL_PAGINATE_BY
 
         if cm.committee.type == 'plenum':
-            context['members'] = cm.mks_attended.order_by('name')
+            members = cm.mks_attended.order_by('name')
+
             context['hide_member_presence'] = True
         else:
             # get meeting members with presence calculation
-            meeting_members_ids = set(m.id for m in cm.mks_attended.all())
-            context['members'] = cm.committee.members_by_presence(ids=meeting_members_ids)
+            meeting_members_ids = set(member.id for member in cm.mks_attended.filter(is_current=True))
+            members = cm.committee.members_by_presence(ids=meeting_members_ids)
+
             context['hide_member_presence'] = False
+        links = Link.objects.for_model(Member).values()
+        links_by_member = {}
+        for k, g in itertools.groupby(links, lambda x: x['object_pk']):
+            links_by_member[str(k)] = list(g)
+        for member in members:
+            member.links = links_by_member.get(str(member.pk), [])
+        context['members'] = members
 
         meeting_text = [cm.topics] + [part.body for part in cm.parts.all()]
         context['tag_suggestions'] = auxiliary.tag_suggestions.extract_suggested_tags(cm.tags,

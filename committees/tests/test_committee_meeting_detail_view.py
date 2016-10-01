@@ -18,9 +18,9 @@ just_id = lambda x: x.id
 APP = 'committees'
 
 
-class CommitteeMeetingDetailViewTest(TestCase):
+class CommitteeMeetingDetailViewTestCase(TestCase):
     def setUp(self):
-        super(CommitteeMeetingDetailViewTest, self).setUp()
+        super(CommitteeMeetingDetailViewTestCase, self).setUp()
         self.knesset = Knesset.objects.create(number=1,
                                               start_date=datetime.today() - timedelta(days=1))
         self.committee_1 = Committee.objects.create(name='c1')
@@ -54,10 +54,13 @@ I have a deadline''')
         self.topic = self.committee_1.topic_set.create(creator=self.jacob,
                                                        title="hello", description="hello world")
         self.tag_1 = Tag.objects.create(name='tag1')
-        self.meeting_1.mks_attended.add(self.mk_1)
+        self.given_mk_attended_meeting(self.meeting_1, self.mk_1)
+
+    def given_mk_attended_meeting(self, meeting, mk):
+        meeting.mks_attended.add(mk)
 
     def tearDown(self):
-        super(CommitteeMeetingDetailViewTest, self).tearDown()
+        super(CommitteeMeetingDetailViewTestCase, self).tearDown()
         self.client.logout()
         self.meeting_1.delete()
         self.meeting_2.delete()
@@ -158,18 +161,34 @@ I have a deadline''')
         self.assertEqual(res.status_code, 200)
         self.assertTemplateUsed(res,
                                 'committees/committeemeeting_detail.html')
-        members = res.context['members']
-        self.assertEqual(map(just_id, members),
-                         [self.mk_1.id],
-                         'members has wrong objects: %s' % members)
+        self._verify_expected_members_in_context(res, [self.mk_1.id])
 
-    def test_user_can_add_a_bill_to_meetings_if_not_login(self):
+    def test_mk_from_current_knesset_that_are_not_current_members_are_not_displayed(self):
+        not_current_mk = Member.objects.create(name='mk 1', is_current=False)
+        self.given_mk_attended_meeting(self.meeting_1, not_current_mk)
+        self._given_mk_added_to_meeting(self.meeting_1, not_current_mk)
+        res = self.client.get(self.meeting_1.get_absolute_url())
+        self.assertEqual(res.status_code, 200)
+        self._verify_expected_members_in_context(res, [self.mk_1.id])
+        self._verify_unexpected_members_not_in_context(res, [not_current_mk.id])
+
+    def test_user_can_not_add_a_bill_to_meetings_if_not_login(self):
         res = self.client.post(reverse('committee-meeting',
                                        kwargs={'pk': self.meeting_1.id}))
         self._verify_bill_not_in_meeting(self.bill_1, self.meeting_1)
         self.assertEqual(res.status_code, 302)
         self.assertTrue(res['location'].startswith('%s%s' %
                                                    ('http://testserver', settings.LOGIN_URL)))
+
+    def _verify_expected_members_in_context(self, res, expected_mks):
+        members = res.context['members']
+        self.assertEqual(map(just_id, members),
+                         expected_mks,
+                         'members has wrong objects: %s' % members)
+
+    def _verify_unexpected_members_not_in_context(self, res, unexpected_members):
+        members = res.context['members']
+        self.assertNotIn(unexpected_members, map(just_id, members), 'members has wrong objects: %s' % members)
 
     def test_post_removing_and_adding_mk_to_committee_meetings(self):
         mk_1 = self.mk_1
@@ -196,7 +215,6 @@ I have a deadline''')
         self._verify_mk_has_meeting(meeting, mk_1)
         res = self._given_mk_added_to_meeting(meeting, mk_1)
         self.assertEqual(res.status_code, 404)
-
 
     def test_post_adds_bill_to_committee_meeting(self):
         bill_1 = self.bill_1
@@ -238,6 +256,20 @@ I have a deadline''')
         res = self._given_lobbyist_added_to_meeting(meeting, lobbyist_name='non existing')
         self.assertEqual(res.status_code, 404)
 
+    def test_committee_meetings_handles_missing_lobbyist_data(self):
+        lobbyist = self._setup_lobbyist()
+
+        meeting = self.meeting_1
+
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        self._given_lobbyist_added_to_meeting(meeting, lobbyist=lobbyist)
+        res = self.client.get(self.meeting_1.get_absolute_url())
+        self.assertEqual(res.status_code, 200)
+
+        lobbyist.data.all().delete()
+
+        res = self.client.get(self.meeting_1.get_absolute_url())
+        self.assertEqual(res.status_code, 200)
 
     def test_add_tag_committee_login_required(self):
         url = reverse('add-tag-to-object',
