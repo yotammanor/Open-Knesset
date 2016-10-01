@@ -3,6 +3,7 @@ from django.core.cache import cache
 from django.db import models, connection
 from django.db.models import Q
 
+
 # from agendas.models import Agenda
 
 
@@ -84,15 +85,23 @@ class CurrentKnessetPartyManager(models.Manager):
 
 
 class CurrentKnessetMembersManager(models.Manager):
-    "Adds the ability to filter on current knesset"
+    """
+    Adds the ability to filter on current knesset
+    """
 
     def get_queryset(self):
         from mks.models import Knesset
         qs = super(CurrentKnessetMembersManager, self).get_queryset()
-        # TODO: Strange? why should we filter by knesset and not other options?
+
         current_knesset = Knesset.objects.current_knesset()
         qs = qs.filter(current_party__knesset=current_knesset)
         return qs
+
+
+class CurrentKnessetActiveMembersManager(CurrentKnessetMembersManager):
+    def get_queryset(self):
+        qs = super(CurrentKnessetActiveMembersManager, self).get_queryset()
+        return qs.filter(is_current=True)
 
 
 class MembershipManager(models.Manager):
