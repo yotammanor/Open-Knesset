@@ -35,7 +35,7 @@ from ok_tag.views import BaseTagMemberListView
 from auxiliary.mixins import GetMoreView
 from forms import EditTopicForm, LinksFormset
 from hashnav import method_decorator as hashnav_method_decorator
-from knesset.utils import clean_string
+from knesset.utils import clean_string, clean_string_no_quotes
 from laws.models import Bill, PrivateProposal
 from links.models import Link
 from mks.models import Member
@@ -74,6 +74,14 @@ class TopicsMoreView(GetMoreView):
 
 class CommitteeDetailView(DetailView):
     model = Committee
+    queryset = Committee.objects.prefetch_related('members', 'chairpersons', 'replacements', 'events',
+                                                  'meetings', ).all()
+    # 'meetings__mks_attended',
+    # 'meetings__lobbyists_mentioned',
+    # 'meetings__lobbyist_corporations_mentioned',
+    # 'topic_set',
+    #
+    # 'mmm_documents').all()
     view_cache_key = 'committee_detail_%d'
     SEE_ALL_THRESHOLD = 10
 
@@ -88,14 +96,20 @@ class CommitteeDetailView(DetailView):
             # cache.set('committee_detail_%d' % cm.id, cached_context,
             #           settings.LONG_CACHE_TIME)
         context.update(cached_context)
-        context['annotations'] = cm.annotations.order_by('-timestamp')
-        context['topics'] = cm.topic_set.summary()[:5]
+
         return context
 
     def _build_context_data(self, cached_context, cm):
         cached_context['chairpersons'] = cm.chairpersons.all()
         cached_context['replacements'] = cm.replacements.all()
-        cached_context['members'] = cm.members_by_presence()
+        members = cm.members_by_presence()
+        links = Link.objects.for_model(Member).values()
+        links_by_member = {}
+        for k, g in itertools.groupby(links, lambda x: x['object_pk']):
+            links_by_member[str(k)] = list(g)
+        for member in members:
+            member.links = links_by_member.get(str(member.pk), [])
+        cached_context['members'] = members
         recent_meetings, more_meetings_available = cm.recent_meetings(limit=self.SEE_ALL_THRESHOLD)
         cached_context['meetings_list'] = recent_meetings
         cached_context['more_meetings_available'] = more_meetings_available
@@ -107,6 +121,8 @@ class CommitteeDetailView(DetailView):
             end_date=cur_date, limit=self.SEE_ALL_THRESHOLD)
         cached_context['protocol_not_yet_published_list'] = not_yet_published_meetings
         cached_context['more_unpublished_available'] = more_unpublished_available
+        cached_context['annotations'] = cm.annotations.order_by('-timestamp')
+        cached_context['topics'] = cm.topic_set.summary()[:5]
 
 
 class MeetingDetailView(DetailView):
@@ -118,9 +134,50 @@ class MeetingDetailView(DetailView):
         'remove-mk': '_handle_remove_mk',
         'add-lobbyist': '_handle_add_lobbyist',
         'remove-lobbyist': '_handle_remove_lobbyist',
-        'protocol': '_handle_protocol',
+        'protocol': '_handle_add_protocol',
 
     }
+
+    def get_object(self, queryset=None):
+        """
+        Returns the object the view is displaying.
+
+        By default this requires `self.queryset` and a `pk` or `slug` argument
+        in the URLconf, but subclasses can override this to return any object.
+        """
+        # Use a custom queryset if provided; this is required for subclasses
+        # like DateDetailView
+        if queryset is None:
+            queryset = self.get_queryset()
+
+        # Next, try looking up by primary key.
+        pk = self.kwargs.get(self.pk_url_kwarg, None)
+        slug = self.kwargs.get(self.slug_url_kwarg, None)
+        if pk is not None:
+            #Double prefetch since prefetch does not work over filter
+            queryset = queryset.filter(pk=pk).prefetch_related('parts', 'parts__speaker__mk', 'lobbyists_mentioned',
+                                                               'mks_attended', 'mks_attended__current_party',
+                                                               'committee__members', 'committee__chairpersons',
+                                                               'committee__replacements')
+
+        # Next, try looking up by slug.
+        elif slug is not None:
+            slug_field = self.get_slug_field()
+            queryset = queryset.filter(**{slug_field: slug})
+
+        # If none of those are defined, it's an error.
+        else:
+            raise AttributeError("Generic detail view %s must be called with "
+                                 "either an object pk or a slug."
+                                 % self.__class__.__name__)
+
+        try:
+            # Get the single item from the filtered queryset
+            obj = queryset.get()
+        except ObjectDoesNotExist:
+            raise Http404(_("No %(verbose_name)s found matching the query") %
+                          {'verbose_name': queryset.model._meta.verbose_name})
+        return obj
 
     def get_queryset(self):
         return super(MeetingDetailView, self).get_queryset().select_related('committee')
@@ -136,11 +193,7 @@ class MeetingDetailView(DetailView):
             colors[p] = 'rgb(%i, %i, %i)' % (r, g, b)
         context['title'] = _('%(committee)s meeting on %(date)s') % {'committee': cm.committee.name,
                                                                      'date': cm.date_string}
-        context['description'] = _('%(committee)s meeting on %(date)s on topic %(topic)s') \
-                                 % {'committee': cm.committee.name,
-                                    'date': cm.date_string,
-                                    'topic': cm.topics}
-        context['description'] = clean_string(context['description']).replace('"', '')
+        context['description'] = self._resolve_committee_meeting_description(cm)
         page = self.request.GET.get('page', None)
         if page:
             context['description'] += _(' page %(page)s') % {'page': page}
@@ -178,6 +231,13 @@ class MeetingDetailView(DetailView):
 
         return context
 
+    def _resolve_committee_meeting_description(self, committee_meeting):
+        description = _('%(committee)s meeting on %(date)s on topic %(topic)s') \
+                      % {'committee': committee_meeting.committee.name,
+                         'date': committee_meeting.date_string,
+                         'topic': committee_meeting.topics}
+        return clean_string_no_quotes(description)
+
     def _resolve_handler_by_user_input_type(self, user_input_type):
         handler = self._action_handlers.get(user_input_type)
         return getattr(self, handler)
@@ -193,7 +253,7 @@ class MeetingDetailView(DetailView):
 
         return HttpResponseRedirect(".")
 
-    def _handle_protocol(self, cm, request):
+    def _handle_add_protocol(self, cm, request):
         if not cm.protocol_text:  # don't override existing protocols
             cm.protocol_text = request.POST.get('protocol_text')
             cm.save()
