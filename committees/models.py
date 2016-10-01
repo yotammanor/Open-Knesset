@@ -109,7 +109,7 @@ class Committee(models.Model):
                                 "%s.committee_id=%%s" % meeting_tn],
                          params=[self.id]).distinct()
 
-    def members_by_presence(self, ids=None, from_date=None):
+    def members_by_presence(self, ids=None, from_date=None, current_only=False):
         """Return the members with computed presence percentage.
         If ids is not provided, this will return committee members. if ids is
         provided, this will return presence data for the given members.
@@ -131,9 +131,15 @@ class Committee(models.Model):
         if ids is not None:
             members = list(Member.objects.filter(id__in=ids))
         else:
-            members = list((self.members.filter(is_current=True) |
-                            self.chairpersons.filter(is_current=True) |
-                            self.replacements.filter(is_current=True)).distinct())
+            if current_only:
+                members = list((self.members.filter(is_current=True) |
+                                self.chairpersons.filter(is_current=True) |
+                                self.replacements.filter(is_current=True)).distinct())
+            else:
+                # What we actually would like to have is only member, active **during** that period
+                members = list((self.members.all() |
+                                self.chairpersons.all() |
+                                self.replacements.all()).distinct())
 
         d = Knesset.objects.current_knesset().start_date if from_date is None else from_date
         meetings_with_mks = self.meetings.filter(

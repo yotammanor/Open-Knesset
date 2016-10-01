@@ -96,13 +96,13 @@ class CommitteeDetailView(DetailView):
     def _build_context_data(self, cached_context, cm):
         cached_context['chairpersons'] = cm.chairpersons.all()
         cached_context['replacements'] = cm.replacements.all()
-        members = cm.members_by_presence()
-        links = Link.objects.for_model(Member).values()
+        members = cm.members_by_presence(current_only=True)
+        links = list(Link.objects.for_model(Member))
         links_by_member = {}
-        for k, g in itertools.groupby(links, lambda x: x['object_pk']):
+        for k, g in itertools.groupby(links, lambda x: x.object_pk):
             links_by_member[str(k)] = list(g)
         for member in members:
-            member.links = links_by_member.get(str(member.pk), [])
+            member.cached_links = links_by_member.get(str(member.pk), [])
         cached_context['members'] = members
         recent_meetings, more_meetings_available = cm.recent_meetings(limit=self.SEE_ALL_THRESHOLD)
         cached_context['meetings_list'] = recent_meetings
@@ -208,12 +208,12 @@ class MeetingDetailView(DetailView):
             members = cm.committee.members_by_presence(ids=meeting_members_ids)
 
             context['hide_member_presence'] = False
-        links = Link.objects.for_model(Member).values()
+        links = list(Link.objects.for_model(Member))
         links_by_member = {}
-        for k, g in itertools.groupby(links, lambda x: x['object_pk']):
+        for k, g in itertools.groupby(links, lambda x: x.object_pk):
             links_by_member[str(k)] = list(g)
         for member in members:
-            member.links = links_by_member.get(str(member.pk), [])
+            member.cached_links = links_by_member.get(str(member.pk), [])
         context['members'] = members
 
         meeting_text = [cm.topics] + [part.body for part in cm.parts.all()]
