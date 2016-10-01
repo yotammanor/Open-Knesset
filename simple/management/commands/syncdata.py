@@ -1132,9 +1132,8 @@ class Command(NoArgsDbLogCommand):
         c.sort()
         min_timestamp = c[0]
         c = None
-        # TODO: should we also parse of current knesset parties not serving members?
-        # currently we still do but this check is better the previous
-        for member in Member.current_knesset.all():
+
+        for member in Member.current_members.all():
             if member.id not in presence:
                 logger.error('member %s (id=%d) not found in presence data', member.name, member.id)
                 continue
