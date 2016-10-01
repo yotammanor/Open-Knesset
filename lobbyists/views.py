@@ -87,9 +87,9 @@ class LobbyistDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super(LobbyistDetailView, self).get_context_data(**kwargs)
         lobbyist = context['object']
-        context['represents'] = lobbyist.latest_data.represents.all()
-        context['corporation'] = lobbyist.latest_corporation
-        context['data'] = lobbyist.latest_data
+        context['represents'] = lobbyist.latest_data.represents.all() if lobbyist.latest_data else []
+        context['corporation'] = lobbyist.latest_corporation if lobbyist.latest_data else None
+        context['data'] = lobbyist.latest_data if lobbyist.latest_data else {}
         context['links'] = Link.objects.for_model(context['object'])
         return context
 

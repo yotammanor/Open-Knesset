@@ -31,9 +31,10 @@ class LobbyistCorporationAdmin(ImportExportModelAdmin):
     list_display = ('name', 'alias_corporations')
 
     def lobbyists(self, obj):
-        return mark_safe(', '.join([
-            u'<a href="/admin/lobbyists/lobbyist/'+unicode(lobbyist.pk)+'/">'+unicode(lobbyist)+u'</a>' for lobbyist in obj.latest_data.lobbyists.all()
-        ]))
+        if obj.latest_data:
+            return mark_safe(', '.join([
+                u'<a href="/admin/lobbyists/lobbyist/'+unicode(lobbyist.pk)+'/">'+unicode(lobbyist)+u'</a>' for lobbyist in obj.latest_data.lobbyists.all()
+            ]))
 
 
 class LobbyistsChangeAdmin(admin.ModelAdmin):

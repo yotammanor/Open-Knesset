@@ -74,7 +74,9 @@ class Lobbyist(models.Model):
 
     @cached_property
     def latest_data(self):
-        return self.data.filter(scrape_time__isnull=False).latest('scrape_time')
+        lobbyist_data = self.data.filter(scrape_time__isnull=False)
+        if lobbyist_data.exists():
+            return lobbyist_data.latest('scrape_time')
 
     @cached_property
     def latest_corporation(self):
@@ -92,14 +94,19 @@ class Lobbyist(models.Model):
             data = {
                 'id': self.id,
                 'display_name': unicode(self.person),
-                'latest_data': {
-                    'profession': self.latest_data.profession,
-                    'faction_member': self.latest_data.faction_member,
-                    'faction_name': self.latest_data.faction_name,
-                    'permit_type': self.latest_data.permit_type,
-                    'scrape_time': self.latest_data.scrape_time,
-                },
             }
+            latest_data = self.latest_data
+            if latest_data:
+                data.update({
+
+                    'latest_data': {
+                        'profession': self.latest_data.profession,
+                        'faction_member': self.latest_data.faction_member,
+                        'faction_name': self.latest_data.faction_name,
+                        'permit_type': self.latest_data.permit_type,
+                        'scrape_time': self.latest_data.scrape_time,
+                    }
+                })
             if self.latest_corporation:
                 data.update(
                     {'latest_corporation': {
@@ -121,7 +128,8 @@ class LobbyistDataManager(models.Manager):
     def get_corporation_lobbyists(self, corporation_id):
         lobbyists = []
         for lobbyist in LobbyistHistory.objects.latest().lobbyists.all():
-            lobbyists.append(lobbyist) if lobbyist.latest_data.corporation_id == corporation_id else None
+            if lobbyist.latest_data:
+                lobbyists.append(lobbyist) if lobbyist.latest_data.corporation_id == corporation_id else None
         return lobbyists
 
 
