@@ -101,7 +101,7 @@ class Committee(models.Model):
         committee_tn = Committee._meta.db_table
         annotation_tn = Annotation._meta.db_table
         protocol_part_ct = ContentType.objects.get_for_model(ProtocolPart)
-        ret = Annotation.objects.filter(content_type=protocol_part_ct)
+        ret = Annotation.objects.select_related().filter(content_type=protocol_part_ct)
         return ret.extra(tables=[protocol_part_tn,
                                  meeting_tn, committee_tn],
                          where=["%s.object_id=%s.id" % (annotation_tn, protocol_part_tn),
@@ -277,9 +277,9 @@ class CommitteeMeeting(models.Model):
     @models.permalink
     def get_absolute_url(self):
         if self.committee.type == 'plenum':
-            return ('plenum-meeting', [str(self.id)])
+            return 'plenum-meeting', [str(self.id)]
         else:
-            return ('committee-meeting', [str(self.id)])
+            return 'committee-meeting', [str(self.id)]
 
     def _get_tags(self):
         tags = Tag.objects.get_for_object(self)
@@ -300,7 +300,7 @@ class CommitteeMeeting(models.Model):
             delete them, a ValidationError will be thrown, because
             it doesn't make sense to create the parts again.
         """
-        logger.debug('create_protocol_parts %s'%delete_existing)
+        logger.debug('create_protocol_parts %s' % delete_existing)
         if delete_existing:
             ppct = ContentType.objects.get_for_model(ProtocolPart)
             annotations = Annotation.objects.filter(content_type=ppct, object_id__in=self.parts.all)
@@ -320,18 +320,19 @@ class CommitteeMeeting(models.Model):
             return
         else:
             def get_protocol_part(i, part):
-                logger.debug('creating protocol part %s'%i)
+                logger.debug('creating protocol part %s' % i)
                 return ProtocolPart(meeting=self, order=i, header=part.header, body=part.body)
+
             with KnessetDataCommitteeMeetingProtocol.get_from_text(self.protocol_text) as protocol:
                 # TODO: use bulk_create (I had a strange error when using it)
                 # ProtocolPart.objects.bulk_create(
                 # for testing, you could just save one part:
                 # get_protocol_part(1, protocol.parts[0]).save()
                 list([
-                    get_protocol_part(i, part).save()
-                    for i, part
-                    in zip(range(1, len(protocol.parts)+1), protocol.parts)
-                ])
+                         get_protocol_part(i, part).save()
+                         for i, part
+                         in zip(range(1, len(protocol.parts) + 1), protocol.parts)
+                         ])
             self.protocol_parts_update_date = datetime.now()
             self.save()
 
@@ -347,7 +348,7 @@ class CommitteeMeeting(models.Model):
                     self.protocol_text = protocol.text
                     self.protocol_text_update_date = datetime.now()
                     self.save()
-            except AntiwordException, e:
+            except AntiwordException as e:
                 logger.error(
                     e.message,
                     exc_info=True,
@@ -373,14 +374,16 @@ class CommitteeMeeting(models.Model):
         if dataservice_object is None:
             ds_meetings = [
                 ds_meeting for ds_meeting
-                in DataserviceCommitteeMeeting.get(self.committee.knesset_id, self.date - timedelta(days=1), self.date + timedelta(days=1))
+                in DataserviceCommitteeMeeting.get(self.committee.knesset_id, self.date - timedelta(days=1),
+                                                   self.date + timedelta(days=1))
                 if str(ds_meeting.id) == str(self.knesset_id)
-            ]
+                ]
             if len(ds_meetings) != 1:
                 raise Exception('could not found corresponding dataservice meeting')
             dataservice_object = ds_meetings[0]
-        meeting_transformed = ScrapeCommitteeMeetingCommand().get_committee_meeting_fields_from_dataservice(dataservice_object)
-        [setattr(self, k, v) for k,v in meeting_transformed.iteritems()]
+        meeting_transformed = ScrapeCommitteeMeetingCommand().get_committee_meeting_fields_from_dataservice(
+            dataservice_object)
+        [setattr(self, k, v) for k, v in meeting_transformed.iteritems()]
         self.save()
 
     @property
