@@ -348,6 +348,13 @@ DEBUG_TOOLBAR_PATCH_SETTINGS = False
 
 TEST_RUNNER = 'knesset.common_test_runner.KnessetTestRunner'
 
+DEVSERVER_MODULES = (
+    # 'devserver.modules.sql.SQLRealTimeModule',
+    'devserver.modules.sql.SQLSummaryModule',
+    'devserver.modules.profile.ProfileSummaryModule',
+    # 'devserver.modules.profile.MemoryUseModule'
+)
+
 try:
     from local_settings import *
 except ImportError:
