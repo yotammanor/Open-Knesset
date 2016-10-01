@@ -8,16 +8,22 @@ register = template.Library()
 
 @register.inclusion_tag('links/_object_links.html')
 def object_links(obj):
-    l = Link.objects.for_model(obj)
-    return {'links': l, 'MEDIA_URL': settings.MEDIA_URL}
+    if hasattr(obj, 'links'):
+        obj_links = obj.links
+    else:
+        obj_links = Link.objects.for_model(obj)
+    return {'links': obj_links, 'MEDIA_URL': settings.MEDIA_URL}
 
 
 @register.inclusion_tag('links/_object_icon_links.html')
 def object_icon_links(obj):
     "Display links as icons, to match the new design"
     key = "%s.%s.%s" % (obj._meta.app_label, obj._meta.module_name, obj.pk)
-    l = cache.get(key, None)  # look in the cache first
-    if l is None:  # if not found in cache
-        l = Link.objects.for_model(obj)  # get it from db
-        cache.set(key, l, settings.LONG_CACHE_TIME)  # and save to cache
-    return {'links': l}
+    obj_links = cache.get(key, None)  # look in the cache first
+    if obj_links is None:  # if not found in cache
+        if hasattr(obj, 'links'):
+            obj_links = obj.links
+        else:
+            obj_links = Link.objects.for_model(obj)  # get it from db
+        cache.set(key, obj_links, settings.LONG_CACHE_TIME)  # and save to cache
+    return {'links': obj_links}
