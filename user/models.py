@@ -74,6 +74,9 @@ class UserProfile(models.Model):
     def members(self):
         return self.get_actors(Member, 'actor')
 
+    def is_watching_member(self, a_member):
+        return a_member in self.members
+
     @property
     def bills(self):
         return self.get_actors(Bill, 'actor')
