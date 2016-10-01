@@ -76,12 +76,6 @@ class CommitteeDetailView(DetailView):
     model = Committee
     queryset = Committee.objects.prefetch_related('members', 'chairpersons', 'replacements', 'events',
                                                   'meetings', ).all()
-    # 'meetings__mks_attended',
-    # 'meetings__lobbyists_mentioned',
-    # 'meetings__lobbyist_corporations_mentioned',
-    # 'topic_set',
-    #
-    # 'mmm_documents').all()
     view_cache_key = 'committee_detail_%d'
     SEE_ALL_THRESHOLD = 10
 
@@ -210,7 +204,7 @@ class MeetingDetailView(DetailView):
             context['hide_member_presence'] = True
         else:
             # get meeting members with presence calculation
-            meeting_members_ids = set(member.id for member in cm.mks_attended.filter(is_current=True))
+            meeting_members_ids = set(member.id for member in cm.mks_attended.all())
             members = cm.committee.members_by_presence(ids=meeting_members_ids)
 
             context['hide_member_presence'] = False

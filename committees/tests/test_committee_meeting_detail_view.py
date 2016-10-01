@@ -1,24 +1,23 @@
+import unittest
 from datetime import datetime, timedelta
-from django.test import TestCase
+
+from actstream.models import Action
+from annotatetext.models import Annotation
 from django.conf import settings
-from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group, Permission
 from django.contrib.contenttypes.models import ContentType
-import unittest
-from annotatetext.models import Annotation
-from actstream.models import Action
-from tagging.models import Tag, TaggedItem
-from laws.models import Bill
-from lobbyists.models import Lobbyist
-from mks.models import Member, Knesset
-from committees.models import Committee, CommitteeMeeting
-from persons.models import Person, PersonAlias
+from django.core.urlresolvers import reverse
+from tagging.models import Tag
 
-just_id = lambda x: x.id
+from committees.models import Committee
+from committees.tests.base import BaseCommitteeTestCase
+from laws.models import Bill
+from mks.models import Member, Knesset
+
 APP = 'committees'
 
 
-class CommitteeMeetingDetailViewTestCase(TestCase):
+class CommitteeMeetingDetailViewTestCase(BaseCommitteeTestCase):
     def setUp(self):
         super(CommitteeMeetingDetailViewTestCase, self).setUp()
         self.knesset = Knesset.objects.create(number=1,
@@ -161,16 +160,15 @@ I have a deadline''')
         self.assertEqual(res.status_code, 200)
         self.assertTemplateUsed(res,
                                 'committees/committeemeeting_detail.html')
-        self._verify_expected_members_in_context(res, [self.mk_1.id])
+        self.verify_expected_members_in_context(res, [self.mk_1.id])
 
-    def test_mk_from_current_knesset_that_are_not_current_members_are_not_displayed(self):
-        not_current_mk = Member.objects.create(name='mk 1', is_current=False)
+    def test_mk_from_current_knesset_that_are_not_current_members_are_also_displayed(self):
+        not_current_mk = Member.objects.create(name='mk is no more', is_current=False)
         self.given_mk_attended_meeting(self.meeting_1, not_current_mk)
         self._given_mk_added_to_meeting(self.meeting_1, not_current_mk)
         res = self.client.get(self.meeting_1.get_absolute_url())
         self.assertEqual(res.status_code, 200)
-        self._verify_expected_members_in_context(res, [self.mk_1.id])
-        self._verify_unexpected_members_not_in_context(res, [not_current_mk.id])
+        self.verify_expected_members_in_context(res, [self.mk_1.id, not_current_mk.pk])
 
     def test_user_can_not_add_a_bill_to_meetings_if_not_login(self):
         res = self.client.post(reverse('committee-meeting',
@@ -179,16 +177,6 @@ I have a deadline''')
         self.assertEqual(res.status_code, 302)
         self.assertTrue(res['location'].startswith('%s%s' %
                                                    ('http://testserver', settings.LOGIN_URL)))
-
-    def _verify_expected_members_in_context(self, res, expected_mks):
-        members = res.context['members']
-        self.assertEqual(map(just_id, members),
-                         expected_mks,
-                         'members has wrong objects: %s' % members)
-
-    def _verify_unexpected_members_not_in_context(self, res, unexpected_members):
-        members = res.context['members']
-        self.assertNotIn(unexpected_members, map(just_id, members), 'members has wrong objects: %s' % members)
 
     def test_post_removing_and_adding_mk_to_committee_meetings(self):
         mk_1 = self.mk_1
@@ -314,61 +302,3 @@ I have a deadline''')
         self.assertEqual(res.status_code, 200)
         self.new_tag = Tag.objects.get(name='new tag')
         self.assertIn(self.new_tag, self.meeting_1.tags)
-
-    def _given_mk_added_to_meeting(self, meeting, mk):
-        return self.client.post(reverse('committee-meeting',
-                                        kwargs={'pk': meeting.id}),
-                                {'user_input_type': 'mk',
-                                 'mk_name': mk.name})
-
-    def _given_mk_removed_from_meeting(self, meeting, mk):
-        return self.client.post(reverse('committee-meeting',
-                                        kwargs={'pk': meeting.id}),
-                                {'user_input_type': 'remove-mk',
-                                 'mk_name_to_remove': mk.name})
-
-    def _given_lobbyist_added_to_meeting(self, meeting, lobbyist=None, lobbyist_name=None):
-        lobbyist_name = lobbyist.person.name if lobbyist else lobbyist_name
-        return self.client.post(reverse('committee-meeting',
-                                        kwargs={'pk': meeting.id}),
-                                {'user_input_type': 'add-lobbyist',
-                                 'lobbyist_name': lobbyist_name})
-
-    def _given_lobbyist_removed_from_meeting(self, meeting, lobbyist=None, lobbyist_name=None):
-        lobbyist_name = lobbyist.person.name if lobbyist else lobbyist_name
-        return self.client.post(reverse('committee-meeting',
-                                        kwargs={'pk': meeting.id}),
-                                {'user_input_type': 'remove-lobbyist',
-                                 'lobbyist_name': lobbyist_name})
-
-    def _verify_mk_does_not_have_meeting(self, meeting, mk_1):
-        self.assertFalse(meeting in mk_1.committee_meetings.all())
-
-    def _verify_mk_has_meeting(self, meeting, mk_1):
-        self.assertTrue(meeting in mk_1.committee_meetings.all())
-
-    def _verify_bill_in_meeting(self, bill_1, meeting):
-        self.assertTrue(bill_1 in meeting.bills_first.all())
-
-    def _given_bill_added_to_meeting(self, bill_1, meeting):
-        return self.client.post(reverse('committee-meeting',
-                                        kwargs={'pk':
-                                                    meeting.id}),
-                                {'user_input_type': 'bill',
-                                 'bill_id': bill_1.id})
-
-    def _verify_bill_not_in_meeting(self, bill_1, meeting):
-        self.assertFalse(bill_1 in meeting.bills_first.all())
-
-    def _verify_lobbyist_mentioned_in_meetings(self, lobbyist, meeting):
-        self.assertTrue(lobbyist in meeting.lobbyists_mentioned.all())
-
-    def _verify_lobbyist_not_mentioned_in_meetings(self, lobbyist, meeting):
-        self.assertFalse(lobbyist in meeting.lobbyists_mentioned.all())
-
-    def _setup_lobbyist(self, name='kressni'):
-        person = Person.objects.create(name=name)
-        return Lobbyist.objects.create(person=person)
-
-    def _setup_alias_for_person(self, person, alias_name='alias_name'):
-        return PersonAlias.objects.create(person=person, name=alias_name)

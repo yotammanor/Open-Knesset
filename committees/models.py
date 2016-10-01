@@ -132,8 +132,8 @@ class Committee(models.Model):
             members = list(Member.objects.filter(id__in=ids))
         else:
             members = list((self.members.filter(is_current=True) |
-                            self.chairpersons.all() |
-                            self.replacements.all()).distinct())
+                            self.chairpersons.filter(is_current=True) |
+                            self.replacements.filter(is_current=True)).distinct())
 
         d = Knesset.objects.current_knesset().start_date if from_date is None else from_date
         meetings_with_mks = self.meetings.filter(
