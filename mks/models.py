@@ -21,7 +21,7 @@ from links.models import Link
 
 from mks.managers import (
     BetterManager, PartyManager, KnessetManager, CurrentKnessetMembersManager,
-    CurrentKnessetPartyManager, MembershipManager)
+    CurrentKnessetPartyManager, MembershipManager, CurrentKnessetActiveMembersManager)
 
 GENDER_CHOICES = (
     (u'M', _('Male')),
@@ -250,6 +250,7 @@ class Member(models.Model):
 
     objects = BetterManager()
     current_knesset = CurrentKnessetMembersManager()
+    current_members = CurrentKnessetActiveMembersManager()
 
     class Meta:
         ordering = ['name']
