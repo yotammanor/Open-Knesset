@@ -7,6 +7,7 @@ from knesset.utils import send_chat_notification
 
 logger = logging.getLogger("open-knesset.parse_gov_legislation_comm")
 
+
 class ParseGLC:
     """Parse Government Legislation Committee decisions, from their webpage http://www.pmo.gov.il/PMO/vadot/hakika/"""
     
@@ -110,8 +111,8 @@ class ParseGLC:
             subtitle = subtitle.replace('&nbsp;',' ').replace('<br />','')
             subtitle = self.decode_html_chars(subtitle)
             number = re.search(r'הוא (\d+)'.decode('utf8'),subtitle).group(1)
-        except Exception,e:
-            print e
+        except Exception as e:
+            logger.exception('parse_entry exception')
             
         return {'subtitle': subtitle, 'title':title, 'decision':decision,'number':number}
         
