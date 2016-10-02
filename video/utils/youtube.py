@@ -171,7 +171,7 @@ class UploadYoutubeVideo():
             try:
                 self.newEntry=ytService.InsertVideoEntry(videoEntry, filename)
                 self.isOk=True
-            except Exception, e:
+            except Exception as e:
                 self.errMsg='exception in InsertVideoEntry'
                 self.errDesc=str(e)+' '+traceback.format_exc()
 

@@ -77,7 +77,7 @@ def member_stand(v, m):
         cls = 'absent'
         try:
             return {'stand': stand, 'class': cls, 'name': m.name}
-        except Exception, e:
+        except Exception as e:
             logging.debug(e, exc_info=True)
             return
 

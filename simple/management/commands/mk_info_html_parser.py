@@ -1,7 +1,11 @@
 #encoding: utf-8
 import urllib, re
 from HTMLParser import HTMLParser
+from logging import getLogger
+
 from BeautifulSoup import BeautifulSoup  #for HTML parsing
+logger = getLogger(__name__)
+
 
 #############
 #   CONSTS  #
@@ -46,8 +50,8 @@ class MKHtmlParser(object):
 
             return unescape(name_tag)
 
-        except Exception, e:
-            print "Error: could not find the name of MK with id=%d -- %s" % (self.__mk_id, str(e))
+        except Exception as e:
+            logger.exception("Error: could not find the name of MK with id=%d" % self.__mk_id)
             return None
 
     def  _get_mk_image_link(self):
@@ -57,8 +61,8 @@ class MKHtmlParser(object):
             return img_url
 
 
-        except Exception, e:
-            print "Error: could not find the img of MK with id=%d -- %s" % (self.__mk_id, str(e))
+        except Exception as e:
+            logger.exception("Error: could not find the img of MK with id=%d" % self.__mk_id)
             return None
 
 

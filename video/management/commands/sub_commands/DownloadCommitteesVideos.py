@@ -1,11 +1,16 @@
 # encoding: utf-8
 
 import os, sys, traceback
+from logging import getLogger
+
 from video.management.commands.sub_commands import SubCommand
 from django.contrib.contenttypes.models import ContentType
 from committees.models import Committee
 from video.models import Video
 from video.utils import get_videos_queryset
+
+logger = getLogger(__name__)
+
 
 class DownloadCommitteesVideos(SubCommand):
 
@@ -32,7 +37,7 @@ class DownloadCommitteesVideos(SubCommand):
                 partfilename=filename+'.part'
                 try:
                     streamsize=mms.get_size(url)
-                except Exception, e:
+                except Exception as e:
                     self._warn('failed to get mms stream size, exception = '+str(e))
                     traceback.print_exc(file=sys.stdout)
                 else:
@@ -46,17 +51,17 @@ class DownloadCommitteesVideos(SubCommand):
                             try:
                                 isDownloadDone=mms.resume_download(url,partfilename,mins_remaining)
                                 downloaded=True
-                            except Exception, e:
-                                self._warn('failed to resume mms download, exception = '+str(e))
-                                traceback.print_exc(file=sys.stdout)
+                            except Exception as e:
+                                self._warn('failed to resume mms download')
+                                logger.execption('failed to resume mms download, exception')
                     else:
                         self._debug('starting new download')
                         try:
                             isDownloadDone=mms.download(url,partfilename,mins_remaining)
                             downloaded=True
-                        except Exception, e:
-                            self._warn('failed to resume mms download, exception = '+str(e))
-                            traceback.print_exc(file=sys.stdout)
+                        except Exception as e:
+                            self._warn('failed to resume mms download')
+                            logger.execption('failed to resume mms download')
                     if downloaded:
                         self._check_timer()
                         filesize=self._getDownloadedFileSize(partfilename)
