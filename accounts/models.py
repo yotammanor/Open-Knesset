@@ -85,7 +85,7 @@ class EmailValidation(models.Model):
             return (True, "")
         except self.DoesNotExist:
             return (False, _("Invalid activation key."))
-        except Exception, e:
-            exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-            logger.error("%s", ''.join(traceback.format_exception(exceptionType, exceptionValue, exceptionTraceback)))
+        except Exception as e:
+
+            logger.exception("Email validation exception")
             return (False, "Something went wrong.")

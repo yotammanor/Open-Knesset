@@ -48,7 +48,7 @@ class UpdateCommitteesVideos(SubCommand):
         try:
             rf=urllib.urlopen(self.PORTAL_KNESSET_COMMITTEES_INDEX_PAGE_URL)
             return rf.read().decode('windows-1255').encode('utf-8')
-        except Exception, e:
+        except Exception as e:
             self._warn('could not fetch committees_index_page, exception: '+str(e))
             traceback.print_exc(file=sys.stdout)
             return ''
@@ -90,7 +90,7 @@ class UpdateCommitteesVideos(SubCommand):
                 return [self._get_committee_mainpage_soup(href),href]
             else:
                 return ret
-        except Exception, e:
+        except Exception as e:
             self._warn('failed to fetch committee mainpage, exception = '+str(e))
             traceback.print_exc(file=sys.stdout)
             return ret
@@ -114,7 +114,7 @@ class UpdateCommitteesVideos(SubCommand):
                         path=elt[0].parent['href']
                         url=self.PORTAL_KNESSET_BASEHREF+path
                         self._debug('got url from vaadot meshudarot tag')
-                    except Exception, e:
+                    except Exception as e:
                         pass
                 if len(url)==0:
                     self._debug('failed to find vaadot meshudarot tag')
@@ -139,7 +139,7 @@ class UpdateCommitteesVideos(SubCommand):
                     if len(elt)>0:
                         try:
                             url=elt[0].parent.parent['href']
-                        except Exception, e:
+                        except Exception as e:
                             url=''
                         if len(url)>0:
                             url=mainpage_href+'/'+url
@@ -147,7 +147,7 @@ class UpdateCommitteesVideos(SubCommand):
             if len(url)>6:
                 self._update_committee_portal_knesset_broadcasts_url(comm,url)
             return url
-        except Exception, e:
+        except Exception as e:
             self._warn('exception while trying to get broadcasts url from committee mainpage')
             self._warn('exception = '+str(e))
             traceback.print_exc(file=sys.stdout)
@@ -208,7 +208,7 @@ class UpdateCommitteesVideos(SubCommand):
                             'datetime':datetime.datetime.now()
                         })
             return videos
-        except Exception, e:
+        except Exception as e:
             self._warn('exception while trying to get videos from broadcasts url')
             self._warn('bcasturl = '+str(bcasturl))
             self._warn('exception = '+str(e))

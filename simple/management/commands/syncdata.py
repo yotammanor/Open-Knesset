@@ -38,7 +38,7 @@ ENCODING = 'utf8'
 DATA_ROOT = getattr(settings, 'DATA_ROOT',
                     os.path.join(settings.PROJECT_ROOT, os.path.pardir, os.path.pardir, 'data'))
 
-logger = logging.getLogger("open-knesset.syncdata")
+logger = logging.getLogger(__name__)
 
 try:
     SPECIAL_COMMITTEES = map(lambda x: dict(name=x, commitee=Committee.objects.get(name=x)),
@@ -153,13 +153,13 @@ class Command(NoArgsDbLogCommand):
                     v.summary = l[2]
                     v.save()
                     try:
-                        (link, created) = Link.objects.get_or_create(title=u'מסמך הצעת החוק באתר הכנסת', url=l[3],
+                        link, created = Link.objects.get_or_create(title=u'מסמך הצעת החוק באתר הכנסת', url=l[3],
                                                                      content_type=ContentType.objects.get_for_model(v),
                                                                      object_pk=str(v.id))
                         if created:
                             link.save()
-                    except Exception, e:
-                        logger.error(e)
+                    except Exception as e:
+                        logger.exception('Update law data exception')
 
             if v.full_text == None:
                 self.get_approved_bill_text_for_vote(v)
@@ -246,7 +246,7 @@ class Command(NoArgsDbLogCommand):
             f2 = gzip.open(os.path.join(DATA_ROOT, 'votes.tsv.gz'), "ab")
             (page, src_url) = self.read_votes_page(id)
             title = self.get_page_title(page)
-            if (title == """הצבעות במליאה-חיפוש"""):  # found no vote with this id
+            if title == """הצבעות במליאה-חיפוש""":  # found no vote with this id
                 logger.debug("no vote found at id %d" % id)
             else:
                 count_for = 0
@@ -257,16 +257,17 @@ class Command(NoArgsDbLogCommand):
                 results = self.read_member_votes(page)
                 for (voter, party, vote) in results:
                     f.write("%d\t%s\t%s\t%s\n" % (id, voter, party, vote))
-                    if (vote == "for"):
+                    if vote == "for":
                         count_for += 1
-                    if (vote == "against"):
+                    if vote == "against":
                         count_against += 1
-                    if (vote == "abstain"):
+                    if vote == "abstain":
                         count_abstain += 1
-                    if (vote == "no-vote"):
+                    if vote == "no-vote":
                         count_no_vote += 1
                 f2.write("%d\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\n" % (
-                id, src_url, name, meeting_num, vote_num, date, count_for, count_against, count_abstain, count_no_vote))
+                    id, src_url, name, meeting_num, vote_num, date, count_for, count_against, count_abstain,
+                    count_no_vote))
                 logger.debug("downloaded data with vote id %d" % id)
             # print " %.2f%% done" % ( (100.0*(float(id)-r[0]))/(r[-1]-r[0]) )
             f.close()
@@ -679,15 +680,15 @@ class Command(NoArgsDbLogCommand):
             urlData = urllib2.urlopen(url)
             page = urlData.read().decode('windows-1255').encode('utf-8')
             time.sleep(2)
-        except Exception, e:
+        except Exception as e:
             logger.warn(e)
             if retry < 5:
                 logger.warn("waiting some time and trying again... (# of retries = %d)" % (retry + 1))
                 page = self.read_votes_page(voteId, retry + 1)
             else:
-                logger.error("failed too many times. last error: %s", e)
+                logger.exception("read votes page failed too many times")
                 return None
-        return (page, url)
+        return page, url
 
     def read_member_votes(self, page, return_ids=False):
         """
@@ -863,7 +864,7 @@ class Command(NoArgsDbLogCommand):
 
         # define date range
         params = "__EVENTTARGET=DtFrom&__EVENTARGUMENT=&__LASTFOCUS=&__VIEWSTATE=%s&ComId=-1&knesset_id=-1&DtFrom=24%%2F02%%2F2009&DtTo=&subj=&__EVENTVALIDATION=%s" % (
-        view_state, event_validation)
+            view_state, event_validation)
         page = urllib2.urlopen(SEARCH_URL, params).read().decode('windows-1255').encode('utf-8')
         event_validation = urllib2.quote(re.search(r'id="__EVENTVALIDATION" value="([^"]*)"', page).group(1)).replace(
             '/', '%2F')
@@ -871,7 +872,7 @@ class Command(NoArgsDbLogCommand):
 
         # hit the search
         params = "btnSearch=%%E7%%E9%%F4%%E5%%F9&__EVENTTARGET=&__EVENTARGUMENT=&__LASTFOCUS=&__VIEWSTATE=%s&ComId=-1&knesset_id=-1&DtFrom=24%%2F02%%2F2009&DtTo=&subj=&__EVENTVALIDATION=%s" % (
-        view_state, event_validation)
+            view_state, event_validation)
         page = urllib2.urlopen(SEARCH_URL, params).read().decode('windows-1255').encode('utf-8')
         event_validation = urllib2.quote(re.search(r'id="__EVENTVALIDATION" value="([^"]*)"', page).group(1)).replace(
             '/', '%2F')
@@ -884,7 +885,7 @@ class Command(NoArgsDbLogCommand):
         while (not last_page) and (page_num < max_page):
             page_num += 1
             params = "__EVENTTARGET=gvProtocol&__EVENTARGUMENT=Page%%24%d&__LASTFOCUS=&__VIEWSTATE=%s&ComId=-1&knesset_id=-1&DtFrom=24%%2F02%%2F2009&DtTo=&subj=&__EVENTVALIDATION=%s" % (
-            page_num, view_state, event_validation)
+                page_num, view_state, event_validation)
             page = urllib2.urlopen(SEARCH_URL, params).read().decode('windows-1255').encode('utf-8')
             # update EV and VS
             re_res = re.search(r'id="__EVENTVALIDATION" value="([^"]*)"', page)
@@ -1350,7 +1351,7 @@ class Command(NoArgsDbLogCommand):
                                 if KnessetProposal.objects.filter(
                                         bill=pp.bill).count():  # this bill is already taken by another KP
                                     logger.warn('Bill %d already has a KP, but should be assigned to KP %d' % (
-                                    pp.bill.id, kl.id))
+                                        pp.bill.id, kl.id))
                                 else:
                                     kl.bill = pp.bill
                                     kl.save()
@@ -1365,7 +1366,7 @@ class Command(NoArgsDbLogCommand):
                     except PrivateProposal.DoesNotExist:
                         logger.warn(
                             u"can't find private proposal with id %d, referenced by knesset proposal %d %s %s" % (
-                            orig_id, kl.id, kl.title, kl.source_url))
+                                orig_id, kl.id, kl.title, kl.source_url))
 
             if not (kl.bill):  # finished all original PPs, but found no bill yet - create a new bill
                 b = Bill(law=law, title=title, stage='3', stage_date=proposal['date'])
@@ -1531,7 +1532,7 @@ class Command(NoArgsDbLogCommand):
                         v.bills_pre_votes.remove(bill_pre_voted)
                     else:
                         logger.warn('vote %d is connected as both an approval (for bill %d) and pre (for bill %d)' % (
-                        v.id, bill_approved.id, bill_pre_voted.id))
+                            v.id, bill_approved.id, bill_pre_voted.id))
                         continue
                 if bills_approved.count() > 1:
                     logger.warn('vote %d is connected as an approval for more than 1 bill' % (v.id))
@@ -1698,16 +1699,13 @@ class Command(NoArgsDbLogCommand):
                     try:
                         logger.info('update: running %s', func)
                         self.__getattribute__(func).__call__()
-                    except:
-                        exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
+                    except Exception as e:
+
                         send_chat_notification(__name__,
                                                "caught exception in one of the sync data update commands",
                                                {'exception': traceback.format_exc(), 'func': func})
-                        logger.error("Caught execption in syncdata update phase %s\n%s",
-                                     func,
-                                     ''.join(traceback.format_exception(exceptionType,
-                                                                        exceptionValue,
-                                                                        exceptionTraceback)))
+                        # No need for manual exception formatting, logger exception takes care of that
+                        logger.exception("Caught Exception in syncdata update phase %s\n%s", func)
             logger.info('finished update')
 
         if committees:

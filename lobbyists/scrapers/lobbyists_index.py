@@ -38,7 +38,7 @@ class LobbyistsIndexScraper(BaseScraper):
         try:
             html = self.source.fetch()
             soup = BeautifulSoup(html)
-        except Exception, e:
+        except Exception as e:
             send_chat_notification(__file__, 'failed to fetch or parse the lobbyists index page', {'url': self.LOBBYISTS_INDEX_PAGE_URL})
             raise e
         return self._storeLobbyistIdsFromSoup(soup)
