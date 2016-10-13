@@ -6,9 +6,9 @@ import os
 
 from django.conf import settings
 from django.test import TestCase
-from simple.management.commands.parse_laws import GovProposalParser
 
 from simple.government_bills import pdftools
+from simple.government_bills.parse_government_bill_pdf import GovProposalParser
 from simple.parsers import parse_knesset_bill_pdf
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,6 @@ class SyncdataTest(TestCase):
         super(SyncdataTest, self).tearDown()
 
     def test_parse_knesset_bill_pdf_text(self):
-
         results = parse_knesset_bill_pdf.parse_pdf_text(os.path.join(self.dir, 'knesset_proposal_366.txt'),
                                                         "local-testing-cache/knesset_proposal_366.txt")
         self.assertEqual(len(results), 4)
@@ -42,7 +41,6 @@ class SyncdataTest(TestCase):
         expected_title = "הצעת חוק הביטוח הלאומי (תיקון מס' 126) (הארכת התכנית הניסיונית), התשע\"א1102".decode(
             'utf8')
         self.assertEqual(results[3]['title'], expected_title)
-
 
     def test_pdftools_version(self):
         if pdftools.PDFTOTEXT is None:
@@ -58,9 +56,6 @@ class SyncdataTest(TestCase):
         prop = GovProposalParser(GOV_BILL_TEST_FILE)
         expected_result = cPickle.load(open(GOV_BILL_CORRECT_OUTPUT, 'r'))
         self.assertEqual(prop.to_unicode(True).encode('utf-8'), expected_result)
-
-    def tearDown(self):
-        pass
 
 
 if __name__ == '__main__':
