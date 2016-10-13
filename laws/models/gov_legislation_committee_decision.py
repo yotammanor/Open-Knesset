@@ -19,7 +19,7 @@ class GovLegislationCommitteeDecision(models.Model):
     number = models.IntegerField(blank=True, null=True)
 
     def __unicode__(self):
-        return u"%s" % (self.title)
+        return u"%s" % self.title
 
     def get_absolute_url(self):
         return self.bill.get_absolute_url()
