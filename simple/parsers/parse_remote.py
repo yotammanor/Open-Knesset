@@ -3,9 +3,10 @@ from urllib import urlopen
 from pyth.plugins.rtf15.reader import Rtf15Reader
 from pyth.plugins.xhtml.writer import XHTMLWriter
 from tempfile import TemporaryFile
-import sys, traceback, logging
+import logging
 
 logger = logging.getLogger("open-knesset.parse_remote")
+
 
 def rtf(url):
     '''
@@ -23,8 +24,8 @@ def rtf(url):
         xhtml = XHTMLWriter.write(doc, pretty=True).read()
     except:
         xhtml = False
-        exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-        logger.warn(''.join(traceback.format_exception(exceptionType, exceptionValue, exceptionTraceback)))
-        
+
+        logger.exception('Failed reading rtf from {0}'.format(url))
+
     temp.close()
     return xhtml

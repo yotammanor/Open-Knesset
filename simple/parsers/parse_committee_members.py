@@ -3,14 +3,15 @@
 import urllib2
 import re
 import logging
+
 logger = logging.getLogger("open-knesset.parse_committee_members")
 
 from mks.models import Member, Knesset
 from committees.models import Committee
 from django.core.management.base import BaseCommand
 
-class Command(BaseCommand):
 
+class Command(BaseCommand):
     args = ''
     help = 'Parses commitee members from the Knesset website'
 
@@ -32,7 +33,7 @@ class Command(BaseCommand):
         for comdata in data:
 
             com_name = com_name_re.findall(comdata)[0].decode('cp1255')
-            #print com_name
+            # print com_name
 
             sections = comdata.split('<BR>')
             chairpersons = members = replacements = []
@@ -49,23 +50,23 @@ class Command(BaseCommand):
             replacements = set(replacements)
             members = members - chairpersons - replacements
 
-            #print chairmen, members, replacements
-            retval[com_name] = (list(chairpersons),list(members),list(replacements))
+            # print chairmen, members, replacements
+            retval[com_name] = (list(chairpersons), list(members), list(replacements))
 
         return retval
 
-    def convert_to_mks(self,ll):
-        ll = [ int(x) for x in ll]
+    def convert_to_mks(self, ll):
+        ll = [int(x) for x in ll]
         ll2 = []
         for x in ll:
             try:
-                ll2.append( Member.objects.get(id=x) )
+                ll2.append(Member.objects.get(id=x))
             except Member.DoesNotExist:
                 logger.warn("ERROR: couldn't find member for id: %s" % x)
-                #raise
+                # raise
         return ll
 
-    def update_committee_members_db(self,data):
+    def update_committee_members_db(self, data):
         for name, details in data.iteritems():
             chairpersons, members, replacements = details
             try:
@@ -73,7 +74,7 @@ class Command(BaseCommand):
                 members = self.convert_to_mks(members)
                 replacements = self.convert_to_mks(replacements)
 
-                cm = Committee.objects.get( name = name )
+                cm = Committee.objects.get(name=name)
 
                 cm.chairpersons.clear()
                 cm.members.clear()
@@ -90,4 +91,3 @@ class Command(BaseCommand):
         r = self.parse_committee_members()
         logger.debug(r)
         self.update_committee_members_db(r)
-

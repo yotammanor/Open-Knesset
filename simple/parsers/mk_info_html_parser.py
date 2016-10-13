@@ -1,9 +1,13 @@
 #encoding: utf-8
-import urllib, re
+import re
+import urllib
 from HTMLParser import HTMLParser
 from logging import getLogger
 
 from BeautifulSoup import BeautifulSoup  #for HTML parsing
+
+from simple.constants import MK_HTML_INFO_PAGE
+
 logger = getLogger(__name__)
 
 
@@ -12,7 +16,6 @@ logger = getLogger(__name__)
 #############
 
 #URLS
-MK_HTML_INFO_PAGE = r"http://www.knesset.gov.il/mk/heb/mk_print.asp?mk_individual_id_t=";
 KNESET_URL = r"http://www.knesset.gov.il"
 
 #REGEXPS
@@ -21,8 +24,10 @@ PRESONAL_INFO_VALUE_DATA_TAG = re.compile("DataText2?(\s|$)")
 INFO_HEADER_TITLE = re.compile("Title2(\s|$)")
 MK_IMG_URL = r"/mk/images/members/"
 
+
 def unescape(s):
     return HTMLParser().unescape(s)
+
 
 class MKHtmlParser(object):
     __mk_id = None
@@ -124,7 +129,7 @@ class MKHtmlParser(object):
 
     def save_to_file(self, filename):
         f = file(u"%s" % filename, 'wb')
-        print self.__mk_info_dict
+        logger.debug(self.__mk_info_dict)
         for k, v in self.__mk_info_dict.iteritems():
             if k != '':
                 f.write("%s\t%s\n" % (repr(k), repr(v)))
@@ -146,12 +151,13 @@ class MKHtmlParser(object):
 
 
 def test():
+    # TODO: WTF? what exactly are we testing here
     m = MKHtmlParser(200)
 
-    print "Name=%s MK-ID=%d" % (m.Name, m.Id)
-    print "Details:"
+    logger.debug(u"Name=%s MK-ID=%d" % (m.Name, m.Id))
+    logger.debug("Details:")
     for k, v in m.Dict.iteritems():
-        print "%s = %s" % (k, v)
+        logger.debug(u"%s = %s" % (k, v))
 
 #############
 #   Main    #

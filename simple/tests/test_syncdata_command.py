@@ -1,12 +1,15 @@
 # encoding: utf-8
-import re, os, datetime, cPickle, logging
+import cPickle
+import datetime
+import logging
+import os
 
-from django.test import TestCase
-from django.test.client import Client
 from django.conf import settings
-from simple.management.commands import parse_knesset_bill_pdf
-from simple.management.commands.parse_government_bill_pdf import pdftools
+from django.test import TestCase
 from simple.management.commands.parse_laws import GovProposalParser
+
+from simple.government_bills import pdftools
+from simple.parsers import parse_knesset_bill_pdf
 
 logger = logging.getLogger(__name__)
 

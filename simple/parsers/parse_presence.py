@@ -16,7 +16,7 @@ def parse_presence(filename=None):
        enough_data is a list of week timestamps in which we had enough data to compute weekly hours
        a timestamp is a tuple (year, iso week number)
     """
-    if filename == None:
+    if filename is None:
         filename = 'presence.txt'
     member_totals = dict()
     totals = dict()
@@ -30,16 +30,16 @@ def parse_presence(filename=None):
     enough_data = []
     line = f.readline()
     data = line.split(',')
-    time = datetime.strptime(data[0], '%Y-%m-%d %H:%M:%S')
+    scrape_time = datetime.strptime(data[0], '%Y-%m-%d %H:%M:%S')
 
     for line in f:
         data = line.split(',')
-        last_time = time
-        time = datetime.strptime(data[0], '%Y-%m-%d %H:%M:%S')
-        time_in_day = time.hour + time.minute / 60.0
-        current_timestamp = time.isocalendar()[:2]
+        last_time = scrape_time
+        scrape_time = datetime.strptime(data[0], '%Y-%m-%d %H:%M:%S')
+        time_in_day = scrape_time.hour + scrape_time.minute / 60.0
+        current_timestamp = scrape_time.isocalendar()[:2]
 
-        if time.weekday() not in workdays or (time_in_day < WORKDAY_START) or (time_in_day > WORKDAY_END):
+        if scrape_time.weekday() not in workdays or (time_in_day < WORKDAY_START) or (time_in_day > WORKDAY_END):
             continue
         if current_timestamp == todays_timestamp:
             break
@@ -78,8 +78,8 @@ def parse_presence(filename=None):
                     member_totals[total] = [(d, weekly_hours_for_member)]
             totals = {}
             total_time = 0.0
-            last_timestamp = time.isocalendar()[:2]
+            last_timestamp = scrape_time.isocalendar()[:2]
 
         # for every report in the file, add it to the array as a tuple: (time, [list of member ids])
-        reports.append(((time - last_time).seconds / 60, [int(x) for x in data[1:] if len(x.strip()) > 0]))
+        reports.append(((scrape_time - last_time).seconds / 60, [int(x) for x in data[1:] if len(x.strip()) > 0]))
     return member_totals, enough_data
