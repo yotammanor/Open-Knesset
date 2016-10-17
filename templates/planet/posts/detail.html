@@ -1,5 +1,5 @@
 {% extends "planet/base.html" %}
-{% load i18n planet_tags hitcount_tags %}
+{% load i18n planet_tags %}
 
 {% block page_title %}{{ post.title|safe }} - {{ block.super }}{% endblock %}
 {% block extrameta %}
@@ -8,11 +8,7 @@
 {% endblock %}
 
 {% block content %}
-    <script type="text/javascript">
-   			$(document).ready(function() {
-       			{% get_hit_count_javascript for post %}
-   			});
-	</script>
+
     <div class="post clearfix">
         {% post_full_details post %}
     </div>

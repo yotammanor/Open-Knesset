@@ -144,7 +144,7 @@ INSTALLED_APPS = (
     'django_extensions',
     'actstream',
     'avatar',
-    'hitcount',
+
     'annotatetext',
     'mailer',
     'backlinks',
@@ -275,10 +275,6 @@ ANNOTATETEXT_FLAGS = (
 
 AUTO_GENERATE_AVATAR_SIZES = (75, 48)
 AVATAR_GRAVATAR_BASE_URL = 'https://www.gravatar.com/avatar/'
-
-HITCOUNT_KEEP_HIT_ACTIVE = {'hours': 1}
-HITCOUNT_HITS_PER_IP_LIMIT = 0
-HITCOUNT_EXCLUDE_USER_GROUP = ()
 
 NOSE_ARGS = ['--with-xunit']
 

@@ -1,5 +1,5 @@
 {% extends "site_base.html" %}
-{% load i18n comments annotatetags hashtag mks_tags agendas_tags hitcount_tags pagination_tags %}
+`{% load i18n comments annotatetags hashtag mks_tags agendas_tags pagination_tags %}
 {% load static from staticfiles %}
 
 {% block extratitle %}{{ object.topics|safe|truncatewords:10 }}{% endblock %}
@@ -15,12 +15,7 @@
     <script type="text/javascript" src="{% static "js/jquery.autocomplete.js" %}"></script>
     <script type="text/javascript" src="{% static "js/waypoints.min.js" %}"> </script>
     <script type="text/javascript" src="{% static "js/committeemeeting_detail.js" %}"> </script>
-<script type="text/javascript">
-    $(document).ready(function() {
-        {% get_hit_count_javascript for object %}
-    });
-    // current hit count = {% get_hit_count for object %}
-</script>
+
 {% include "auxiliary/tags_object_edit_extrajs.html" with app_label="committees" object_type="committeemeeting" object_id=object.id %}
 {% endblock %}
 
