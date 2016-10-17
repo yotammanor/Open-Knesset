@@ -26,7 +26,6 @@ python-memcached==1.48
 -e git://github.com/openid/python-openid.git#egg=python-openid
 django-tastypie==0.9.15
 django-ratings
--e git://github.com/thornomad/django-hitcount.git@178680e43766982f5ebf05b6b5620e9fea70b37c#egg=django-hitcount
 -e git://github.com/hasadna/django-activity-stream.git@c56a07921b8c796fce35bda6feab4610fdf64e5d#egg=django-activity-stream
 -e git://github.com/hasadna/django-planet.git@903de33db55bfb8d965ae4e2319fa348075351fd#egg=django-planet
 -e git://github.com/hasadna/django-annotatetext.git@72e1e69459b1efe3efad85eec1dd162f5ab03250#egg=django-annotatetext

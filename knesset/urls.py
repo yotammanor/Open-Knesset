@@ -3,13 +3,11 @@ from django.conf import settings
 from django.conf.urls import include, url, patterns
 from django.contrib import admin
 from django.views.generic import RedirectView
-from django.views.decorators.cache import cache_page
-# from django.contrib.sitemaps import views as sitemaps_views
-from fastsitemaps import views as sitemaps_views
+
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns, static
 
 from planet import views as planet_views
-from hitcount.views import update_hit_count_ajax
+
 from backlinks.trackback.server import TrackBackServer
 from backlinks.pingback.server import default_server
 from voting.views import vote_on_object
@@ -19,8 +17,7 @@ from knesset.sitemap import sitemaps as sitemaps_dict
 from mks.urls import mksurlpatterns
 from laws.urls import lawsurlpatterns
 from committees.urls import committeesurlpatterns
-from ok_tag.views import TagList, TagDetail, suggest_tag_post, add_tag_synonym, remove_tag_from_object, \
-    add_tag_to_object, untagged_objects
+
 from plenum.urls import plenumurlpatterns
 from persons.urls import personsurlpatterns
 from mks.views import get_mk_entry, mk_is_backlinkable
@@ -77,7 +74,7 @@ urlpatterns = patterns('',
         {'sitemaps': sitemaps_dict},
         name='sitemaps'),
     (r'^planet/', include('planet.urls')),
-    url(r'^ajax/hit/$', update_hit_count_ajax, name='hitcount_update_ajax'),
+
     (r'^annotate/write/$', post_annotation, {}, 'annotatetext-post_annotation'),
     (r'^annotate/', include('annotatetext.urls')),
     (r'^avatar/', include('avatar.urls')),

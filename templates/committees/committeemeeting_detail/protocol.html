@@ -2,7 +2,7 @@
     this is used by the infinite scroll js in unexpected ways
     if you make any change here be sure to check the infinite scroll
 {% endcomment %}
-{% load i18n comments annotatetags hashtag mks_tags agendas_tags hitcount_tags pagination_tags  %}
+{% load i18n comments annotatetags hashtag mks_tags agendas_tags pagination_tags  %}
 {% get_annotations_for parts as annotation_dict %}
 {% for speech_part in parts %}
     {% with speech_part.id as spid %}

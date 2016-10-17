@@ -1,5 +1,5 @@
 {% extends "site_base.html" %}
-{% load lookup i18n tagging_tags laws_tags bills_tags common_visual_elements links_tags comments user_tags hitcount_tags committees_tags %}
+{% load lookup i18n tagging_tags laws_tags bills_tags common_visual_elements links_tags comments user_tags committees_tags %}
 {% load static from staticfiles %}
 {% block extratitle %}{{ object.name }}{% endblock %}
 {% block keywords %}{{ object.name }}{% endblock %}
@@ -170,11 +170,7 @@
 {% endblock %} {# divcontent #}
 
 {% block footer %}
-<script type="text/javascript"><!--
-    $(document).ready(function() {
-        {% get_hit_count_javascript for object %}
-    });
---></script>
+
 {% endblock %}
 
 
