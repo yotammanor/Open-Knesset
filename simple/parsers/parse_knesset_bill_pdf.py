@@ -3,10 +3,16 @@
    found in http://www.knesset.gov.il/laws/heb/template.asp?Type=3
 """
 
-import re,urllib2,subprocess,logging,sys,traceback
+import logging
+import re
+import subprocess
+import sys
+import traceback
+import urllib2
 from datetime import date
+
 from knesset.utils import clean_string
-from simple.management.commands.parse_government_bill_pdf import pdftools
+from simple.government_bills import pdftools
 
 logger = logging.getLogger("open-knesset.parse_knesset_bill_pdf")
 

@@ -1,37 +1,45 @@
 # -*- coding: utf-8 -*-
-import urllib2, urllib, cookielib, re, gzip, datetime, time, logging, os, sys, traceback, difflib
-
+import cookielib
+import datetime
+import gzip
+import logging
+import os
+import re
+import socket
+import time
+import traceback
+import urllib
+import urllib2
 from cStringIO import StringIO
-from pyth.plugins.rtf15.reader import Rtf15Reader
 from optparse import make_option
 
-from django.core.management.base import NoArgsCommand
+
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db.models import Max, Count
-
+from django.db.models import Max
 from okscraper_django.management.base_commands import NoArgsDbLogCommand
 
-from mks.models import Member, Party, Membership, WeeklyPresence, Knesset
-from persons.models import Person, PersonAlias
+from pyth.plugins.rtf15.reader import Rtf15Reader
+
+from committees.models import Committee, CommitteeMeeting
+from knesset.utils import cannonize
+from knesset.utils import send_chat_notification
 from laws.models import (Vote, VoteAction, Bill, Law, PrivateProposal,
                          KnessetProposal, GovProposal, GovLegislationCommitteeDecision)
 from links.models import Link
-from committees.models import Committee, CommitteeMeeting
-from knesset.utils import cannonize
+from mks.models import Member, Party, Membership, WeeklyPresence, Knesset
 from mks.utils import get_all_mk_names
+from persons.models import Person, PersonAlias
 
-import mk_info_html_parser as mk_parser
-import parse_presence, parse_laws, mk_roles_parser, parse_remote
-
-from parse_gov_legislation_comm import ParseGLC
-
-from syncdata_globals import p_explanation, strong_explanation, explanation
+from simple.constants import SPECIAL_COMMITTEES_NAMES, SECOND_AND_THIRD_READING_LAWS_URL, CANONICAL_PARTY_ALIASES
 from simple.management.utils import antiword
-
-import socket
-
-from knesset.utils import send_chat_notification
+from simple.parsers import mk_roles_parser
+from simple.parsers import parse_laws
+from simple.parsers import parse_remote
+from simple.parsers.parse_gov_legislation_comm import ParseGLC
+from simple.parsers import mk_info_html_parser as mk_parser
+from simple.parsers import parse_presence
+from syncdata_globals import p_explanation, strong_explanation, explanation
 
 ENCODING = 'utf8'
 
@@ -42,7 +50,7 @@ logger = logging.getLogger(__name__)
 
 try:
     SPECIAL_COMMITTEES = map(lambda x: dict(name=x, commitee=Committee.objects.get(name=x)),
-                             [u"הוועדה המשותפת לנושא סביבה ובריאות", ])
+                             SPECIAL_COMMITTEES_NAMES)
 except:
     logger.warn("can't find special committees")
     SPECIAL_COMMITTEES = {}
@@ -80,8 +88,99 @@ class Command(NoArgsDbLogCommand):
     last_downloaded_vote_id = 0
     last_downloaded_member_id = 0
 
+    def _handle_noargs(self, **options):
+        global logger
+        logger = self._logger
+
+        all_options = options.get('all', False)
+        download = options.get('download', False)
+        load = options.get('load', False)
+        process = options.get('process', False)
+        dump_to_file = options.get('dump-to-file', False)
+        update = options.get('update', False)
+        laws = options.get('laws', False)
+        presence = options.get('presence', False)
+        committees = options.get('committees', False)
+
+        if all_options:
+            download = True
+            load = True
+            process = True
+            dump_to_file = True
+
+        selected_options = [all_options, download, load, process, dump_to_file, update, laws, committees]
+        if not any(selected_options):
+            logger.error(
+                "no arguments found. doing nothing. \ntry -h for help.\n--all to run the full syncdata flow.\n--update for an online dynamic update.")
+
+        if download:
+            logger.info("beginning download phase")
+            self.download_all()
+            # self.get_laws_data()
+
+        if load:
+            logger.info("beginning load phase")
+            self.update_members_from_file()
+            self.update_db_from_files()
+
+        if process:
+            logger.info("beginning process phase")
+            self.calculate_votes_importances()
+            # self.calculate_correlations()
+
+        if laws:
+            self.parse_laws()
+            self.find_proposals_in_other_data()
+            self.merge_duplicate_laws()
+            self.correct_votes_matching()
+
+        if dump_to_file:
+            logger.info("writing votes to tsv file")
+            self.dump_to_file()
+
+        if presence:
+            self.update_presence()
+
+        if update:
+            update_run_only = options.get('update-run-only', '')
+            if update_run_only:
+                try:
+                    update_run_only = update_run_only.split(',')
+                except AttributeError as e:
+                    logger.exception("Error in syncdata update:")
+            else:
+                update_run_only = None
+            for func in ['update_laws_data',
+                         'update_presence',
+                         # 'get_protocols', - handled by the new okscraper
+                         'parse_laws',
+                         'find_proposals_in_other_data',
+                         'merge_duplicate_laws',
+                         'update_mk_role_descriptions',
+                         'update_mks_is_current',
+                         # 'update_gov_law_decisions',
+                         'correct_votes_matching']:
+                # in case update_run_only is none, we run all stages
+                if (update_run_only is None) or (func in update_run_only):
+                    try:
+                        logger.info('update: running %s', func)
+                        self.__getattribute__(func).__call__()
+                    except Exception as e:
+
+                        send_chat_notification(__name__,
+                                               "caught exception in one of the sync data update commands",
+                                               {'exception': traceback.format_exc(), 'func': func})
+                        # No need for manual exception formatting, logger exception takes care of that
+                        logger.exception("Caught Exception in syncdata update phase %s", func)
+            logger.info('finished update')
+
+        if committees:
+            self.get_protocols()
+            logger.info('finished committees update')
+
     def read_laws_page(self, index):
-        url = 'http://www.knesset.gov.il/privatelaw/plaw_display.asp?LawTp=2'
+
+        url = '%s' % SECOND_AND_THIRD_READING_LAWS_URL
         data = urllib.urlencode({'RowStart': index})
         urlData = urllib2.urlopen(url, data)
         page = urlData.read().decode('windows-1255').encode('utf-8')
@@ -94,27 +193,27 @@ class Command(NoArgsDbLogCommand):
         count = -1
         lines = page.split('\n')
         for line in lines:
-            # print line
+
             r = re.search("""Href=\"(.*?)\">""", line)
-            if r != None:
+            if r is not None:
                 link = 'http://www.knesset.gov.il/privatelaw/' + r.group(1)
             r = re.search("""<td class="LawText1">(.*)""", line)
-            if r != None:
+            if r is not None:
                 name = r.group(1).replace("</td>", "").strip()
                 if len(name) > 1 and name.find('span') < 0:
                     names.append(name)
                     links.append(link)
                     exps.append('')
                     count += 1
-            if re.search("""arrResume\[\d*\]""", line) != None:
+            if re.search("""arrResume\[\d*\]""", line) is not None:
                 r = re.search('"(.*)"', line)
-                if r != None:
+                if r is not None:
                     try:
                         exps[count] += r.group(1).replace('\t', ' ')
                     except:
                         pass
 
-        return (names, exps, links)
+        return names, exps, links
 
     def get_laws_data(self):
         f = gzip.open(os.path.join(DATA_ROOT, 'laws.tsv.gz'), "wb")
@@ -127,7 +226,9 @@ class Command(NoArgsDbLogCommand):
         f.close()
 
     def download_laws(self):
-        """ returns an array of laws data: laws[i][0] - name, laws[i][1] - name for search, laws[i][2] - summary, laws[i][3] - link """
+        """
+        returns an array of laws data: laws[i][0] - name, laws[i][1] - name for search, laws[i][2] - summary, laws[i][3] - link
+        """
         laws = []
         for x in range(0, 79, 26):  # read 4 last laws pages
             # TODO: wtf! this works by confidence, hoping pages won't be missing or more then 4
@@ -154,14 +255,14 @@ class Command(NoArgsDbLogCommand):
                     v.save()
                     try:
                         link, created = Link.objects.get_or_create(title=u'מסמך הצעת החוק באתר הכנסת', url=l[3],
-                                                                     content_type=ContentType.objects.get_for_model(v),
-                                                                     object_pk=str(v.id))
+                                                                   content_type=ContentType.objects.get_for_model(v),
+                                                                   object_pk=str(v.id))
                         if created:
                             link.save()
                     except Exception as e:
                         logger.exception('Update law data exception')
 
-            if v.full_text == None:
+            if not v.full_text:
                 self.get_approved_bill_text_for_vote(v)
         logger.debug("finished updating laws data")
 
@@ -181,7 +282,7 @@ class Command(NoArgsDbLogCommand):
         try:
             v = Vote.objects.get(src_id=vote_id)
             created = False
-        except:
+        except Vote.DoesNotExist:
             v = Vote(title=vote_label, time_string=vote_time_string, importance=1, src_id=vote_id, time=vote_time)
             try:
                 vote_meeting_num = int(vote_meeting_num)
@@ -205,49 +306,18 @@ class Command(NoArgsDbLogCommand):
         v = Vote.objects.get(src_id=vote_id)
         self.find_synced_protocol(v)
 
-    def update_votes(self, start_from_id=None, force_download=False):
-        """Update votes data online, without saving to files.
-           start_from_id - to manually override the id from which we'll start looking.
-           force_download - force downloading vote data, even if we have this
-                            record. used to re-scan after MKs have been added.
-        """
-        # this is done in scrape_votes command now
-        return
-        logger.info("update votes")
-        current_max_src_id = Vote.objects.aggregate(Max('src_id'))['src_id__max']
-        if current_max_src_id == None:  # the db contains no votes, meaning its empty
-            logger.warning(
-                "DB is empty. --update can only be used to update, not for first time loading. \ntry --all, or get some data using initial_data.json\n")
-            return
-        vote_id = start_from_id or current_max_src_id + 1  # first vote to look for is the max_src_id we have plus 1, if not manually set
-        limit_src_id = vote_id + 100  # look for next 100 votes. if results are found, this value will be incremented.
-        while vote_id < limit_src_id:
-            if not force_download and Vote.objects.filter(src_id=vote_id).count():  # we already have this vote
-                logger.debug('skipping reading vote with src_id %d, because we already have it' % vote_id)
-                vote_id = vote_id + 1
-                limit_src_id = current_max_src_id + 100  # look for next 100 votes.
-                continue  # skip reading it again.
-            (page, vote_src_url) = self.read_votes_page(vote_id)
-            title = self.get_page_title(page)
-            if (title == """הצבעות במליאה-חיפוש"""):  # found no vote with this id
-                logger.debug("no vote found at id %d" % vote_id)
-            else:
-                limit_src_id = vote_id + 100  # results found, so we'll look for at least 100 more votes
-                self.update_vote_from_page(vote_id, vote_src_url, page)
-
-            vote_id += 1
-
     def get_votes_data(self):
+        # TODO: is this ever used?
         self.update_last_downloaded_vote_id()
-        r = range(self.last_downloaded_vote_id + 1,
+        pages_ids = range(self.last_downloaded_vote_id + 1,
                   17000)  # this is the range of page ids to go over. currently its set manually.
-        for id in r:
+        for page_id in pages_ids:
             f = gzip.open(os.path.join(DATA_ROOT, 'results.tsv.gz'), "ab")
             f2 = gzip.open(os.path.join(DATA_ROOT, 'votes.tsv.gz'), "ab")
-            (page, src_url) = self.read_votes_page(id)
+            (page, src_url) = self.read_votes_page(page_id)
             title = self.get_page_title(page)
             if title == """הצבעות במליאה-חיפוש""":  # found no vote with this id
-                logger.debug("no vote found at id %d" % id)
+                logger.debug("no vote found at id %d" % page_id)
             else:
                 count_for = 0
                 count_against = 0
@@ -256,7 +326,7 @@ class Command(NoArgsDbLogCommand):
                 (name, meeting_num, vote_num, date) = self.get_vote_data(page)
                 results = self.read_member_votes(page)
                 for (voter, party, vote) in results:
-                    f.write("%d\t%s\t%s\t%s\n" % (id, voter, party, vote))
+                    f.write("%d\t%s\t%s\t%s\n" % (page_id, voter, party, vote))
                     if vote == "for":
                         count_for += 1
                     if vote == "against":
@@ -266,10 +336,10 @@ class Command(NoArgsDbLogCommand):
                     if vote == "no-vote":
                         count_no_vote += 1
                 f2.write("%d\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\n" % (
-                    id, src_url, name, meeting_num, vote_num, date, count_for, count_against, count_abstain,
+                    page_id, src_url, name, meeting_num, vote_num, date, count_for, count_against, count_abstain,
                     count_no_vote))
-                logger.debug("downloaded data with vote id %d" % id)
-            # print " %.2f%% done" % ( (100.0*(float(id)-r[0]))/(r[-1]-r[0]) )
+                logger.debug("downloaded data with vote id %d" % page_id)
+
             f.close()
             f2.close()
 
@@ -286,7 +356,7 @@ class Command(NoArgsDbLogCommand):
             return
         content = f.read().split('\n')
         for line in content:
-            if (len(line) < 2):
+            if len(line) < 2:
                 continue
             s = line.split('\t')
             id = int(s[0])
@@ -312,23 +382,23 @@ class Command(NoArgsDbLogCommand):
 
         fields = [unicode(field.decode('utf8')) for field in fields]
 
-        for id in range(min_mk_id, max_mk_id):
-            logger.debug('mk %s' % id)
+        for mk_id in range(min_mk_id, max_mk_id):
+            logger.debug('mk %s' % mk_id)
             try:
-                m = mk_parser.MKHtmlParser(id).Dict
+                m = mk_parser.MKHtmlParser(mk_id).Dict
             except UnicodeDecodeError as e:
-                logger.error('unicode decode error at mk id %s' % id)
+                logger.error('unicode decode error at mk id %s' % mk_id)
                 m = {}
-            if (m.has_key('name') and m['name'] != None):
+            if m.get('name'):
                 name = m['name'].replace(u'\xa0', u' ').encode(ENCODING).replace('&nbsp;', ' ')
             else:
                 continue
-            f.write("%d\t%s\t" % (id, name))
+            f.write("%d\t%s\t" % (mk_id, name))
             for field in fields:
                 value = ''
-                if (m.has_key(field) and m[field] != None):
+                if m.get(field):
                     value = m[field].encode(ENCODING)
-                f.write("%s\t" % (value))
+                f.write("%s\t" % value)
             f.write("\n")
         f.close()
 
@@ -462,20 +532,6 @@ class Command(NoArgsDbLogCommand):
     heb_months = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר',
                   'דצמבר']
 
-    # some party names appear in the knesset website in several forms.
-    # this dictionary is used to transform them to canonical form.
-    party_aliases = {'עבודה': 'העבודה',
-                     'ליכוד': 'הליכוד',
-                     'ש"ס-התאחדות ספרדים שומרי תורה': 'ש"ס',
-                     'יחד (ישראל חברתית דמוקרטית) והבחירה הדמוקרטית': 'יחד (ישראל חברתית דמוקרטית) והבחירה הדמוקרטית',
-                     'בל"ד-ברית לאומית דמוקרטית': 'בל"ד',
-                     'אחריות לאומית': 'קדימה',
-                     'יחד (ישראל חברתית דמוקרטית) והבחירה הדמוקרטית': 'מרצ-יחד והבחירה הדמוקרטית',
-                     'יחד והבחירה הדמוקרטית': 'מרצ-יחד והבחירה הדמוקרטית',
-                     'יחד והבחירה הדמוקרטית (מרצ לשעבר)': 'מרצ-יחד והבחירה הדמוקרטית',
-                     'יחד (ישראל חברתית דמוקרטית) והבחירה הדמוקרטית': 'מרצ-יחד והבחירה הדמוקרטית',
-                     'יחד  (ישראל חברתית דמוקרטית) והבחירה הדמוקרטית': 'מרצ-יחד והבחירה הדמוקרטית',
-                     }
 
     def update_db_from_files(self):
         logger.debug("Update DB From Files")
@@ -558,7 +614,7 @@ class Command(NoArgsDbLogCommand):
             f = gzip.open(os.path.join(DATA_ROOT, 'results.tsv.gz'))
             content = f.read().split('\n')
             for line in content:
-                if (len(line) < 2):
+                if len(line) < 2:
                     continue
                 s = line.split('\t')  # (id,voter,party,vote)
 
@@ -567,8 +623,8 @@ class Command(NoArgsDbLogCommand):
                 voter_party = s[2]
 
                 # transform party names to canonical form
-                if (voter_party in self.party_aliases):
-                    voter_party = self.party_aliases[voter_party]
+                if voter_party in CANONICAL_PARTY_ALIASES:
+                    voter_party = CANONICAL_PARTY_ALIASES[voter_party]
 
                 vote = s[3]
 
@@ -580,53 +636,50 @@ class Command(NoArgsDbLogCommand):
 
                 # create/get the party appearing in this vote
                 if voter_party in parties:
-                    p = parties[voter_party]
+                    party = parties[voter_party]
                     created = False
                 else:
-                    p, created = Party.objects.get_or_create(name=voter_party)
-                    parties[voter_party] = p
+                    party, created = Party.objects.get_or_create(name=voter_party)
+                    parties[voter_party] = party
                     # if created: # this is magic needed because of unicode chars. if you don't do this, the object p will have gibrish as its name.
                     # only when it comes back from the db it has valid unicode chars.
-                #    p = Party.objects.get(name=voter_party)
 
                 # use this vote's time to update the party's start date and end date
-                if (p.start_date is None) or (p.start_date > vote_date):
-                    p.start_date = vote_date
-                if (p.end_date is None) or (p.end_date < vote_date):
-                    p.end_date = vote_date
+                if (party.start_date is None) or (party.start_date > vote_date):
+                    party.start_date = vote_date
+                if (party.end_date is None) or (party.end_date < vote_date):
+                    party.end_date = vote_date
                 if created:  # save on first time, so it would have an id, be able to link, etc. all other updates are saved in the end
-                    p.save()
+                    party.save()
 
                 # create/get the member voting
                 if voter in members:
-                    m = members[voter]
+                    member = members[voter]
                     created = False
                 else:
                     try:
-                        m = Member.objects.get(name=voter)
+                        member = Member.objects.get(name=voter)
                     except:  # if there are several people with same age,
-                        m = Member.objects.filter(name=voter).order_by('-date_of_birth')[
+                        member = Member.objects.filter(name=voter).order_by('-date_of_birth')[
                             0]  # choose the younger. TODO: fix this
-                    members[voter] = m
-                # m.party = p;
-                # if created: # again, unicode magic
-                #    m = Member.objects.get(name=voter)
+                    members[voter] = member
+
                 # use this vote's date to update the member's dates.
-                if (m.start_date is None) or (m.start_date > vote_date):
-                    m.start_date = vote_date
-                if (m.end_date is None) or (m.end_date < vote_date):
-                    m.end_date = vote_date
+                if (member.start_date is None) or (member.start_date > vote_date):
+                    member.start_date = vote_date
+                if (member.end_date is None) or (member.end_date < vote_date):
+                    member.end_date = vote_date
                 # if created: # save on first time, so it would have an id, be able to link, etc. all other updates are saved in the end
                 #    m.save()
 
 
                 # create/get the membership (connection between member and party)
-                if ((m.id, p.id) in memberships):
-                    ms = memberships[(m.id, p.id)]
+                if ((member.id, party.id) in memberships):
+                    ms = memberships[(member.id, party.id)]
                     created = False
                 else:
-                    ms, created = Membership.objects.get_or_create(member=m, party=p)
-                    memberships[(m.id, p.id)] = ms
+                    ms, created = Membership.objects.get_or_create(member=member, party=party)
+                    memberships[(member.id, party.id)] = ms
                 # if created: # again, unicode magic
                 #    ms = Membership.objects.get(member=m,party=p)
                 # again, update the dates on the membership
@@ -639,27 +692,25 @@ class Command(NoArgsDbLogCommand):
 
                 # add the current member's vote
 
-                va, created = VoteAction.objects.get_or_create(vote=v, member=m, type=vote, party=m.current_party)
+                va, created = VoteAction.objects.get_or_create(vote=v, member=member, type=vote, party=member.current_party)
                 if created:
                     va.save()
 
             logger.debug("done")
             logger.debug(
                 "saving data: %d parties, %d members, %d memberships " % (len(parties), len(members), len(memberships)))
-            for p in parties:
-                parties[p].save()
-            for m in members:
-                members[m].save()
-            # Member.objects.filter(end_date__isnull=True).delete() # remove members that haven't voted at all - no end date
+            for party in parties:
+                parties[party].save()
+            for member in members:
+                members[member].save()
             for ms in memberships:
                 memberships[ms].save()
-            # for va in voteactions:
-            #    voteactions[va].save()
+
             logger.debug("done")
             f.close()
-        except:
-            exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-            logger.error("%s", ''.join(traceback.format_exception(exceptionType, exceptionValue, exceptionTraceback)))
+        except Exception:
+
+            logger.exception('Update db from file exception')
 
     def calculate_votes_importances(self):
         """
@@ -748,7 +799,8 @@ class Command(NoArgsDbLogCommand):
         name = name.replace("\r", " ")
         name = name.replace("&nbsp;", " ")
         date = re.search("""תאריך: </td>[^<]*<[^>]*>([^<]*)<""", page).group(1)
-        return (name, meeting_num, vote_num, date)
+        return \
+            name, meeting_num, vote_num, date
 
     def find_synced_protocol(self, v):
         try:
@@ -776,9 +828,9 @@ class Command(NoArgsDbLogCommand):
                      content_type=ContentType.objects.get_for_model(v), object_pk=str(v.id))
             l.save()
         except Exception:
-            exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-            logger.error("%s%s", ''.join(traceback.format_exception(exceptionType, exceptionValue, exceptionTraceback)),
-                         '\nsearch_text=' + search_text.encode('utf8') + '\nvote.title=' + v.title.encode('utf8'))
+
+            logger.exception(u'Exception in find synced protocol: search_text=' + search_text.encode(
+                'utf8') + u'\nvote.title=' + v.title.encode('utf8'))
 
     def check_vote_mentioned_in_cm(self, v, cm):
         m = v.title[v.title.find(' - ') + 2:]
@@ -939,8 +991,9 @@ class Command(NoArgsDbLogCommand):
                                                          src_url=link)
                     logger.debug('cm %d created' % cm.id)
             except Exception:
+                # WTF exceptions counting
                 num_exceptions += 1
-                logger.error(traceback.format_exc())
+                logger.exception('Get protocols exceptions')
             if cm is not None:
                 # TODO: remove all the try except
                 # currently, code is very fragile and causes a lot of exceptions which prevent later stages from running
@@ -956,32 +1009,32 @@ class Command(NoArgsDbLogCommand):
                         updated_protocol = True
                 except Exception:
                     num_exceptions += 1
-                    logger.error(traceback.format_exc())
+                    logger.exception('Get protocols exceptions')
 
                 try:
                     cm.save()
                 except Exception:
                     num_exceptions += 1
-                    logger.error(traceback.format_exc())
+                    logger.exception('Get protocols exceptions')
 
                 try:
                     if updated_protocol:
                         cm.create_protocol_parts()
                 except Exception:
                     num_exceptions += 1
-                    logger.error(traceback.format_exc())
+                    logger.exception('Get protocols exceptions')
 
                 try:
                     cm.find_attending_members(mks, mk_names)
                 except Exception:
                     num_exceptions += 1
-                    logger.error(traceback.format_exc())
+                    logger.exception('Get protocols exceptions')
 
                 try:
                     self.get_bg_material(cm)
                 except Exception:
                     num_exceptions += 1
-                    logger.error(traceback.format_exc())
+                    logger.exception('Get protocols exceptions')
         socket.setdefaulttimeout(default_timeout)
 
     def get_committee_protocol_text(self, url):
@@ -1084,28 +1137,23 @@ class Command(NoArgsDbLogCommand):
                 logger.info('get_approved_bill_text_for_vote url=%s' % l.url)
                 v.full_text = self.get_approved_bill_text(l.url)
                 v.save()
-        except Exception:
-            exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-            logger.error("%s%s",
-                         ''.join(traceback.format_exception(exceptionType,
-                                                            exceptionValue,
-                                                            exceptionTraceback)
-                                 ), '\nvote.title=' + v.title.encode('utf8'))
+        except Exception as e:
+
+            logger.exception(u'Exception with approved bill text for vote.title=' + v.title.encode('utf8'))
 
     def dump_to_file(self):
+        # TODO: find out if anyone is really using this strange code, and if so, do we need to update the dates
         f = open('votes.tsv', 'wt')
         for v in Vote.objects.filter(time__gte=datetime.date(2009, 2, 24)):
-            if (v.full_text_url != None):
+            if v.full_text_url is not None:
                 link = v.full_text_url.encode('utf-8')
             else:
                 link = ''
-            if (v.summary != None):
+            if v.summary is not None:
                 summary = v.summary.encode('utf-8')
             else:
                 summary = ''
-            # for_ids = ",".join([str(m.id) for m in v.votes.filter(voteaction__type='for').all()])
-            # against_ids = ",".join([str(m.id) for m in v.votes.filter(voteaction__type='against').all()])
-            # f.write("%d\t%s\t%s\t%s\t%s\t%s\t%s\n" % (v.id,v.title.encode('utf-8'),v.time_string.encode('utf-8'),summary, link, for_ids, against_ids))
+
             f.write("%d\t%s\t%s\t%s\t%s\n" % (v.id, str(v.time), v.title.encode('utf-8'), summary, link))
         f.close()
 
@@ -1118,13 +1166,14 @@ class Command(NoArgsDbLogCommand):
         f = open('members.tsv', 'wt')
         for m in Member.objects.filter(end_date__gte=datetime.date(2009, 2, 24)):
             f.write("%d\t%s\t%s\n" % (m.id, m.name.encode('utf-8'),
-                                      m.current_party.__unicode__().encode('utf-8') if m.current_party != None else ''))
+                                      m.current_party.__unicode__().encode('utf-8') if m.current_party is not None else ''))
         f.close()
 
     def update_presence(self):
         logger.debug("update presence")
         try:
             (presence, valid_weeks) = parse_presence.parse_presence(filename=os.path.join(DATA_ROOT, 'presence.txt.gz'))
+
         except IOError:
             logger.error('Can\'t find presence file')
             return
@@ -1368,7 +1417,7 @@ class Command(NoArgsDbLogCommand):
                             u"can't find private proposal with id %d, referenced by knesset proposal %d %s %s" % (
                                 orig_id, kl.id, kl.title, kl.source_url))
 
-            if not (kl.bill):  # finished all original PPs, but found no bill yet - create a new bill
+            if not kl.bill:  # finished all original PPs, but found no bill yet - create a new bill
                 b = Bill(law=law, title=title, stage='3', stage_date=proposal['date'])
                 b.save()
                 kl.bill = b
@@ -1438,7 +1487,7 @@ class Command(NoArgsDbLogCommand):
                         if p.bill:
                             p.bill.second_committee_meetings.add(cm)
                             p.bill.update_stage()
-                            # print "add KP %d to CM %d" % (kp['id'], cm.id)
+
             for pp in pps:
                 if c.find(pp['c1']) >= 0 or c.find(pp['c2']) >= 0:
                     p = PrivateProposal.objects.get(pk=pp['id'])
@@ -1447,7 +1496,6 @@ class Command(NoArgsDbLogCommand):
                         if p.bill:
                             p.bill.first_committee_meetings.add(cm)
                             p.bill.update_stage()
-                            # print "add PP %d to CM %d" % (pp['id'], cm.id)
 
     def find_proposals_in_votes(self, gps, kps, pps):
         """
@@ -1485,7 +1533,7 @@ class Command(NoArgsDbLogCommand):
                     this_v = Vote.objects.get(pk=v['id'])
                     if this_v not in p.votes.all():
                         p.votes.add(this_v)
-                        # print "add PP %d to Vote %d" % (pp['id'], this_v.id)
+
                         if p.bill:
                             p.bill.update_votes()
 
@@ -1569,8 +1617,9 @@ class Command(NoArgsDbLogCommand):
             logger.warn('Some MKs have roles in both knesset and govt: %s' % intersection)
 
     def update_gov_law_decisions(self, year=None, month=None):
+        # Deprecated - currently not in use
         logger.debug("update_gov_law_decisions")
-        if year == None or month == None:
+        if year is None or month is None:
             t = datetime.date.today()
             month = t.month - 1
             if month == 0:
@@ -1620,97 +1669,6 @@ class Command(NoArgsDbLogCommand):
                         'PrivateProposal %d not found but referenced in GovLegDecision %d' % (pp_id, decision.id))
                 except PrivateProposal.MultipleObjectsReturned:
                     logger.warn('More than 1 PrivateProposal with proposal_id=%d' % pp_id)
-
-    def _handle_noargs(self, **options):
-        global logger
-        logger = self._logger
-
-        all_options = options.get('all', False)
-        download = options.get('download', False)
-        load = options.get('load', False)
-        process = options.get('process', False)
-        dump_to_file = options.get('dump-to-file', False)
-        update = options.get('update', False)
-        laws = options.get('laws', False)
-        presence = options.get('presence', False)
-        committees = options.get('committees', False)
-
-        if all_options:
-            download = True
-            load = True
-            process = True
-            dump_to_file = True
-
-        if (all([not (all_options), not (download), not (load), not (process),
-                 not (dump_to_file), not (update), not (laws), not (committees)])):
-            logger.error(
-                "no arguments found. doing nothing. \ntry -h for help.\n--all to run the full syncdata flow.\n--update for an online dynamic update.")
-
-        if download:
-            logger.info("beginning download phase")
-            self.download_all()
-            # self.get_laws_data()
-
-        if load:
-            logger.info("beginning load phase")
-            self.update_members_from_file()
-            self.update_db_from_files()
-
-        if process:
-            logger.info("beginning process phase")
-            self.calculate_votes_importances()
-            # self.calculate_correlations()
-
-        if laws:
-            self.parse_laws()
-            self.find_proposals_in_other_data()
-            self.merge_duplicate_laws()
-            self.correct_votes_matching()
-
-        if dump_to_file:
-            logger.info("writing votes to tsv file")
-            self.dump_to_file()
-
-        if presence:
-            self.update_presence()
-
-        if update:
-            update_run_only = options.get('update-run-only', '')
-            if update_run_only:
-                try:
-                    update_run_only = update_run_only.split(',')
-                except AttributeError as e:
-                    logger.exception("Error in syncdata update:")
-            else:
-                update_run_only = None
-            for func in ['update_votes',
-                         'update_laws_data',
-                         'update_presence',
-                         # 'get_protocols', - handled by the new okscraper
-                         'parse_laws',
-                         'find_proposals_in_other_data',
-                         'merge_duplicate_laws',
-                         'update_mk_role_descriptions',
-                         'update_mks_is_current',
-                         'update_gov_law_decisions',
-                         'correct_votes_matching']:
-                # in case update_run_only is none, we run all stages
-                if (update_run_only is None) or (func in update_run_only):
-                    try:
-                        logger.info('update: running %s', func)
-                        self.__getattribute__(func).__call__()
-                    except Exception as e:
-
-                        send_chat_notification(__name__,
-                                               "caught exception in one of the sync data update commands",
-                                               {'exception': traceback.format_exc(), 'func': func})
-                        # No need for manual exception formatting, logger exception takes care of that
-                        logger.exception("Caught Exception in syncdata update phase %s\n%s", func)
-            logger.info('finished update')
-
-        if committees:
-            self.get_protocols()
-            logger.info('finished committees update')
 
 
 def iso_year_start(iso_year):

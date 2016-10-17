@@ -1,23 +1,24 @@
 # encoding: utf-8
-import urllib, urllib2
-from urlparse import urlparse
 import datetime
-import re
 import logging
 import os
+import re
+import urllib
+import urllib2
+from HTMLParser import HTMLParseError
+from urlparse import urlparse
 
 from BeautifulSoup import BeautifulSoup
-from HTMLParser import HTMLParseError
-
-from django.core.files.base import ContentFile
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.base import ContentFile
 
-from links.models import Link, LinkedFile
+
 import parse_knesset_bill_pdf
-from parse_government_bill_pdf import GovProposalParser
-from laws.models import Bill, Law, GovProposal
-from mks.models import Knesset
 from knesset.utils import send_chat_notification
+from laws.models import Bill, Law, GovProposal
+from links.models import Link, LinkedFile
+from mks.models import Knesset
+from simple.government_bills.parse_government_bill_pdf import GovProposalParser
 
 logger = logging.getLogger("open-knesset.parse_laws")
 
@@ -34,12 +35,12 @@ class ParseLaws(object):
 
     def get_page_with_param(self, params):
         logger.debug('get_page_with_param: self.url=%s, params=%s' % (self.url, params))
-        if params == None:
+        if not params:
             try:
                 html_page = urllib2.urlopen(self.url).read().decode('windows-1255').encode('utf-8')
-            except urllib2.URLError:
+            except urllib2.URLError as e:
                 logger.error("can't open URL: %s" % self.url)
-                send_chat_notification(__name__, 'failed to open url', {'url': self.url, 'params': None})
+                send_chat_notification(__name__, 'failed to open url', {'url': self.url, 'params': params})
                 return None
             try:
                 soup = BeautifulSoup(html_page)

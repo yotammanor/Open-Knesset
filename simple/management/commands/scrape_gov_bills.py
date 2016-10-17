@@ -4,8 +4,8 @@ from optparse import make_option
 from django.core.management.base import NoArgsCommand
 from django.db.models import Max
 
-from simple.management.commands import parse_laws
 from laws.models import GovProposal
+from simple.parsers import parse_laws
 
 logger = logging.getLogger("open-knesset.parse_laws")
 
