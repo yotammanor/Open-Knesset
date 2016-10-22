@@ -221,24 +221,42 @@ LOGIN_REDIRECT_URL = '/'
 
 USER_AGENT = "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.2; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0)"
 
-LOG_FILENAME = os.path.join(PROJECT_ROOT, 'open-knesset.log')
-file_logger = logging.getLogger("open-knesset")
-file_logger.setLevel(logging.DEBUG)  # override this in prod server to logging.ERROR
-h = logging.FileHandler(LOG_FILENAME)
-h.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s\t%(name)s:%(lineno)d\t%(levelname)s\t%(message)s")
-h.setFormatter(formatter)
-file_logger.addHandler(h)
+LOG_FILENAME = os.path.join(PROJECT_ROOT, 'open-knesset.log')
+oknesset_logger = logging.getLogger("open-knesset")
+oknesset_logger.setLevel(logging.DEBUG)  # override this in prod server to logging.ERROR
+file_handler = logging.FileHandler(LOG_FILENAME)
+file_handler.setLevel(logging.INFO)
+
+file_handler.setFormatter(formatter)
+oknesset_logger.addHandler(file_handler)
 
 # Console loggers, Best practice always log to stdout and stderr and let third party environment to deal with logging
 # See 12 factor app http://12factor.net/logs
 # Todo refactor this to support stderr and out and more dynamic config supporting sentry etc
-console_logger = logging.getLogger('')  # root logger
-console_logger.setLevel(logging.WARNING)
+root_logger = logging.getLogger('')  # root logger
+root_logger.setLevel(logging.INFO)
 stdout_handler = logging.StreamHandler(stream=sys.stdout)
 
 stdout_handler.setFormatter(formatter)
-console_logger.addHandler(stdout_handler)
+stdout_handler.setLevel(logging.INFO)
+
+stderr_handler = logging.StreamHandler(stream=sys.stderr)
+
+stderr_handler.setFormatter(formatter)
+stderr_handler.setLevel(logging.ERROR)
+
+root_logger.addHandler(stderr_handler)
+root_logger.addHandler(stdout_handler)
+
+request_logger = logging.getLogger('requests')
+request_logger.setLevel(logging.ERROR)
+request_logger.addHandler(stderr_handler)
+
+opbeat_logger = logging.getLogger('opbeat.errors')
+request_logger.setLevel(logging.ERROR)
+request_logger.addHandler(stderr_handler)
+request_logger.addHandler(stderr_handler)
 
 GOOGLE_CUSTOM_SEARCH = "007833092092208924626:1itz_l8x4a4"
 GOOGLE_MAPS_API_KEYS = {'dev': 'ABQIAAAAWCfW8hHVwzZc12qTG0qLEhQCULP4XOMyhPd8d_NrQQEO8sT8XBQdS2fOURLgU1OkrUWJE1ji1lJ-3w',
