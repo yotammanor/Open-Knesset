@@ -246,24 +246,25 @@ class Command(NoArgsDbLogCommand):
         votes = Vote.objects.all().order_by('-time')[:200]
         # TODO: WTF! if this works, it is only by sheer coincidence
         # We are guessing that all new laws are part of the last 200 votes. why?
-        for v in votes:
-            search_name = self.get_search_string(v.title.encode('UTF-8'))
-            for l in laws:
-                if search_name.find(l[1]) >= 0:
-                    # print "match"
-                    v.summary = l[2]
-                    v.save()
+        for vote in votes:
+            search_name = self.get_search_string(vote.title.encode('UTF-8'))
+            for law in laws:
+                if search_name.find(law[1]) >= 0:
+
+                    vote.summary = law[2]
+                    vote.save()
                     try:
-                        link, created = Link.objects.get_or_create(title=u'מסמך הצעת החוק באתר הכנסת', url=l[3],
-                                                                   content_type=ContentType.objects.get_for_model(v),
-                                                                   object_pk=str(v.id))
+                        vote_content_type = ContentType.objects.get_for_model(vote)
+                        link, created = Link.objects.get_or_create(title=u'מסמך הצעת החוק באתר הכנסת', url=law[3],
+                                                                   content_type=vote_content_type,
+                                                                   object_pk=str(vote.id))
                         if created:
                             link.save()
                     except Exception as e:
                         logger.exception('Update law data exception')
 
-            if not v.full_text:
-                self.get_approved_bill_text_for_vote(v)
+            if not vote.full_text:
+                self.get_approved_bill_text_for_vote(vote)
         logger.debug("finished updating laws data")
 
     def update_vote_from_page(self, vote_id, vote_src_url, page):
@@ -1126,20 +1127,20 @@ class Command(NoArgsDbLogCommand):
             content_list.append('<br/>')
         return ''.join(content_list)
 
-    def get_approved_bill_text_for_vote(self, v):
+    def get_approved_bill_text_for_vote(self, vote):
         try:
-            l = Link.objects.get(object_pk=str(v.id),
-                                 title=u'מסמך הצעת החוק באתר הכנסת')
+            link = Link.objects.get(object_pk=str(vote.id),
+                                    title=u'מסמך הצעת החוק באתר הכנסת')
         except Exception:
             return
         try:
-            if l.url.endswith('.rtf'):
-                logger.info('get_approved_bill_text_for_vote url=%s' % l.url)
-                v.full_text = self.get_approved_bill_text(l.url)
-                v.save()
+            if link.url.endswith('.rtf'):
+                logger.info(u'get_approved_bill_text_for_vote for vote %s url=%s' % (vote.id, link.url))
+                vote.full_text = self.get_approved_bill_text(link.url)
+                vote.save()
         except Exception as e:
 
-            logger.exception(u'Exception with approved bill text for vote.title=' + v.title.encode('utf8'))
+            logger.exception(u'Exception with approved bill text for vote %s title=%s' % (vote.id, vote.title))
 
     def dump_to_file(self):
         # TODO: find out if anyone is really using this strange code, and if so, do we need to update the dates
