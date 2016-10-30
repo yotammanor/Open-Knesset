@@ -245,9 +245,9 @@ class CommitteeMeeting(models.Model):
     tagged_items = generic.GenericRelation(TaggedItem,
                                            object_id_field="object_id",
                                            content_type_field="content_type")
-    lobbyists_mentioned = models.ManyToManyField('lobbyists.Lobbyist', related_name='committee_meetings')
+    lobbyists_mentioned = models.ManyToManyField('lobbyists.Lobbyist', related_name='committee_meetings', blank=True)
     lobbyist_corporations_mentioned = models.ManyToManyField('lobbyists.LobbyistCorporation',
-                                                             related_name='committee_meetings')
+                                                             related_name='committee_meetings', blank=True)
     datetime = models.DateTimeField(db_index=True, null=True, blank=True)
     knesset_id = models.IntegerField(null=True, blank=True)
 
@@ -492,11 +492,11 @@ class ProtocolPartManager(models.Manager):
 class ProtocolPart(models.Model):
     meeting = models.ForeignKey(CommitteeMeeting, related_name='parts')
     order = models.IntegerField()
-    header = models.TextField(blank=True)
-    body = models.TextField(blank=True)
+    header = models.TextField(blank=True, null=True)
+    body = models.TextField(blank=True, null=True)
     speaker = models.ForeignKey('persons.Person', blank=True, null=True, related_name='protocol_parts')
     objects = ProtocolPartManager()
-    type = models.TextField(blank=True, max_length=20)
+    type = models.TextField(blank=True, null=True, max_length=20)
 
     annotatable = True
 
@@ -518,7 +518,7 @@ class ProtocolPart(models.Model):
 
     def __unicode__(self):
         return "%s %s: %s" % (self.meeting.committee.name, self.header,
-                              self.header)
+                              self.body)
 
 
 TOPIC_PUBLISHED, TOPIC_FLAGGED, TOPIC_REJECTED, \
