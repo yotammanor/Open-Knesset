@@ -8,7 +8,7 @@ from persons.models import Person
 from urlparse import urlparse, parse_qs
 from django.conf import settings
 from urllib import quote
-from django.db.models import Max
+
 import urllib2
 import json
 import dateutil.parser
@@ -30,16 +30,21 @@ class PersonsEventsScraper(BaseScraper):
             param = '&pageToken=%s' % quote(page_token)
         else:
             param = '&syncToken=%s' % quote(sync_token) if sync_token is not None else ''
-        url = 'https://content.googleapis.com/calendar/v3/calendars/%s/events?showDeleted=true&singleEvents=true%s&key=%s' % (
-        quote(calendar_id), param, quote(api_key))
-        response = urllib2.urlopen(url)
-        data = json.load(response)
-        self._getLogger().debug(data)
-        res = {}
-        res['nextSyncToken'] = data['nextSyncToken'] if 'nextSyncToken' in data else None
-        res['nextPageToken'] = data['nextPageToken'] if 'nextPageToken' in data else None
-        res['items'] = data['items'] if 'items' in data else []
-        return res
+        calendar_url = 'https://content.googleapis.com/calendar/v3/calendars/%s/events?showDeleted=true&singleEvents=true%s&key=%s' % (
+            quote(calendar_id), param, quote(api_key))
+        try:
+            response = urllib2.urlopen(calendar_url)
+            data = json.load(response)
+            self._getLogger().debug(data)
+            res = {}
+            res['nextSyncToken'] = data['nextSyncToken'] if 'nextSyncToken' in data else None
+            res['nextPageToken'] = data['nextPageToken'] if 'nextPageToken' in data else None
+            res['items'] = data['items'] if 'items' in data else []
+            return res
+        except urllib2.HTTPError as e:
+            self._getLogger().exception(
+                u'Exception in trying to fetch google calendar id %s with url %s' % (calendar_id, calendar_url))
+            return None
 
     def _process_items(self, person, items):
         self._getLogger().info('processing %s items' % len(items))
@@ -85,7 +90,7 @@ class PersonsEventsScraper(BaseScraper):
                     self._getLogger().info('updated event')
 
     def _scrape(self):
-        for person in Person.objects.filter(calendar_url__isnull=False):
+        for person in Person.objects.filter(calendar_url__isnull=False).distinct():
             qs = parse_qs(urlparse(person.calendar_url).query)
             self._getLogger().info('processing person %s' % person.id)
             if 'src' not in qs:
@@ -94,13 +99,14 @@ class PersonsEventsScraper(BaseScraper):
                 calendar_id = qs['src'][0]
                 self._getLogger().debug('processing calendar_id: %s' % calendar_id)
                 res = self._get_google_cal_page(calendar_id, person.calendar_sync_token)
-                self._process_items(person, res['items'])
-                while res['nextPageToken'] is not None:
-                    self._getLogger().debug('processing next page..')
-                    res = self._get_google_cal_page(calendar_id, None, res['nextPageToken'])
+                if res:
                     self._process_items(person, res['items'])
-                if res['nextSyncToken'] is None:
-                    self._getLogger().error('did not get nextToken!')
-                else:
-                    person.calendar_sync_token = res['nextSyncToken']
-                    person.save()
+                    while res['nextPageToken'] is not None:
+                        self._getLogger().debug('processing next page..')
+                        res = self._get_google_cal_page(calendar_id, None, res['nextPageToken'])
+                        self._process_items(person, res['items'])
+                    if res['nextSyncToken'] is None:
+                        self._getLogger().error('did not get nextToken!')
+                    else:
+                        person.calendar_sync_token = res['nextSyncToken']
+                        person.save()
