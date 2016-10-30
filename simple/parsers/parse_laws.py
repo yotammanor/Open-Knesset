@@ -12,13 +12,14 @@ from BeautifulSoup import BeautifulSoup
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 
-
 import parse_knesset_bill_pdf
 from knesset.utils import send_chat_notification
 from laws.models import Bill, Law, GovProposal
 from links.models import Link, LinkedFile
 from mks.models import Knesset
+from simple.constants import PRIVATE_LAWS_URL, KNESSET_LAWS_URL, GOV_LAWS_URL
 from simple.government_bills.parse_government_bill_pdf import GovProposalParser
+from simple.parsers.utils.laws_parser_utils import normalize_correction_title_dashes, clean_line
 
 logger = logging.getLogger("open-knesset.parse_laws")
 
@@ -74,23 +75,14 @@ class ParseLaws(object):
             return soup
 
 
-def fix_dash(s):
-    """returns s with normalized spaces before and after the dash"""
-    if not s:
-        return None
-    m = re.match(r'(תיקון)( ?)(-)( ?)(.*)'.decode('utf8'), s)
-    if not m:
-        return s
-    return ' '.join(m.groups()[0:5:2])
-
-
 class ParsePrivateLaws(ParseLaws):
     """a class that parses private laws proposed
     """
 
     # the constructor parses the laws data from the required pages
     def __init__(self, days_back):
-        self.url = r"http://www.knesset.gov.il/privatelaw/Plaw_display.asp?lawtp=1"
+
+        self.url = PRIVATE_LAWS_URL
         self.rtf_url = r"http://www.knesset.gov.il/privatelaw"
         self.laws_data = []
         self.parse_pages_days_back(days_back)
@@ -124,33 +116,33 @@ class ParsePrivateLaws(ParseLaws):
         name_tag = soup.findAll(lambda tag: tag.name == 'tr' and tag.has_key('valign') and tag['valign'] == 'Top')
         for tag in name_tag:
             tds = tag.findAll(lambda td: td.name == 'td')
-            x = {}
-            x['knesset_id'] = int(tds[0].string.strip())
-            x['law_id'] = int(tds[1].string.strip())
+            law_data = {}
+            law_data['knesset_id'] = int(tds[0].string.strip())
+            law_data['law_id'] = int(tds[1].string.strip())
             if tds[2].findAll('a')[0].has_key('href'):
-                x['text_link'] = self.rtf_url + r"/" + tds[2].findAll('a')[0]['href']
-            x['law_full_title'] = tds[3].string.strip()
-            m = re.match(u'הצעת ([^\(,]*)(.*?\((.*?)\))?(.*?\((.*?)\))?(.*?,(.*))?', x['law_full_title'])
+                law_data['text_link'] = self.rtf_url + r"/" + tds[2].findAll('a')[0]['href']
+            law_data['law_full_title'] = tds[3].string.strip()
+            m = re.match(u'הצעת ([^\(,]*)(.*?\((.*?)\))?(.*?\((.*?)\))?(.*?,(.*))?', law_data['law_full_title'])
             if not m:
-                logger.warn("can't parse proposal title: %s" % x['law_full_title'])
+                logger.warn("can't parse proposal title: %s" % law_data['law_full_title'])
                 continue
-            x['law_name'] = m.group(1).strip().replace('\n', '').replace('&nbsp;', ' ')
+            law_data['law_name'] = clean_line(m.group(1))
             comment1 = m.group(3)
             comment2 = m.group(5)
             if comment2:
-                x['correction'] = comment2.strip().replace('\n', '').replace('&nbsp;', ' ')
-                x['comment'] = comment1
+                law_data['correction'] = clean_line(comment2)
+                law_data['comment'] = comment1
             else:
-                x['comment'] = None
+                law_data['comment'] = None
                 if comment1:
-                    x['correction'] = comment1.strip().replace('\n', '').replace('&nbsp;', ' ')
+                    law_data['correction'] = clean_line(comment1)
                 else:
-                    x['correction'] = None
-            x['correction'] = fix_dash(x['correction'])
-            x['law_year'] = m.group(7)
-            x['proposal_date'] = datetime.datetime.strptime(tds[4].string.strip(), '%d/%m/%Y').date()
+                    law_data['correction'] = None
+            law_data['correction'] = normalize_correction_title_dashes(law_data['correction'])
+            law_data['law_year'] = m.group(7)
+            law_data['proposal_date'] = datetime.datetime.strptime(tds[4].string.strip(), '%d/%m/%Y').date()
             names_string = ''.join([unicode(y) for y in tds[5].findAll('font')[0].contents])
-            names_string = names_string.replace('\n', '').replace('&nbsp;', ' ')
+            names_string = clean_line(names_string)
             proposers = []
             joiners = []
             if re.search('ONMOUSEOUT', names_string) > 0:
@@ -160,21 +152,23 @@ class ParsePrivateLaws(ParseLaws):
                 proposers = splitted_names[1][10:].split('<br />')
             else:
                 proposers = names_string.split('<br />')
-            x['proposers'] = proposers
-            x['joiners'] = joiners
-            self.laws_data.append(x)
+            law_data['proposers'] = proposers
+            law_data['joiners'] = joiners
+            self.laws_data.append(law_data)
 
     def update_last_date(self):
         return self.laws_data[-1]['proposal_date']
 
 
 class ParseKnessetLaws(ParseLaws):
-    """A class that parses Knesset Laws (laws after committees)
-	   the constructor parses the laws data from the required pages
+    """
+    A class that parses Knesset Laws (laws after committees)
+    the constructor parses the laws data from the required pages
     """
 
     def __init__(self, min_booklet):
-        self.url = r"http://www.knesset.gov.il/laws/heb/template.asp?Type=3"
+
+        self.url = KNESSET_LAWS_URL
         self.pdf_url = r"http://www.knesset.gov.il"
         self.laws_data = []
         self.min_booklet = min_booklet
@@ -227,7 +221,7 @@ class ParseKnessetLaws(ParseLaws):
                     law = title[:title.find(correction) - 1]
                 except:
                     correction = None
-                correction = fix_dash(correction)
+                correction = normalize_correction_title_dashes(correction)
                 law = law.strip().replace('\n', '').replace('&nbsp;', ' ')
                 if law.find("הצעת ".decode("utf8")) == 0:
                     law = law[5:]
@@ -247,7 +241,8 @@ class ParseKnessetLaws(ParseLaws):
 
 class ParseGovLaws(ParseKnessetLaws):
     def __init__(self, min_booklet):
-        self.url = r"http://www.knesset.gov.il/laws/heb/template.asp?Type=4"
+
+        self.url = GOV_LAWS_URL
         self.pdf_url = r"http://www.knesset.gov.il"
         self.laws_data = []
         self.min_booklet = min_booklet
@@ -330,7 +325,7 @@ class ParseGovLaws(ParseKnessetLaws):
                 law = title[:title.find(correction) - 1]
             except:
                 correction = None
-            correction = fix_dash(correction)
+            correction = normalize_correction_title_dashes(correction)
             law = law.strip().replace('\n', '').replace('&nbsp;', ' ')
             if law.find("הצעת ".decode("utf8")) == 0:
                 law = law[5:]
