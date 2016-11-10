@@ -11,8 +11,10 @@ from hashnav.detail import DetailView
 
 from models import Event
 
+
 class EventDetailView(DetailView):
     model = Event
+
     def get_context_data(self, *args, **kwargs):
         context = super(EventDetailView, self).get_context_data(**kwargs)
         obj = context['object']
@@ -24,8 +26,9 @@ class EventDetailView(DetailView):
         for i in obj.who.all():
             if i.mk:
                 creators.append(i.mk)
-        context['creators']=creators
+        context['creators'] = creators
         return context
+
 
 class MoreUpcomingEventsView(GetMoreView):
     """Get partially rendered member actions content for AJAX calls to 'More'"""
@@ -35,6 +38,7 @@ class MoreUpcomingEventsView(GetMoreView):
 
     def get_queryset(self):
         return Event.objects.get_upcoming()
+
 
 def icalendar(request, summary_length=50, future_only=True):
     """
