@@ -15,11 +15,13 @@ from committees.models import Committee
 from events.models import Event
 
 # NB: All dates scraped from the knesset site are assumed to be in timezone Israel.
+from simple.constants import KNESSET_COMMITTEES_AGENDA_PAGE
+
 isr_tz = zoneinfo.gettz('Israel')
 utc_tz = zoneinfo.gettz('UTC')
 
 logger = logging.getLogger("open-knesset.parse_future_committee_meetings")
-spamWriter = csv.writer(open('eggs.csv', 'wb'))
+# spamWriter = csv.writer(open('eggs.csv', 'wb'))
 
 ParsedResult = namedtuple('ParseResult',
                           'name, year, month, day, hour, minute, '
@@ -34,7 +36,7 @@ class Command(BaseCommand):
     def parse_future_committee_meetings(self):
         retval = []
 
-        url = 'http://knesset.gov.il/agenda/heb/CommitteesByDate.asp'
+        url = KNESSET_COMMITTEES_AGENDA_PAGE
 
         data = urllib2.urlopen(url).read()
 
@@ -90,31 +92,30 @@ class Command(BaseCommand):
                         end_minute=parsed.minute,
                         end_guessed=False)
                     retval[-1] = new_last
+
                 retval.append(parsed)
 
         # since this is now a two pass, kinda, do the logging after.
-        for p in retval:
-            spamWriter.writerow([p.name.encode('utf8'), p.year, p.month,
-                                 p.day, p.hour, p.minute, p.end_hour,
-                                 p.end_minute, p.end_guessed,
-                                 p.title.encode('utf8')])
+
         return retval
 
-    def update_future_committee_meetings_db(self, r):
-        for p in r:
+    def update_future_committee_meetings_db(self, raw_future_commitee_meetings):
+        if not raw_future_commitee_meetings or not len(raw_future_commitee_meetings):
+            logger.info('No future committee meetings found!')
+        for meeting in raw_future_commitee_meetings:
             try:
-                committee = Committee.objects.get(name=p.name)
+                committee = Committee.objects.get(name=meeting.name)
                 when_over = datetime.datetime(
-                    year=p.year, month=p.month, day=p.day, hour=p.end_hour,
-                    minute=p.end_minute, second=0, tzinfo=isr_tz).astimezone(utc_tz)
+                    year=meeting.year, month=meeting.month, day=meeting.day, hour=meeting.end_hour,
+                    minute=meeting.end_minute, second=0, tzinfo=isr_tz).astimezone(utc_tz)
                 when = datetime.datetime(
-                    year=p.year, month=p.month, day=p.day, hour=p.hour,
-                    minute=p.minute, second=0, tzinfo=isr_tz).astimezone(utc_tz)
+                    year=meeting.year, month=meeting.month, day=meeting.day, hour=meeting.hour,
+                    minute=meeting.minute, second=0, tzinfo=isr_tz).astimezone(utc_tz)
                 ev, created = Event.objects.get_or_create(when=when,
                                                           when_over=when_over,
-                                                          when_over_guessed=p.end_guessed,
+                                                          when_over_guessed=meeting.end_guessed,
                                                           where=unicode(committee),
-                                                          what=p.title,
+                                                          what=meeting.title,
                                                           which_pk=committee.id,
                                                           which_type=self.committee_ct,
                                                           )
@@ -122,13 +123,13 @@ class Command(BaseCommand):
                                                              '' if not ev.when_over_guessed else '(guess)',
                                                              ev.what))
             except Committee.DoesNotExist:
-                logger.debug("couldn't find committee  %s" % p.name)
+                logger.error("couldn't find committee  %s" % meeting.name)
                 try:
                     ev, created = Event.objects.get_or_create(
-                        when=datetime.datetime(year=p.year, month=p.month,
-                                               day=p.day, hour=p.hour,
-                                               minute=p.minute, second=0),
-                        what=p.title)
+                        when=datetime.datetime(year=meeting.year, month=meeting.month,
+                                               day=meeting.day, hour=meeting.hour,
+                                               minute=meeting.minute, second=0),
+                        what=meeting.title)
                 except Event.MultipleObjectsReturned:
                     created = False
             if created:
@@ -136,7 +137,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         logger.debug('Events objects count before update: %d' % Event.objects.count())
-        r = self.parse_future_committee_meetings()
+        raw_future_commitee_meetings = self.parse_future_committee_meetings()
         # logger.debug(r)
-        self.update_future_committee_meetings_db(r)
+        self.update_future_committee_meetings_db(raw_future_commitee_meetings)
         logger.debug('Events objects count after update: %d' % Event.objects.count())

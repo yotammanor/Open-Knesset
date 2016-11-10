@@ -23,3 +23,4 @@ CANONICAL_PARTY_ALIASES = {'עבודה': 'העבודה',
 GOVT_INFO_PAGE = r"http://www.knesset.gov.il/mk/heb/MKIndex_Current.asp?view=4"
 KNESSET_INFO_PAGE = r"http://www.knesset.gov.il/mk/heb/MKIndex_Current.asp?view=7"
 MK_HTML_INFO_PAGE = r"http://www.knesset.gov.il/mk/heb/mk_print.asp?mk_individual_id_t="
+KNESSET_COMMITTEES_AGENDA_PAGE = 'http://knesset.gov.il/agenda/heb/CommitteesByDate.asp'
