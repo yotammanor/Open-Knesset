@@ -41,7 +41,8 @@ js_info_dict = {
 planet_views.post_detail = post_details
 
 urlpatterns = patterns('',
-    url(r'^$', main, name='main'),
+    url(r'^main/$', main, name='main'),
+    url(r'^$', RedirectView.as_view(url='/help/')), #For now since main page is broken
     (r'^topic/(?P<tail>(.*))', RedirectView.as_view(url='/committee/topic/%(tail)s')),
     url(r'^about/$', AboutView.as_view(), name='about'),
     (r'^robots\.txt$', RobotsView.as_view()),

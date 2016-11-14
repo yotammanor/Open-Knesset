@@ -1,78 +1,102 @@
 {% extends "site_base.html" %}
-{% load i18n i18ninclude mks_tags search avatar_tags %}
-{% block description %}{% trans 'Open Knesset - Opening the Knesset to the public' %}. {% trans 'Non partisan, non commercial site that brings you relevant, detailed and accurate information about the knesset' %}{% endblock %}
+{% load i18n i18ninclude mks_tags search avatar_tags waffle_tags %}
+{% block description %}{% trans 'Open Knesset - Opening the Knesset to the public' %}.
+    {% trans 'Non partisan, non commercial site that brings you relevant, detailed and accurate information about the knesset' %}{% endblock %}
 {% block extratitle %}מה אפשר לעשות באתר?{% endblock %}
 
+
 {% block breadcrumbs %}
-        <li class="active">מה אפשר לעשות באתר?</li>
+    <li class="active">מה אפשר לעשות באתר?</li>
 {% endblock %}
 
 {% block divcontent %}
-<div class="card card-main-party">
-    <div class="spacer">
-        <h1>מה אפשר לעשות באתר?</h1>
-        <p>ואנחנו כל הזמן עובדים על עוד...</p>
-    </div>
-</div>
+    {% switch "help_as_home_page" %}
+        <div class="card card-main-party">
+            <div class="spacer">
+                <h1>מה אפשר לעשות באתר?</h1>
+                <p>ואנחנו כל הזמן עובדים על עוד...</p>
+            </div>
+        </div>
+    {% endswitch %}
 
-<div class="row cards">
-    <div class="span6">
-        <div class="card card-list">
-            <a name="follow-members"></a>
-            <header><h2>לעקוב אחרי <a href="{% url 'bill-list' %}">הצעות חוק</a></h2></header>
+    <div class="row cards">
+        <div class="span6">
+            <div class="card card-list">
+                <a name="follow-members"></a>
+                <header><h2>לעקוב אחרי <a href="{% url 'bill-list' %}">הצעות חוק</a></h2></header>
                 <ul>
                     <li>
                         <p>וההתקדמות שלהן בתהליך החקיקה.</p>
                         <p> לדוגמה: <a href="{% url 'bill-detail' bill.id %}">{{ bill }}</a>.</p>
                     </li>
                 </ul>
+            </div>
+            {% switch "show_search_by_tags" %}
+                <div class="card card-list">
+                    <a name="search-bills"></a>
+                    <header><h2>לחפש <a href="{% url 'tags-list' %}">לפי נושא</a>, למשל</h2></header>
+                    <ul>
+                        {% for tag in tags %}
+                            <li><a href="{% url 'tag-detail' tag %}">{{ tag }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endswitch %}
+            <div class="card card-list">
+
+                {% include 'kikar/_facebook_status_sidbar_update_elem.html' %}
+                <div>
+                    <header><h2>עדכוני פייסבוק של חברי וחברות הכנסת</h2></header>
+                    <ul id="kikar-facebook-updates-ul">
+                    </ul>
+                    <footer style="text-align: center">
+                        <span id="loading-statuses-symbol"><i class="fa fa-2x fa-spinner fa-spin"></i> </span>
+                        <button id="statuses-more" class="btn btn-mini btn-expand-fb"
+                                data-target="#kikar-facebook-updates-ul"
+                                data-offset="0">{% trans "More Facebook Statuses" %} +
+                        </button>
+                    </footer>
+                </div>
+
+            </div>
+
         </div>
 
-        <div class="card card-list">
-            <a name="search-bills"></a>
-            <header><h2>לחפש <a href="{% url 'tags-list' %}">לפי נושא</a>, למשל</h2></header>
-            <ul>
-                {% for tag in tags %}
-                <li><a href="{% url 'tag-detail' tag %}">{{ tag }}</a></li>
-                {% endfor %}
-            </ul>
-        </div>
+        <div class="span6">
+            <div class="card card-list">
+                <a name="follow-member-votes"></a>
+                <header><h2>מעקב הצבעות חבר כנסת</h2></header>
+                <ul>
+                    <li>
+                        <p>בכל אחת מה<a href="{% url 'vote-list' %}">הצבעות במליאת הכנסת</a>.</p>
+                        <p>לדוגמה: <a href="{% url 'vote-detail' vote.id %}">{{ vote }}</a></p>
+                    </li>
+                </ul>
+            </div>
 
+            <div class="card card-list">
+                <a name="members-data"></a>
+                <header><h2>נתונים על <a href="{% url 'member-list' %}">חברי הכנסת</a></h3></header>
+                <ul>
+                    <li>
+                        <p>קבלת מרב סטטיסטיקות על הפעילות הפרלמנטרית של <a href="{% url 'member-list' %}">חברי הכנסת</a>.
+                            והשוו בין פעילות <a href="{% url 'party-stats' 'seats' %}">הסיעות</a></p>
+                        <div>לדוגמה, הדף של {% mk_card member %}</div>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card card-list">
+                <a name="protocols"></a>
+                <header><h2>לקרוא את הפרוטוקולים</h2></header>
+                <ul>
+                    <li>
+                        <p>של כל <a href="{% url 'committee-list' %}">וועדות הכנסת</a></p>
+                        <p>(למעט ועדת חוץ ובטחון שהפרוטוקולים של ישיבותיה לא גלויים לציבור)</p>
+                    </li>
+                </ul>
+            </div>
+        </div>
     </div>
-    
-    <div class="span6">
-        <div class="card card-list">
-            <a name="follow-member-votes"></a>
-            <header><h2>מעקב הצבעות חבר כנסת</h2></header>
-            <ul>
-                <li>
-                    <p>בכל אחת מה<a href="{% url 'vote-list' %}">הצבעות במליאת הכנסת</a>.</p>
-                    <p>לדוגמה: <a href="{% url 'vote-detail' vote.id %}">{{ vote }}</a></p>
-                </li>
-            </ul>
-        </div>
-
-        <div class="card card-list">
-            <a name="members-data"></a>
-            <header><h2>נתונים על <a href="{% url 'member-list' %}">חברי הכנסת</a></h3></header>
-            <ul>
-                <li>
-                    <p>קבלת מרב סטטיסטיקות על הפעילות הפרלמנטרית שלהם.</p>
-                    <div>לדוגמה, הדף של {% mk_card member %}</div>
-                </li>
-            </ul>
-        </div>
-
-        <div class="card card-list">
-            <a name="protocols"></a>
-            <header><h2>לקרוא את הפרוטוקולים</h2></header>
-            <ul>
-                <li>
-                    <p>של כל <a href="{% url 'committee-list' %}">וועדות הכנסת</a></p>
-                    <p>(למעט ועדת חוץ ובטחון שהפרוטוקולים של ישיבותיה לא גלויים לציבור)</p>
-                </li>
-            </ul>
-        </div>
     </div>
-</div>
 {% endblock %}

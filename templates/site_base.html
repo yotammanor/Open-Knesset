@@ -1,4 +1,4 @@
-<!DOCTYPE html>{% load i18n search avatar_tags feedback %}{% load static from staticfiles %}
+<!DOCTYPE html>{% load i18n search avatar_tags feedback waffle_tags %}{% load static from staticfiles %}
 <html lang="{{ LANGUAGE_CODE }}" dir="{{ LANGUAGE_BIDI|yesno:"rtl,ltr" }}" class="{{ LANGUAGE_BIDI|yesno:"rtl,ltr" }}">
 <head>
     <meta charset="utf-8">
@@ -115,7 +115,11 @@
 <section class="container">
     {% if not hide_crumbs %}
         <ul class="breadcrumb">
+            {% switch "help_as_home_page" %}
+            <li><a class="home-icon" href="{% url 'help' %}">{% trans "Homepage" %}</a> <span class="divider">/</span>
+            {% else %}
             <li><a class="home-icon" href="{% url 'main' %}">{% trans "Homepage" %}</a> <span class="divider">/</span>
+            {% endswitch %}
             </li>
             {% block breadcrumbs %}{% endblock %}
         </ul>
@@ -171,7 +175,11 @@
         <div class="row">
             <nav class="span8">
                 <ul class="nav nav-pills">
+                    {% switch "help_as_home_page" %}
+                    <li><a class="home-icon" href="{% url 'help' %}">{% trans "Homepage" %}</a></li>
+                    {% else %}
                     <li><a class="home-icon" href="{% url 'main' %}">{% trans "Homepage" %}</a></li>
+                    {% endswitch %}
                     <li><a href="{% url 'party-list' %}">{% trans "Members and Parties" %}</a></li>
                     <li><a href="{% url 'bill-list' %}">{% trans "Legislation" %}</a></li>
                     <li><a href="{% url 'committee-list' %}">{% trans 'Committees' %}</a></li>
