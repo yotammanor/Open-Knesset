@@ -11,12 +11,14 @@
 
 {% block divcontent %}
     {% switch "help_as_home_page" %}
-        <div class="card card-main-party">
-            <div class="spacer">
-                <h1>מה אפשר לעשות באתר?</h1>
-                <p>ואנחנו כל הזמן עובדים על עוד...</p>
-            </div>
+        <div></div>
+    {% else %}
+    <div class="card card-main-party">
+        <div class="spacer">
+            <h1>מה אפשר לעשות באתר?</h1>
+            <p>ואנחנו כל הזמן עובדים על עוד...</p>
         </div>
+    </div>
     {% endswitch %}
 
     <div class="row cards">
