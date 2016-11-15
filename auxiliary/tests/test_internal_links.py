@@ -2,6 +2,7 @@
 import datetime
 import re
 
+import waffle
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.sites.models import Site
 from django.core.urlresolvers import reverse
@@ -66,11 +67,18 @@ class InternalLinksTest(TestCase):
         translation.activate(settings.LANGUAGE_CODE)
         visited_links = set()
 
-        test_pages = [reverse('main'), reverse('vote-list'),
-                      reverse('bill-list'),
-                      reverse('parties-members-list', kwargs={'pk': '1'})]
+        test_pages = [
+            # reverse('main'),
+            reverse('vote-list'),
+            reverse('bill-list'),
+            reverse('help'),
+            reverse('parties-members-list', kwargs={'pk': '1'})]
+
+        if waffle.switch_is_active('help_as_home_page'):
+            test_pages.pop(reverse('main'))
 
         redirects = [
+            '/',
             reverse('party-list'), reverse('member-list'),
         ]
 
