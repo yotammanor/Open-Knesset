@@ -20,8 +20,8 @@ from laws.enums import BillStages
 from links.models import Link
 
 from mks.managers import (
-    BetterManager, PartyManager, KnessetManager, CurrentKnessetMembersManager,
-    CurrentKnessetPartyManager, MembershipManager, CurrentKnessetActiveMembersManager)
+    PartyManager, KnessetManager, CurrentKnessetMembersManager,
+    CurrentKnessetPartyManager, MembershipManager, CurrentKnessetActiveMembersManager, MemberManager)
 
 GENDER_CHOICES = (
     (u'M', _('Male')),
@@ -248,7 +248,7 @@ class Member(models.Model):
 
     backlinks_enabled = models.BooleanField(default=True)
 
-    objects = BetterManager()
+    objects = MemberManager()
     current_knesset = CurrentKnessetMembersManager()
     current_members = CurrentKnessetActiveMembersManager()
 
