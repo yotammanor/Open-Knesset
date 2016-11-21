@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import cookielib
+
 import datetime
 import gzip
 import logging
 import os
 import re
-import socket
+
 import time
 import traceback
 import urllib
@@ -28,11 +28,12 @@ from laws.models import (Vote, VoteAction, Bill, Law, PrivateProposal,
                          KnessetProposal, GovProposal, GovLegislationCommitteeDecision)
 from links.models import Link
 from mks.models import Member, Party, Membership, WeeklyPresence, Knesset
-from mks.utils import get_all_mk_names
+
 from persons.models import Person, PersonAlias
 
-from simple.constants import SPECIAL_COMMITTEES_NAMES, SECOND_AND_THIRD_READING_LAWS_URL, CANONICAL_PARTY_ALIASES
-from simple.management.utils import antiword
+from simple.constants import SPECIAL_COMMITTEES_NAMES, SECOND_AND_THIRD_READING_LAWS_URL, CANONICAL_PARTY_ALIASES, \
+    KNESSET_PROTOCOL_SEARCH_PAGE, KNESSET_SYNCED_PROTOCOL_PAGE, KNESSET_PRESENT_MKS_PAGE
+
 from simple.parsers import mk_roles_parser
 from simple.parsers import parse_laws
 from simple.parsers import parse_remote
@@ -74,8 +75,6 @@ class Command(NoArgsDbLogCommand):
                     help="download and parse presence"),
         make_option('--update', action='store_true', dest='update',
                     help="online update of data."),
-        make_option('--committees', action='store_true', dest='committees',
-                    help="online update of committees data."),
         make_option('--update-run-only', action='store', dest='update-run-only',
                     help="only run update for the provided functions. Should contain comma-seperated list of functions to run.")
     )
@@ -100,7 +99,6 @@ class Command(NoArgsDbLogCommand):
         update = options.get('update', False)
         laws = options.get('laws', False)
         presence = options.get('presence', False)
-        committees = options.get('committees', False)
 
         if all_options:
             download = True
@@ -108,7 +106,7 @@ class Command(NoArgsDbLogCommand):
             process = True
             dump_to_file = True
 
-        selected_options = [all_options, download, load, process, dump_to_file, update, laws, committees]
+        selected_options = [all_options, download, load, process, dump_to_file, update, laws]
         if not any(selected_options):
             logger.error(
                 "no arguments found. doing nothing. \ntry -h for help.\n--all to run the full syncdata flow.\n--update for an online dynamic update.")
@@ -152,7 +150,6 @@ class Command(NoArgsDbLogCommand):
                 update_run_only = None
             for func in ['update_laws_data',
                          'update_presence',
-                         # 'get_protocols', - handled by the new okscraper
                          'parse_laws',
                          'find_proposals_in_other_data',
                          'merge_duplicate_laws',
@@ -173,10 +170,6 @@ class Command(NoArgsDbLogCommand):
                         # No need for manual exception formatting, logger exception takes care of that
                         logger.exception("Caught Exception in syncdata update phase %s", func)
             logger.info('finished update')
-
-        if committees:
-            self.get_protocols()
-            logger.info('finished committees update')
 
     def read_laws_page(self, index):
 
@@ -267,46 +260,6 @@ class Command(NoArgsDbLogCommand):
                 self.get_approved_bill_text_for_vote(vote)
         logger.debug("finished updating laws data")
 
-    def update_vote_from_page(self, vote_id, vote_src_url, page):
-        (vote_label, vote_meeting_num, vote_num, date) = self.get_vote_data(page)
-        logger.debug("downloaded data with vote id %d" % vote_id)
-        vote_time_string = date.replace('&nbsp;', ' ')
-        for i in self.heb_months:
-            if i in vote_time_string:
-                month = self.heb_months.index(i) + 1
-        day = re.search("""(\d\d?)""", vote_time_string).group(1)
-        year = re.search("""(\d\d\d\d)""", vote_time_string).group(1)
-        vote_hm = datetime.datetime.strptime(vote_time_string.split(' ')[-1], "%H:%M")
-        vote_time = datetime.datetime(int(year), int(month), int(day), vote_hm.hour, vote_hm.minute)
-        # vote_label_for_search = self.get_search_string(vote_label)
-
-        try:
-            v = Vote.objects.get(src_id=vote_id)
-            created = False
-        except Vote.DoesNotExist:
-            v = Vote(title=vote_label, time_string=vote_time_string, importance=1, src_id=vote_id, time=vote_time)
-            try:
-                vote_meeting_num = int(vote_meeting_num)
-                v.meeting_number = vote_meeting_num
-            except:
-                pass
-            try:
-                vote_num = int(vote_num)
-                v.vote_number = vote_num
-            except:
-                pass
-            v.src_url = vote_src_url
-            v.save()
-            if v.full_text_url != None:
-                l = Link(title=u'מסמך הצעת החוק באתר הכנסת', url=v.full_text_url,
-                         content_type=ContentType.objects.get_for_model(v), object_pk=str(v.id))
-                l.save()
-
-        v.reparse_members_from_votes_page(page)
-        v.update_vote_properties()
-        v = Vote.objects.get(src_id=vote_id)
-        self.find_synced_protocol(v)
-
     def get_votes_data(self):
         # TODO: is this ever used?
         self.update_last_downloaded_vote_id()
@@ -377,7 +330,7 @@ class Command(NoArgsDbLogCommand):
                   'דואר אלקטרוני', 'מצב משפחתי',
                   'מספר ילדים', 'תאריך לידה', 'שנת לידה',
                   'מקום לידה', 'תאריך פטירה', 'שנת עלייה',
-                  'כנסת 18', 'כנסת 19']
+                  'כנסת 18', 'כנסת 19', 'כנסת 20']
         # note that hebrew strings order is right-to-left
         # so output file order is id, name, img_link, phone, ...
 
@@ -431,18 +384,21 @@ class Command(NoArgsDbLogCommand):
         f.close()
 
     def update_mks_is_current(self):
-        """Set is_current=True if and only if mk is currently serving.
+        """
+        Set is_current=True if and only if mk is currently serving.
            This is done by looking at the presence page in the knesset website.
         """
-        URL = 'http://www.knesset.gov.il/presence/heb/PresentList.aspx'
-        x = urllib2.urlopen(URL).read()
-        m = re.search('lbHowManyMKs2(.*)lbHowManyMKs', x, re.DOTALL)
-        mks = re.findall('mk_individual_id_t=(\d+)', m.group())
-        logger.debug('found %d current mks' % len(mks))
-        updated = Member.objects.filter(id__in=mks).update(is_current=True)
-        logger.debug('updated %d mks to is_current=True' % updated)
-        updated = Member.objects.exclude(id__in=mks).update(is_current=False)
-        logger.debug('updated %d mks to is_current=False' % updated)
+
+        page = urllib2.urlopen(KNESSET_PRESENT_MKS_PAGE).read()
+        mk_current_area = re.search('lbHowManyMKs2(.*)lbHowManyMKs', page, re.DOTALL)
+        mks_ids = re.findall('mk_individual_id_t=(\d+)', mk_current_area.group())
+        logger.info('found %d current mks' % len(mks_ids))
+        if not len(mks_ids):
+            logger.error('No current mks!')
+        updated = Member.objects.filter(id__in=mks_ids).update(is_current=True)
+        logger.info('updated %d mks to is_current=True' % updated)
+        updated = Member.objects.exclude(id__in=mks_ids).update(is_current=False)
+        logger.info('updated %d mks to is_current=False' % updated)
 
     def update_members_from_file(self):
         logger.debug('update_members_from_file')
@@ -803,297 +759,49 @@ class Command(NoArgsDbLogCommand):
         return \
             name, meeting_num, vote_num, date
 
-    def find_synced_protocol(self, v):
+    def find_synced_protocol(self, vote):
+        search_text = ''
         try:
-            search_text = ''
-            url = "http://online.knesset.gov.il/eprotocol/PUBLIC/SearchPEOnline.aspx"
-            to_day = from_day = str(v.time.day)
-            to_month = from_month = str(v.time.month)
-            to_year = from_year = str(v.time.year)
-            m = re.search(' - (.*),?', v.title)
+
+            to_day = from_day = str(vote.time.day)
+            to_month = from_month = str(vote.time.month)
+            to_year = from_year = str(vote.time.year)
+            m = re.search(' - (.*),?', vote.title)
             if not m:
-                logger.debug("couldn't create search string for vote\nvote.id=%s\nvote.title=%s\n", str(v.id), v.title)
+                logger.debug(u"couldn't create search string for vote\nvote.id=%s\nvote.title=%s\n", str(vote.id),
+                             vote.title)
                 return
             search_text = urllib2.quote(m.group(1).replace('(', '').replace(')', '').replace('`', '').encode('utf8'))
 
             # I'm really sorry for the next line, but I really had no choice:
             params = '__EVENTARGUMENT=&__EVENTTARGET=&__LASTFOCUS=&__PREVIOUSPAGE=bEfxzzDx0cPgMul_87gMIa3L4OOi0E21r4EnHaLHKQAsWXdde-10pzxRGZZaJFCK0&__SCROLLPOSITIONX=0&__SCROLLPOSITIONY=0&__VIEWSTATE=%2FwEPDwUKMjA3MTAzNTc1NA8WCB4VU0VTU0lPTl9SQU5ET01fTlVNQkVSAswEHhFPTkxZX0RBVEVTX1NFQVJDSGgeEFBSRVZJRVdfRFRfQ0FDSEUy5AQAAQAAAP%2F%2F%2F%2F8BAAAAAAAAAAQBAAAA7AFTeXN0ZW0uQ29sbGVjdGlvbnMuR2VuZXJpYy5EaWN0aW9uYXJ5YDJbW1N5c3RlbS5JbnQzMiwgbXNjb3JsaWIsIFZlcnNpb249Mi4wLjAuMCwgQ3VsdHVyZT1uZXV0cmFsLCBQdWJsaWNLZXlUb2tlbj1iNzdhNWM1NjE5MzRlMDg5XSxbU3lzdGVtLkRhdGEuRGF0YVRhYmxlLCBTeXN0ZW0uRGF0YSwgVmVyc2lvbj0yLjAuMC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODldXQMAAAAHVmVyc2lvbghDb21wYXJlcghIYXNoU2l6ZQADAAiRAVN5c3RlbS5Db2xsZWN0aW9ucy5HZW5lcmljLkdlbmVyaWNFcXVhbGl0eUNvbXBhcmVyYDFbW1N5c3RlbS5JbnQzMiwgbXNjb3JsaWIsIFZlcnNpb249Mi4wLjAuMCwgQ3VsdHVyZT1uZXV0cmFsLCBQdWJsaWNLZXlUb2tlbj1iNzdhNWM1NjE5MzRlMDg5XV0IAAAAAAkCAAAAAAAAAAQCAAAAkQFTeXN0ZW0uQ29sbGVjdGlvbnMuR2VuZXJpYy5HZW5lcmljRXF1YWxpdHlDb21wYXJlcmAxW1tTeXN0ZW0uSW50MzIsIG1zY29ybGliLCBWZXJzaW9uPTIuMC4wLjAsIEN1bHR1cmU9bmV1dHJhbCwgUHVibGljS2V5VG9rZW49Yjc3YTVjNTYxOTM0ZTA4OV1dAAAAAAseFEFQUFJOQ19DT1VOVEVSX0NBQ0hFMtgEAAEAAAD%2F%2F%2F%2F%2FAQAAAAAAAAAEAQAAAOABU3lzdGVtLkNvbGxlY3Rpb25zLkdlbmVyaWMuRGljdGlvbmFyeWAyW1tTeXN0ZW0uSW50MzIsIG1zY29ybGliLCBWZXJzaW9uPTIuMC4wLjAsIEN1bHR1cmU9bmV1dHJhbCwgUHVibGljS2V5VG9rZW49Yjc3YTVjNTYxOTM0ZTA4OV0sW1N5c3RlbS5JbnQzMiwgbXNjb3JsaWIsIFZlcnNpb249Mi4wLjAuMCwgQ3VsdHVyZT1uZXV0cmFsLCBQdWJsaWNLZXlUb2tlbj1iNzdhNWM1NjE5MzRlMDg5XV0DAAAAB1ZlcnNpb24IQ29tcGFyZXIISGFzaFNpemUAAwAIkQFTeXN0ZW0uQ29sbGVjdGlvbnMuR2VuZXJpYy5HZW5lcmljRXF1YWxpdHlDb21wYXJlcmAxW1tTeXN0ZW0uSW50MzIsIG1zY29ybGliLCBWZXJzaW9uPTIuMC4wLjAsIEN1bHR1cmU9bmV1dHJhbCwgUHVibGljS2V5VG9rZW49Yjc3YTVjNTYxOTM0ZTA4OV1dCAAAAAAJAgAAAAAAAAAEAgAAAJEBU3lzdGVtLkNvbGxlY3Rpb25zLkdlbmVyaWMuR2VuZXJpY0VxdWFsaXR5Q29tcGFyZXJgMVtbU3lzdGVtLkludDMyLCBtc2NvcmxpYiwgVmVyc2lvbj0yLjAuMC4wLCBDdWx0dXJlPW5ldXRyYWwsIFB1YmxpY0tleVRva2VuPWI3N2E1YzU2MTkzNGUwODldXQAAAAALFgJmD2QWAgIDD2QWAgIDD2QWCgIDDw8WAh4EVGV4dAX%2BBiBTRUxFQ1QgICAgIHRNZXRhRGF0YS5pSXRlbUlELCB0TWV0YURhdGEuaVRvcklELCB0TWV0YURhdGEuaUl0ZW1UeXBlLCB0TWV0YURhdGEuaVBhcmVudCwgdE1ldGFEYXRhLmlJdGVtUmF3SWQsIHRNZXRhRGF0YS5zVGl0bGUsICAgICAgICAgICAgICB0TWV0YURhdGEuc1RleHQsIHRNZXRhRGF0YS5pUGFnZSwgIHRNZXRhRGF0YS5pV29yZENvdW50ZXIsIHRNZXRhRGF0YS5pQnVsa051bSwgdE1ldGFEYXRhLmlFbGVtZW50SW5lZHhlciAgRlJPTSAgICAgICB0RGlzY3Vzc2lvbnMgSU5ORVIgSk9JTiAgICAgICAgICAgICB0VG9yaW0gT04gdERpc2N1c3Npb25zLmlEaXNjSUQgPSB0VG9yaW0uaURpc2NJRCBJTk5FUiBKT0lOICAgICAgICAgICAgIHRNZXRhRGF0YSBPTiB0VG9yaW0uaVRvciA9IHRNZXRhRGF0YS5pVG9ySUQgIFdIRVJFICB0VG9yaW0uYkhhc0ZpbmFsRG9jPTAgQU5EICAoQ09OVEFJTlMoc1RleHQsIE4nIteQ15nXqdeV16gg15TXl9eV16cg15TXptei16og15fXldenINeT15XXkyDXkdefINeS15XXqNeZ15XXnyDXqteZ16fXldefINeU16rXqSIi16IgMjAxMCIgICcpIE9SIENPTlRBSU5TKHNUaXRsZSwgTici15DXmdep15XXqCDXlNeX15XXpyDXlNem16LXqiDXl9eV16cg15PXldeTINeR158g15LXldeo15nXldefINeq15nXp9eV158g15TXqtepIiLXoiAyMDEwIiAgJykpIEFORCAgREFURURJRkYoREFZLCAnMi8yMi8yMDEwJyAsIHREaXNjdXNzaW9ucy5kRGF0ZSk%2BPTAgQU5EICBEQVRFRElGRihEQVksIHREaXNjdXNzaW9ucy5kRGF0ZSwgJzIvMjIvMjAxMCcpPj0wIEFORCAgdERpc2N1c3Npb25zLmlLbmVzc2V0IElOICgxOCkgQU5EICB0RGlzY3Vzc2lvbnMuaURpc2NUeXBlID0gMSBPUkRFUiBCWSBbaVRvcklEXSBERVNDLCBbaUVsZW1lbnRJbmVkeGVyXWRkAgUPDxYCHwRlZGQCBw9kFhYCAQ8PFgIfBAUi15fXmdek15XXqSDXkSLXk9eR16jXmSDXlNeb16DXodeqImRkAgMPD2QWAh4Jb25rZXlkb3duBcgBaWYgKChldmVudC53aGljaCAmJiBldmVudC53aGljaCA9PSAxMykgfHwgKGV2ZW50LmtleUNvZGUgJiYgZXZlbnQua2V5Q29kZSA9PSAxMykpICAgICB7ZG9jdW1lbnQuZ2V0RWxlbWVudEJ5SWQoJ2N0bDAwX0NvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXJfYnRuU2VhcmNoJykuY2xpY2soKTtyZXR1cm4gZmFsc2U7fSAgICAgZWxzZSByZXR1cm4gdHJ1ZTtkAgcPDxYCHhRDdHJsRm9jdXNBZnRlclNlbGVjdAUpY3RsMDBfQ29udGVudFBsYWNlSG9sZGVyV3JhcHBlcl9idG5TZWFyY2hkFgQCAw8PZBYEHgZvbmJsdXIFSEhpZGVBQ1BvcHVsYXRlX2N0bDAwX0NvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXJfc3JjaERvdmVyX3dzQXV0b0NvbXBsZXRlMR4Hb25rZXl1cAVbcmV0dXJuIEF1dG9Db21wbGV0ZUNoZWNrRGVsZXRlKGV2ZW50LCAnY3RsMDBfQ29udGVudFBsYWNlSG9sZGVyV3JhcHBlcl9zcmNoRG92ZXJfaGRuVmFsdWUnKWQCBQ8WBh4RT25DbGllbnRQb3B1bGF0ZWQFVkF1dG9Db21wbGV0ZV9DbGllbnRQb3B1bGF0ZWRfY3RsMDBfQ29udGVudFBsYWNlSG9sZGVyV3JhcHBlcl9zcmNoRG92ZXJfd3NBdXRvQ29tcGxldGUxHhRPbkNsaWVudEl0ZW1TZWxlY3RlZAVUd3NBdXRvQ29tcGxldGVfanNfc2VsZWN0ZWRfY3RsMDBfQ29udGVudFBsYWNlSG9sZGVyV3JhcHBlcl9zcmNoRG92ZXJfd3NBdXRvQ29tcGxldGUxHhJPbkNsaWVudFBvcHVsYXRpbmcFSFNob3dBQ1BvcHVsYXRlX2N0bDAwX0NvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXJfc3JjaERvdmVyX3dzQXV0b0NvbXBsZXRlMWQCCQ8PFgIfBgUpY3RsMDBfQ29udGVudFBsYWNlSG9sZGVyV3JhcHBlcl9idG5TZWFyY2hkFgQCAw8PZBYEHwcFSkhpZGVBQ1BvcHVsYXRlX2N0bDAwX0NvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXJfc3JjaE1hbmFnZXJfd3NBdXRvQ29tcGxldGUxHwgFXXJldHVybiBBdXRvQ29tcGxldGVDaGVja0RlbGV0ZShldmVudCwgJ2N0bDAwX0NvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXJfc3JjaE1hbmFnZXJfaGRuVmFsdWUnKWQCBQ8WBh8JBVhBdXRvQ29tcGxldGVfQ2xpZW50UG9wdWxhdGVkX2N0bDAwX0NvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXJfc3JjaE1hbmFnZXJfd3NBdXRvQ29tcGxldGUxHwoFVndzQXV0b0NvbXBsZXRlX2pzX3NlbGVjdGVkX2N0bDAwX0NvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXJfc3JjaE1hbmFnZXJfd3NBdXRvQ29tcGxldGUxHwsFSlNob3dBQ1BvcHVsYXRlX2N0bDAwX0NvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXJfc3JjaE1hbmFnZXJfd3NBdXRvQ29tcGxldGUxZAIND2QWBAIBDxBkEBUGFdeh15XXkteZINeT15nXldeg15nXnQzXqdeQ15nXnNeq15QP15TXptei16og15fXldenFteU16bXoteqINeQ15kg15DXnteV158a15TXptei15Qg15zXodeT16gg15TXmdeV150j15TXptei15Qg15zXodeT16gg15nXldedINeb15XXnNec16oVBgEwATEBMgEzATQCMTUUKwMGZ2dnZ2dnZGQCCQ8PZBYCHwUFyAFpZiAoKGV2ZW50LndoaWNoICYmIGV2ZW50LndoaWNoID09IDEzKSB8fCAoZXZlbnQua2V5Q29kZSAmJiBldmVudC5rZXlDb2RlID09IDEzKSkgICAgIHtkb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnY3RsMDBfQ29udGVudFBsYWNlSG9sZGVyV3JhcHBlcl9idG5TZWFyY2gnKS5jbGljaygpO3JldHVybiBmYWxzZTt9ICAgICBlbHNlIHJldHVybiB0cnVlO2QCDw8PFgIeBERhdGUGAABgHGmBzAhkFgJmD2QWAmYPZBYCAgEPZBYEZg9kFgpmD2QWAgIBDw8WAh8EBQQyMDEwFgIfCAVVcmV0dXJuIERhdGVQaWNrZXJEZWxldGUoZXZlbnQsICdjdGwwMF9Db250ZW50UGxhY2VIb2xkZXJXcmFwcGVyX3NyY2hEYXRlc1BlcmlvZEZyb20nKWQCAg9kFgICAQ8PFgIfBAUBMhYCHwgFVXJldHVybiBEYXRlUGlja2VyRGVsZXRlKGV2ZW50LCAnY3RsMDBfQ29udGVudFBsYWNlSG9sZGVyV3JhcHBlcl9zcmNoRGF0ZXNQZXJpb2RGcm9tJylkAgQPZBYCAgEPDxYCHwQFAjIyFgIfCAVVcmV0dXJuIERhdGVQaWNrZXJEZWxldGUoZXZlbnQsICdjdGwwMF9Db250ZW50UGxhY2VIb2xkZXJXcmFwcGVyX3NyY2hEYXRlc1BlcmlvZEZyb20nKWQCBg9kFgICAQ8WAh8EBQbXqdeg15lkAgcPZBYCAgEPDxYCHwQFCjIyLzAyLzIwMTAWBB8IBQ92YWxpZERhdGUodGhpcykfBwVJaXNEYXRlKHRoaXMsJ2N0bDAwX0NvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXJfc3JjaERhdGVzUGVyaW9kRnJvbV9sYmxNc2cnKWQCAQ9kFgJmD2QWAmYPDxYCHwQFFteXJyDXkdeQ15PXqCDXlNeq16ki16JkZAIRDw8WAh8MBgAAYBxpgcwIZBYCZg9kFgJmD2QWAgIBD2QWBGYPZBYKZg9kFgICAQ8PFgIfBAUEMjAxMBYCHwgFU3JldHVybiBEYXRlUGlja2VyRGVsZXRlKGV2ZW50LCAnY3RsMDBfQ29udGVudFBsYWNlSG9sZGVyV3JhcHBlcl9zcmNoRGF0ZXNQZXJpb2RUbycpZAICD2QWAgIBDw8WAh8EBQEyFgIfCAVTcmV0dXJuIERhdGVQaWNrZXJEZWxldGUoZXZlbnQsICdjdGwwMF9Db250ZW50UGxhY2VIb2xkZXJXcmFwcGVyX3NyY2hEYXRlc1BlcmlvZFRvJylkAgQPZBYCAgEPDxYCHwQFAjIyFgIfCAVTcmV0dXJuIERhdGVQaWNrZXJEZWxldGUoZXZlbnQsICdjdGwwMF9Db250ZW50UGxhY2VIb2xkZXJXcmFwcGVyX3NyY2hEYXRlc1BlcmlvZFRvJylkAgYPZBYCAgEPFgIfBAUG16nXoNeZZAIHD2QWAgIBDw8WAh8EBQoyMi8wMi8yMDEwFgQfCAUPdmFsaWREYXRlKHRoaXMpHwcFR2lzRGF0ZSh0aGlzLCdjdGwwMF9Db250ZW50UGxhY2VIb2xkZXJXcmFwcGVyX3NyY2hEYXRlc1BlcmlvZFRvX2xibE1zZycpZAIBD2QWAmYPZBYCZg8PFgIfBAUW15cnINeR15DXk9eoINeU16rXqSLXomRkAhUPEA8WAh4LXyFEYXRhQm91bmRnZBAVARDXlNeb16DXodeqINeUIDE4FQECMTgUKwMBZ2RkAhkPDxYCHgtQb3N0QmFja1VybAUlL2Vwcm90b2NvbC9QVUJMSUMvU2VhcmNoUEVPbmxpbmUuYXNweGRkAhsPDxYCHw4FJS9lcHJvdG9jb2wvUFVCTElDL1NlYXJjaFBFT25saW5lLmFzcHhkZAIdDw8WBB8EBTfXnNeQINeg157XpteQ15Ug16rXldem15DXldeqINec15fXmdek15XXqSDXlNee15HXlden16kuHgdWaXNpYmxlaGRkAgkPZBYGAgEPDxYCHwQFYSDXnteZ15zXlFzXmdedOiA8Yj7XkDwvYj4sICAgICAgICDXkdeY15XXldeXINeq15DXqNeZ15vXmdedOiA8Yj7Xni0yMi8wMi8yMDEwINei15MtMjIvMDIvMjAxMDwvYj5kZAIDDw8WAh8EBQEwZGQCBw8PFgIfBGVkZAILDw8WBh8EBRzXl9eW15XXqCDXnNee16HXmiDXl9eZ16TXldepHw4FJS9lcHJvdG9jb2wvUFVCTElDL1NlYXJjaFBFT25saW5lLmFzcHgfD2hkZBgBBR5fX0NvbnRyb2xzUmVxdWlyZVBvc3RCYWNrS2V5X18WCQU4Y3RsMDAkQ29udGVudFBsYWNlSG9sZGVyV3JhcHBlciRzcmNoQ0tfaW50ZXJydXB0X3NwZWFrZXIFMWN0bDAwJENvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXIkcmRvU2VhcmNoQnlOdW1iZXIFMWN0bDAwJENvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXIkcmRvU2VhcmNoQnlOdW1iZXIFL2N0bDAwJENvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXIkcmRvU2VhcmNoQnlUZXh0BTFjdGwwMCRDb250ZW50UGxhY2VIb2xkZXJXcmFwcGVyJHNyY2hfcmRvX1llc2hpdml0BTFjdGwwMCRDb250ZW50UGxhY2VIb2xkZXJXcmFwcGVyJHNyY2hfcmRvX1llc2hpdml0BS5jdGwwMCRDb250ZW50UGxhY2VIb2xkZXJXcmFwcGVyJHNyY2hfcmRvX1RvcmltBTxjdGwwMCRDb250ZW50UGxhY2VIb2xkZXJXcmFwcGVyJHNyY2hEYXRlc1BlcmlvZEZyb20kYnRuUG9wVXAFOmN0bDAwJENvbnRlbnRQbGFjZUhvbGRlcldyYXBwZXIkc3JjaERhdGVzUGVyaW9kVG8kYnRuUG9wVXCpRkP1sigDyMUEQRUVvHjI2IVBFw%3D%3D&ctl00%24ContentPlaceHolderWrapper%24STATUS=srch_rdo_Torim&ctl00%24ContentPlaceHolderWrapper%24SearchSubjectRDO=rdoSearchByText&ctl00%24ContentPlaceHolderWrapper%24btnSearch=%D7%97%D7%A4%D7%A9&ctl00%24ContentPlaceHolderWrapper%24srchDatesPeriodFrom%24txtDate=' + from_day + '%2F' + from_month + '%2F' + from_year + '&ctl00%24ContentPlaceHolderWrapper%24srchDatesPeriodFrom%24txtDay=' + from_day + '&ctl00%24ContentPlaceHolderWrapper%24srchDatesPeriodFrom%24txtMonth=' + from_month + '&ctl00%24ContentPlaceHolderWrapper%24srchDatesPeriodFrom%24txtYear=' + from_year + '&ctl00%24ContentPlaceHolderWrapper%24srchDatesPeriodTo%24txtDate=' + to_day + '%2F' + to_month + '%2F' + to_year + '&ctl00%24ContentPlaceHolderWrapper%24srchDatesPeriodTo%24txtDay=' + to_day + '&ctl00%24ContentPlaceHolderWrapper%24srchDatesPeriodTo%24txtMonth=' + to_month + '&ctl00%24ContentPlaceHolderWrapper%24srchDatesPeriodTo%24txtYear=' + to_year + '&ctl00%24ContentPlaceHolderWrapper%24srchDover%24hdnValue=&ctl00%24ContentPlaceHolderWrapper%24srchDover%24myTextBox=&ctl00%24ContentPlaceHolderWrapper%24srchExcludeFreeText=&ctl00%24ContentPlaceHolderWrapper%24srchFreeText=' + search_text + '&ctl00%24ContentPlaceHolderWrapper%24srchKnesset=18&ctl00%24ContentPlaceHolderWrapper%24srchManager%24hdnValue=&ctl00%24ContentPlaceHolderWrapper%24srchManager%24myTextBox=&ctl00%24ContentPlaceHolderWrapper%24srchSubject=&ctl00%24ContentPlaceHolderWrapper%24srchSubjectType=0&ctl00%24ContentPlaceHolderWrapper%24srch_SubjectNumber=&hiddenInputToUpdateATBuffer_CommonToolkitScripts=1'
-            page = urllib2.urlopen(url, params).read()
+            page = urllib2.urlopen(KNESSET_PROTOCOL_SEARCH_PAGE, params).read()
             m = re.search('ProtEOnlineLoad\((.*), \'false\'\);', page)
             if not m:
-                logger.debug("couldn't find vote in synched protocol\nvote.id=%s\nvote.title=%s\nsearch_text=%s",
-                             str(v.id), v.title, search_text)
+                logger.debug(u"couldn't find vote in synced protocol\nvote.id=%s\nvote.title=%s\nsearch_text=%s",
+                             str(vote.id), vote.title, search_text)
                 return
-            l = Link(title=u'פרוטוקול מסונכרן (וידאו וטקסט) של הישיבה',
-                     url='http://online.knesset.gov.il/eprotocol/PLAYER/PEPlayer.aspx?ProtocolID=%s' % m.group(1),
-                     content_type=ContentType.objects.get_for_model(v), object_pk=str(v.id))
-            l.save()
+
+            Link.objects.get_or_create(title=u'פרוטוקול מסונכרן (וידאו וטקסט) של הישיבה',
+                                       url=KNESSET_SYNCED_PROTOCOL_PAGE % m.group(
+                                           1),
+                                       content_type=ContentType.objects.get_for_model(vote), object_pk=str(vote.id))
+
         except Exception:
 
-            logger.exception(u'Exception in find synced protocol: search_text=' + search_text.encode(
-                'utf8') + u'\nvote.title=' + v.title.encode('utf8'))
+            logger.exception(u'Exception in find synced protocol: vote id: %s search_text= %s' % (vote.pk, search_text))
 
-    def check_vote_mentioned_in_cm(self, v, cm):
-        m = v.title[v.title.find(' - ') + 2:]
+    def check_vote_mentioned_in_cm(self, vote, cm):
+        m = vote.title[vote.title.find(' - ') + 2:]
         v_search_text = self.get_search_string(m.encode('utf8'))
         cm_search_text = self.get_search_string(cm.protocol_text.encode('utf8')).replace('\n', '')
         if cm_search_text.find(v_search_text) >= 0:
-            cm.votes_mentioned.add(v)
+            cm.votes_mentioned.add(vote)
 
     def find_votes_in_cms(self):
         for cm in CommitteeMeeting.objects.all():
             for v in Vote.objects.all():
                 self.check_vote_mentioned_in_cm(v, cm)
-
-    def get_protocols_page(self, page, page_num):
-        logger.debug('get_protocols_page. page_num=%d' % page_num)
-        FILES_BASE_URL = "http://www.knesset.gov.il/protocols/"
-        res = []
-        max_linked_page = max([int(r) for r in re.findall("'Page\$(\d*)", page)])
-        last_page = False
-        if max_linked_page < page_num:
-            last_page = True
-
-        # trim the page to the results part
-        start = page.find(r'id="gvProtocol"')
-        end = page.find(r'javascript:__doPostBack')
-        page = page[start:end]
-        date_text = ''
-        comittee = ''
-        subject = ''
-        # find interesting parts
-        matches = re.findall(r'<span id="gvProtocol(.*?)</span>|OpenDoc(.*?)\);', page, re.DOTALL)
-        for (span, link) in matches:
-            if len(span):  # we are parsing a matched span - committee info
-                if span.find(r'ComName') > 0:
-                    comittee = span[span.find(r'>') + 1:]
-                if span.find(r'lblDate') > 0:
-                    date_text = span[span.find(r'>') + 1:]
-                if span.find(r'lblSubject') > 0:
-                    if span.find(r'<Table') > 0:  # this subject is multiline so they show it a a table
-                        subject = ' '.join(re.findall(r'>([^<]*)<', span))  # extract text only from all table elements
-                    else:
-                        subject = span[span.find(r'>') + 1:]  # no table, just take the text
-            else:  # we are parsing a matched link - comittee protocol url
-                if (link.find(r'.doc') > 0):
-                    logger.debug('doc found')
-                    html_url = link.split("'")[1]
-                    # this is the last info we need, so add data to results
-                    res.append([date_text, comittee, subject, html_url])
-                    date_text = ''
-                    comittee = ''
-                    subject = ''
-                if (link.find(r'html') > 0) or (link.find(r'rtf') > 0):
-                    re_res = re.search(r"'\.\./([^']*)'", link)
-                    if re_res:
-                        html_url = FILES_BASE_URL + re_res.group(1)
-                    else:
-                        html_url = re.search(r"'([^']*)'", link).group(1)
-                    res.append([date_text, comittee, subject,
-                                html_url])  # this is the last info we need, so add data to results
-                    date_text = ''
-                    comittee = ''
-                    subject = ''
-        return (last_page, res)
-
-    def get_protocols(self, max_page=10):
-        logger.debug('get_protocols. max_page=%d' % max_page)
-        SEARCH_URL = "http://www.knesset.gov.il/protocols/heb/protocol_search.aspx"
-        cj = cookielib.LWPCookieJar()
-        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
-        committees_aliases = []
-        for c in Committee.objects.all():
-            if c.aliases:
-                committees_aliases += map(lambda x: (c, x), c.aliases.split(","))
-
-        urllib2.install_opener(opener)
-
-        # get the search page to extract legal "viewstate" and "event validation" strings. need to pass them so the search will work
-        page = urllib2.urlopen(SEARCH_URL).read().decode('windows-1255').encode('utf-8')
-
-        event_validation = urllib2.quote(re.search(r'id="__EVENTVALIDATION" value="([^"]*)"', page).group(1)).replace(
-            '/', '%2F')
-        view_state = urllib2.quote(re.search(r'id="__VIEWSTATE" value="([^"]*)"', page).group(1)).replace('/', '%2F')
-
-        # define date range
-        params = "__EVENTTARGET=DtFrom&__EVENTARGUMENT=&__LASTFOCUS=&__VIEWSTATE=%s&ComId=-1&knesset_id=-1&DtFrom=24%%2F02%%2F2009&DtTo=&subj=&__EVENTVALIDATION=%s" % (
-            view_state, event_validation)
-        page = urllib2.urlopen(SEARCH_URL, params).read().decode('windows-1255').encode('utf-8')
-        event_validation = urllib2.quote(re.search(r'id="__EVENTVALIDATION" value="([^"]*)"', page).group(1)).replace(
-            '/', '%2F')
-        view_state = urllib2.quote(re.search(r'id="__VIEWSTATE" value="([^"]*)"', page).group(1)).replace('/', '%2F')
-
-        # hit the search
-        params = "btnSearch=%%E7%%E9%%F4%%E5%%F9&__EVENTTARGET=&__EVENTARGUMENT=&__LASTFOCUS=&__VIEWSTATE=%s&ComId=-1&knesset_id=-1&DtFrom=24%%2F02%%2F2009&DtTo=&subj=&__EVENTVALIDATION=%s" % (
-            view_state, event_validation)
-        page = urllib2.urlopen(SEARCH_URL, params).read().decode('windows-1255').encode('utf-8')
-        event_validation = urllib2.quote(re.search(r'id="__EVENTVALIDATION" value="([^"]*)"', page).group(1)).replace(
-            '/', '%2F')
-        view_state = urllib2.quote(re.search(r'id="__VIEWSTATE" value="([^"]*)"', page).group(1)).replace('/', '%2F')
-        page_num = 1
-        (last_page, page_res) = self.get_protocols_page(page, page_num)
-        res = page_res[:]
-
-        mks, mk_names = get_all_mk_names()
-        while (not last_page) and (page_num < max_page):
-            page_num += 1
-            params = "__EVENTTARGET=gvProtocol&__EVENTARGUMENT=Page%%24%d&__LASTFOCUS=&__VIEWSTATE=%s&ComId=-1&knesset_id=-1&DtFrom=24%%2F02%%2F2009&DtTo=&subj=&__EVENTVALIDATION=%s" % (
-                page_num, view_state, event_validation)
-            page = urllib2.urlopen(SEARCH_URL, params).read().decode('windows-1255').encode('utf-8')
-            # update EV and VS
-            re_res = re.search(r'id="__EVENTVALIDATION" value="([^"]*)"', page)
-            if re_res:
-                event_validation = urllib2.quote(re_res.group(1)).replace('/', '%2F')
-            else:
-                logger.warning('skipping page %s' % page_num)
-                continue
-            view_state = urllib2.quote(re.search(r'id="__VIEWSTATE" value="([^"]*)"', page).group(1)).replace('/',
-                                                                                                              '%2F')
-            # parse the page
-            (last_page, page_res) = self.get_protocols_page(page, page_num)
-            res.extend(page_res)
-
-        logger.debug('res contains %d entries' % len(res))
-
-        default_timeout = socket.getdefaulttimeout()
-        socket.setdefaulttimeout(10)
-        num_exceptions = 0
-        for (date_string, com, topic, link) in res:
-            if num_exceptions > 15:
-                logger.error('too many exception in get_protocols')
-                break
-            cm = None
-            try:
-                (c, created) = Committee.objects.get_or_create(name=com)
-                if created:
-                    c.save()
-                r = re.search("(\d\d)/(\d\d)/(\d\d\d\d)", date_string)
-                d = datetime.date(int(r.group(3)), int(r.group(2)), int(r.group(1)))
-                if CommitteeMeeting.objects.filter(committee=c, date=d, topics=topic, date_string=date_string).count():
-                    cm = CommitteeMeeting.objects.filter(committee=c, date=d, topics=topic, date_string=date_string)[0]
-                    logger.debug('cm %d already exists' % cm.id)
-                elif CommitteeMeeting.objects.filter(src_url=link).count():
-                    cm = CommitteeMeeting.objects.get(src_url=link)
-                    logger.debug('cm %d is being updated' % cm.id)
-                    if date_string != cm.date_string:
-                        cm.date_string = date_string
-                        logger.debug('updated date_string')
-                    if d != cm.date:
-                        cm.date = d
-                        logger.debug('updated date')
-                    if topic != cm.topics:
-                        cm.topics = topic
-                        logger.debug('updated topics')
-                    if link != cm.src_url:
-                        cm.src_url = link
-                        logger.debug('updated src_url')
-                else:
-                    cm = CommitteeMeeting.objects.create(committee=c, date=d, topics=topic, date_string=date_string,
-                                                         src_url=link)
-                    logger.debug('cm %d created' % cm.id)
-            except Exception:
-                # WTF exceptions counting
-                num_exceptions += 1
-                logger.exception('Get protocols exceptions')
-            if cm is not None:
-                # TODO: remove all the try except
-                # currently, code is very fragile and causes a lot of exceptions which prevent later stages from running
-                updated_protocol = False
-                try:
-                    if not cm.protocol_text:
-                        cm.protocol_text = self.get_committee_protocol_text(link)
-                        # check if the protocol is from the wrong commitee
-                        for i in committees_aliases:
-                            if i[1] in cm.protocol_text[:300]:
-                                cm.committee = i[0]
-                                break
-                        updated_protocol = True
-                except Exception:
-                    num_exceptions += 1
-                    logger.exception('Get protocols exceptions')
-
-                try:
-                    cm.save()
-                except Exception:
-                    num_exceptions += 1
-                    logger.exception('Get protocols exceptions')
-
-                try:
-                    if updated_protocol:
-                        cm.create_protocol_parts()
-                except Exception:
-                    num_exceptions += 1
-                    logger.exception('Get protocols exceptions')
-
-                try:
-                    cm.find_attending_members(mks, mk_names)
-                except Exception:
-                    num_exceptions += 1
-                    logger.exception('Get protocols exceptions')
-
-                try:
-                    self.get_bg_material(cm)
-                except Exception:
-                    num_exceptions += 1
-                    logger.exception('Get protocols exceptions')
-        socket.setdefaulttimeout(default_timeout)
-
-    def get_committee_protocol_text(self, url):
-        logger.debug('get_committee_protocol_text. url=%s' % url)
-        if url.find('html') >= 0:
-            url = url.replace('html', 'rtf')
-        file_str = StringIO()
-        count = 0
-        flag = True
-        while count < 10 and flag:
-            try:
-                file_str.write(urllib2.urlopen(url).read())
-                flag = False
-            except Exception:
-                count += 1
-        if flag:
-            logger.error("can't open url %s. tried %d times" % (url, count))
-
-        if url.find(".rtf") >= 0:
-            return self.handle_rtf_protocol(file_str)
-        if url.find(".doc") >= 0:
-            return self.handle_doc_protocol(file_str)
-
-    def handle_doc_protocol(self, file_str):
-        directory = os.path.join(DATA_ROOT, 'comm_p')
-        if not os.path.exists(directory): os.makedirs(directory)
-        fname = os.path.join(directory, 'comm_p.doc')
-        f = open(fname, 'wb')
-        file_str.seek(0)
-        f.write(file_str.read())
-        f.close()
-        x = antiword(fname)
-        return re.sub('[\n ]{2,}', '\n\n', re.sub('<.*?>', '', x))
-
-    def handle_rtf_protocol(self, file_str):
-        try:
-            doc = Rtf15Reader.read(file_str)
-        except Exception:
-            return ''
-        text = []
-        attended_list = False
-        for paragraph in doc.content:
-            for sentence in paragraph.content:
-                if 'bold' in sentence.properties and attended_list:
-                    attended_list = False
-                    text.append('')
-                if 'מוזמנים'.decode('utf8') in sentence.content[0] and 'bold' in sentence.properties:
-                    attended_list = True
-                text.append(sentence.content[0])
-        all_text = '\n'.join(text)
-        return re.sub(r'\n:\n', r':\n', all_text)
-
-    def get_bg_material(self, cm):
-        links = cm.get_bg_material()
-        if links:
-            for i in links:
-                l = Link.objects.create(url=i.get('url', ''), title=i.get('title', ''), content_object=cm)
-                logger.debug('committee meeting link %d created' % l.id)
 
     def get_approved_bill_text(self, url):
         """Retrieve the RTL file in the given url, assume approved bill file
