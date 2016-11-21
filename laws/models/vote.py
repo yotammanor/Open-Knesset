@@ -9,6 +9,8 @@ from django.utils.translation import ugettext_lazy as _
 from tagging.models import TaggedItem, Tag
 
 from laws import constants
+from laws.enums import VOTE_TYPES
+from laws.helpers import resolve_vote_type_by_title
 from laws.models.bill import Bill
 from laws.models.vote_action import VoteAction
 from laws.vote_choices import TYPE_CHOICES
@@ -23,15 +25,12 @@ logger = logging.getLogger("open-knesset.laws.models")
 class VoteManager(models.Manager):
     # TODO: add i18n to the types so we'd have
     #   {'law-approve': _('approve law'), ...
-    VOTE_TYPES = {'law-approve': u'אישור החוק', 'second-call': u'קריאה שנייה', 'demurrer': u'הסתייגות',
-                  'no-confidence': u'הצעת אי-אמון', 'pass-to-committee': u'להעביר את ',
-                  'continuation': u'להחיל דין רציפות'}
 
     def filter_and_order(self, *args, **kwargs):
         qs = self.all()
         filter_kwargs = {}
         if kwargs.get('vtype') and kwargs['vtype'] != 'all':
-            filter_kwargs['title__startswith'] = self.VOTE_TYPES[kwargs['vtype']]
+            filter_kwargs['title__startswith'] = VOTE_TYPES[kwargs['vtype']]
 
         if filter_kwargs:
             qs = qs.filter(**filter_kwargs)
@@ -138,16 +137,6 @@ class Vote(models.Model):
 
     def against_own_bill_votes(self):
         return self.votes.filter(voteaction__against_own_bill=True)
-
-    def _vote_type(self):
-        if type(self.title) == str:
-            f = str.decode
-        else:  # its already unicode, do nothing
-            f = lambda x, y: x
-        for vtype, vtype_prefix in VoteManager.VOTE_TYPES.iteritems():
-            if f(self.title, 'utf8').startswith(vtype_prefix):
-                return vtype
-        return ''
 
     def short_summary(self):
         if self.summary is None:
@@ -298,12 +287,12 @@ class Vote(models.Model):
         self.abstain_votes_count = VoteAction.objects.filter(vote=self, type='abstain').count()
         self.controversy = min(self.for_votes_count or 0,
                                self.against_votes_count or 0)
-        self.vote_type = self._vote_type()
+        self.vote_type = resolve_vote_type_by_title(self.title)
         self.save()
 
     def redownload_votes_page(self):
         from simple.management.commands.syncdata import Command as SyncdataCommand
-        (page, vote_src_url) = SyncdataCommand().read_votes_page(self.src_id)
+        page, vote_src_url = SyncdataCommand().read_votes_page(self.src_id)
         return page
 
     def update_from_knesset_data(self):
@@ -340,14 +329,13 @@ class Vote(models.Model):
         results = syncdata.read_member_votes(page, return_ids=True)
         for (voter_id, voter_party, vote) in results:
             try:
-                m = Member.objects.get(pk=int(voter_id))
-            except:
-                exceptionType, exceptionValue, exceptionTraceback = sys.exc_info()
-                logger.error("%svoter_id = %s",
-                             ''.join(traceback.format_exception(exceptionType, exceptionValue, exceptionTraceback)),
-                             str(voter_id))
+                member = Member.objects.get(pk=int(voter_id))
+            except Exception:
+
+                logger.exception("reparse vote member exception for vote %s member %s" % (self.pk, member.pk))
                 continue
-            va, created = VoteAction.objects.get_or_create(vote=self, member=m,
-                                                           defaults={'type': vote, 'party': m.current_party})
+
+            va, created = VoteAction.objects.get_or_create(vote=self, member=member,
+                                                           defaults={'type': vote, 'party': member.current_party})
             if created:
                 va.save()
