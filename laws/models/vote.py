@@ -15,7 +15,7 @@ from laws.models.bill import Bill
 from laws.models.vote_action import VoteAction
 from laws.vote_choices import TYPE_CHOICES
 from mks.models import Party, Member
-from ok_tag.forms import TagForm
+
 from tagvotes.models import TagVote
 import logging
 
@@ -186,7 +186,7 @@ class Vote(models.Model):
 
     def tag_form(self):
         # Ugly hack around import problems
-        # from ok_tag.forms import TagForm
+        from ok_tag.forms import TagForm
         tf = TagForm()
         tf.tags = self.tags
         tf.initial = {'tags': ', '.join([str(t) for t in self.tags])}

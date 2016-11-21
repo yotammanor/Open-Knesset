@@ -1,7 +1,8 @@
 # encoding: utf-8
 from django.db import models
 import logging
-logger = logging.getLogger("open-knesset.laws.models")
+logger = logging.getLogger(__name__)
+
 
 class Law(models.Model):
     class Meta:
