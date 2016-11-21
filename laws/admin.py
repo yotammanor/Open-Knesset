@@ -1,9 +1,44 @@
+from django.db.models import Q
 from import_export.admin import ImportExportModelAdmin
 
 from models import Vote, Law, PrivateProposal, KnessetProposal, GovProposal, Bill, GovLegislationCommitteeDecision
 from laws.management.commands.scrape_votes import Command as ScrapeVotesCommand
 from django.utils.translation import ugettext_lazy as _
 from django.contrib import admin
+
+
+class MissingDataVotesFilter(admin.SimpleListFilter):
+    # Human-readable title which will be displayed in the
+    # right admin sidebar just above the filter options.
+    title = _('Missing data votes')
+
+    # Parameter for the filter that will be used in the URL query.
+    parameter_name = 'is_missing_data_vote'
+
+    def lookups(self, request, model_admin):
+        """
+        Returns a list of tuples. The first element in each
+        tuple is the coded value for the option that will
+        appear in the URL query. The second element is the
+        human-readable name for the option that will appear
+        in the right sidebar.
+        """
+        return (
+            ('is_missing_data_vote', _('Vote has missing data')),
+        )
+
+    def queryset(self, request, queryset):
+        """
+        Returns the filtered queryset based on the value
+        provided in the query string and retrievable via
+        `self.value()`.
+        """
+        # Compare the requested value
+        # to decide how to filter the queryset.
+        if self.value() == 'is_missing_data_vote':
+            return queryset.filter(Q(votes_count=0) | Q(votes_count=None))
+        else:
+            return queryset
 
 
 class VoteAdmin(ImportExportModelAdmin):
@@ -13,6 +48,7 @@ class VoteAdmin(ImportExportModelAdmin):
         'abstain_votes_count')
 
     search_fields = ('title', 'summary', 'full_text', 'id', 'src_id')
+    list_filter = (MissingDataVotesFilter, )
 
     def update_vote(self, request, queryset):
         vote_count = queryset.count()
