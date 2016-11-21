@@ -20,8 +20,8 @@ from laws.enums import BillStages
 from links.models import Link
 
 from mks.managers import (
-    BetterManager, PartyManager, KnessetManager, CurrentKnessetMembersManager,
-    CurrentKnessetPartyManager, MembershipManager, CurrentKnessetActiveMembersManager)
+    PartyManager, KnessetManager, CurrentKnessetMembersManager,
+    CurrentKnessetPartyManager, MembershipManager, CurrentKnessetActiveMembersManager, MemberManager)
 
 GENDER_CHOICES = (
     (u'M', _('Male')),
@@ -248,7 +248,7 @@ class Member(models.Model):
 
     backlinks_enabled = models.BooleanField(default=True)
 
-    objects = BetterManager()
+    objects = MemberManager()
     current_knesset = CurrentKnessetMembersManager()
     current_members = CurrentKnessetActiveMembersManager()
 
@@ -573,12 +573,6 @@ class Member(models.Model):
     @property
     def convictions(self):
         return self.awards_and_convictions.filter(award_type__valence__lt=0)
-
-        # @property
-        # def committees(self):
-        #     """Committee list (splitted by comma)"""
-        #
-        #     return [x.strip() for x in self.committees.split(',')]
 
 
 class WeeklyPresence(models.Model):

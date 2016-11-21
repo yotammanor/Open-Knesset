@@ -31,9 +31,9 @@ class KnessetManager(models.Manager):
         return self.get_queryset().get(start_date__lte=a_date, end_date__gt=a_date)
 
 
-class BetterManager(models.Manager):
+class NameAwareManager(models.Manager):
     def __init__(self):
-        super(BetterManager, self).__init__()
+        super(NameAwareManager, self).__init__()
         self._names = []
 
     def find(self, name):
@@ -56,7 +56,11 @@ class BetterManager(models.Manager):
         return ret
 
 
-class PartyManager(BetterManager):
+class MemberManager(NameAwareManager):
+    pass
+
+
+class PartyManager(NameAwareManager):
     def parties_during_range(self, ranges=None):
         from agendas.models import Agenda
         filters_folded = Agenda.generateSummaryFilters(ranges, 'start_date', 'end_date')
@@ -68,23 +72,23 @@ class CurrentKnessetPartyManager(models.Manager):
         super(CurrentKnessetPartyManager, self).__init__()
         self._current = None
 
-    def get_query_set(self):
+    def get_queryset(self):
         # caching won't help here, as the query set will be re-run on each
         # request, and we may need to further run queries down the road
         from mks.models import Knesset
-        qs = super(CurrentKnessetPartyManager, self).get_query_set()
+        qs = super(CurrentKnessetPartyManager, self).get_queryset()
         qs = qs.filter(knesset=Knesset.objects.current_knesset())
         return qs
 
     @property
     def current_parties(self):
         if self._current is None:
-            self._current = list(self.get_query_set())
+            self._current = list(self.get_queryset())
 
         return self._current
 
 
-class CurrentKnessetMembersManager(models.Manager):
+class CurrentKnessetMembersManager(MemberManager):
     """
     Adds the ability to filter on current knesset
     """

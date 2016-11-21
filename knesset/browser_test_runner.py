@@ -13,9 +13,9 @@ sauce_username = ''
 sauce_accesskey = ''
 
 sauce_platforms = [
-    {"platform": "Mac OS X 10.9", "browserName": "chrome", "version": "35"},
+    {"platform": "MacOS El Capitan 10.11", "browserName": "chrome", "version": "52"},
     {"platform": "Windows 8.1", "browserName": "internet explorer", "version": "11"},
-    {"platform": "Linux", "browserName": "firefox", "version": "29"}
+    {"platform": "Linux", "browserName": "firefox", "version": "44"}
 ]
 
 

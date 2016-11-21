@@ -126,7 +126,10 @@ admin.site.register(Correlation, CorrelationAdmin)
 
 
 class MembershipAdmin(ImportExportModelAdmin):
+    list_select_related = True
     ordering = ('member__name',)
+    list_display = ('member', 'party', 'start_date', 'end_date')
+    list_filter = ('party', )
 
 
 admin.site.register(Membership, MembershipAdmin)
@@ -148,7 +151,7 @@ admin.site.register(Award, AwardAdmin)
 
 
 class KnessetAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('number', 'start_date', 'end_date')
 
 
 admin.site.register(Knesset, KnessetAdmin)

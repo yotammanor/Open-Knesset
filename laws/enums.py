@@ -1,3 +1,4 @@
+# encoding: utf-8
 from django.utils.translation import ugettext_lazy as _
 
 from knesset.enums import Enum
@@ -17,6 +18,10 @@ class BillStages(Enum):
     APPROVED = u'6'
     FAILED_APPROVAL = u'-6'
 
+
+VOTE_TYPES = {'law-approve': u'אישור החוק', 'second-call': u'קריאה שנייה', 'demurrer': u'הסתייגות',
+              'no-confidence': u'הצעת אי-אמון', 'pass-to-committee': u'להעביר את ',
+              'continuation': u'להחיל דין רציפות'}
 
 VOTE_ACTION_TYPE_CHOICES = (
     (u'for', _('For')),
