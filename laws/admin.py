@@ -25,7 +25,9 @@ class VoteAdmin(ImportExportModelAdmin):
 
     def recreate_vote(self, request, queryset):
         recreated_votes = ScrapeVotesCommand().recreate_objects(queryset.values_list('pk', flat=True))
-        self.message_user(request, "successfully recreated {0} votes".format(len(recreated_votes), ', '.join([str(v.pk) for v in recreated_votes])))
+        recreated_vote_ids_string = ', '.join([str(v.pk) for v in recreated_votes])
+        self.message_user(request, "successfully recreated {0} votes: {1}".format(len(recreated_votes),
+                                                                                  recreated_vote_ids_string))
 
     recreate_vote.short_description = "recreate vote by deleting and then getting fresh data from knesset api"
 
@@ -36,7 +38,7 @@ admin.site.register(Vote, VoteAdmin)
 
 
 class LawAdmin(ImportExportModelAdmin):
-    search_fields = ('title', )
+    search_fields = ('title',)
     list_display = ('title', 'merged_into')
 
 
@@ -60,7 +62,7 @@ admin.site.register(KnessetProposal, KnessetProposalAdmin)
 class GovProposalAdmin(admin.ModelAdmin):
     search_fields = ('title', 'booklet_number')
     list_display = ('bill', 'booklet_number', 'knesset_id', 'date')
-    list_filter = ('knesset_id', )
+    list_filter = ('knesset_id',)
 
 
 admin.site.register(GovProposal, GovProposalAdmin)
