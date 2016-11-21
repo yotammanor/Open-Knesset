@@ -27,10 +27,17 @@ class BaseKnessetDataserviceCommand(NoArgsDbLogCommand):
         raise NotImplementedError()
 
     def _create_new_object(self, dataservice_object):
-        # this will run after get_existing_object, so you can assume there is no existing object in DB
-        # it should create the object in DB using the data in dataservice_object
-        # return value is the created DB object
-        # this function must always return a DB object which was created - if there is an error - raise an Exception
+        """
+        this will run after get_existing_object, so you can assume there is no existing object in DB
+        it should create the object in DB using the data in dataservice_object
+        return value is the created DB object
+        this function must always return a DB object which was created - if there is an error - raise an Exception
+        Args:
+            dataservice_object:
+
+        Returns:
+
+        """
         raise NotImplementedError()
 
     def recreate_objects(self, object_ids):
@@ -98,8 +105,8 @@ class BaseKnessetDataserviceCollectionCommand(BaseKnessetDataserviceCommand):
     def _handle_page(self, page_num):
         for dataservice_object in self.DATASERVICE_CLASS.get_page(page_num=page_num):
             if not self._has_existing_object(dataservice_object):
-                object = self._create_new_object(dataservice_object)
-                self._log_debug(u'created new object %s: %s' % (object.pk, object))
+                oknesset_obj = self._create_new_object(dataservice_object)
+                self._log_debug(u'created new object %s: %s' % (oknesset_obj.pk, oknesset_obj))
                 if self._max_items > 0:
                     self._num_items += 1
                     if self._num_items == self._max_items:
@@ -237,7 +244,7 @@ class BaseKnessetDataserviceCollectionCommand(BaseKnessetDataserviceCommand):
                 break
 
     def _handle_noargs(self, **options):
-        if (options['recreate'] != ''):
+        if options['recreate'] != '':
             self._handle_recreate(options)
         elif options.get('createsrcid'):
             self._handle_createsrcid(options)
