@@ -574,12 +574,6 @@ class Member(models.Model):
     def convictions(self):
         return self.awards_and_convictions.filter(award_type__valence__lt=0)
 
-        # @property
-        # def committees(self):
-        #     """Committee list (splitted by comma)"""
-        #
-        #     return [x.strip() for x in self.committees.split(',')]
-
 
 class WeeklyPresence(models.Model):
     member = models.ForeignKey('Member')
