@@ -78,11 +78,12 @@ class InternalLinksTest(TestCase):
             test_pages.pop(reverse('main'))
 
         redirects = [
-            '/',
+
             reverse('party-list'), reverse('member-list'),
         ]
 
         temp_redirects = [
+            '/',
             reverse('parties-members-index'),
         ]
 
