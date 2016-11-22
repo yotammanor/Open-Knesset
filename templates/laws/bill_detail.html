@@ -7,7 +7,7 @@
 {% block extrajs %}
     <script type="text/javascript" src="{% static "js/jquery.autocomplete.js" %}"></script>
     <script type="text/javascript" src="{% static "js/ok-watch.js" %}?v=1"></script>
-    {% include "auxiliary/tags_object_edit_extrajs.html" with app_label="laws" object_type="bill" object_id=object.id %}
+    {% include "auxiliary/../ok_tag/tags_object_edit_extrajs.html" with app_label="laws" object_type="bill" object_id=object.id %}
     <script type="text/javascript">
         function show_only_vote_stage_div( div ) {
                 $("#visible-bill-stage").html($("#"+div).html());
@@ -491,7 +491,7 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
                 </div>
             </aside>
             <aside class="sidebar" id="tagging-container">
-                {% include "auxiliary/tags_object_edit.html" with tags=tags %}
+                {% include "ok_tag/tags_object_edit.html" with tags=tags %}
             </aside>
         </div>
         
@@ -529,7 +529,7 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
                         <!--<div id="create_budget_est" style='display:none'>-->
                         <!--{% if perms.tagging.add_tag %}-->
                             <form action="." method="post" id="create_budget_est_form">{% csrf_token %}
-                                <input type="hidden" name="user_input_type" value="budget_est"></input>
+                                <input type="hidden" name="user_input_type" value="budget_est">
                                 {{ budget_ests_form.as_p }}
                                 <input type="submit" value="{% trans "Send" %}" id="be_submit" class="btn">
                             </form>

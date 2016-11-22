@@ -208,7 +208,7 @@ class TagDetailViewTest(TestCase):
     def test_tag_detail_view_is_returned_for_valid_knesset_and_paginated_correctly(self):
         res = self.client.get(reverse('tag-detail', kwargs={'slug': 'tag1'}))
         self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        self.assertTemplateUsed(res, 'ok_tag/tag_detail.html')
         knesset_id = res.context['knesset_id'].number
         self.assertEqual(knesset_id, 2)
 
@@ -220,14 +220,14 @@ class TagDetailViewTest(TestCase):
         res = self._get_tag_detail_view_by_tag_and_knesset('tag1', 2)
 
         self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        self.assertTemplateUsed(res, 'ok_tag/tag_detail.html')
         knesset_id = res.context['knesset_id'].number
         self.assertEqual(knesset_id, 2)
 
     def testPrevSelectedKnessetId(self):
         res = self._get_tag_detail_view_by_tag_and_knesset('tag1', 1)
         self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        self.assertTemplateUsed(res, 'ok_tag/tag_detail.html')
         knesset_id = res.context['knesset_id'].number
         self.assertEqual(knesset_id, 1)
 
@@ -243,7 +243,7 @@ class TagDetailViewTest(TestCase):
         res = self._get_tag_detail_view_by_tag_and_knesset('tag1', 2)
 
         self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        self.assertTemplateUsed(res, 'ok_tag/tag_detail.html')
         cms = res.context['cms']
         expected_cms = set([
             "meeting first 1",
@@ -294,7 +294,7 @@ class TagDetailViewTest(TestCase):
         res = self._get_tag_detail_view_by_tag_and_knesset('tag1', 2)
 
         self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        self.assertTemplateUsed(res, 'ok_tag/tag_detail.html')
         bills = res.context['bills']
         expected_bills = set([
             "bill pre 1",
@@ -309,7 +309,7 @@ class TagDetailViewTest(TestCase):
         res = self._get_tag_detail_view_by_tag_and_knesset('tag3', 2)
 
         self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        self.assertTemplateUsed(res, 'ok_tag/tag_detail.html')
         bills = res.context['bills']
         self.assertEqual(len(bills), 1)
         self.assertEqual(bills[0].title, "bill dup second meeting")
@@ -318,7 +318,7 @@ class TagDetailViewTest(TestCase):
         res = self._get_tag_detail_view_by_tag_and_knesset('tag1', 2)
 
         self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        self.assertTemplateUsed(res, 'ok_tag/tag_detail.html')
         votes = res.context['votes']
         expected_votes = set([
             "vote time 1",
@@ -384,7 +384,7 @@ class TagVoteBillTagOrderTest(TestCase):
     def testVisibleVotes(self):
         res = self.client.get(reverse('tag-detail', kwargs={'slug': 'tag1'}), {'page': 2})
         self.assertEqual(res.status_code, 200)
-        self.assertTemplateUsed(res, 'auxiliary/tag_detail.html')
+        self.assertTemplateUsed(res, 'ok_tag/tag_detail.html')
         votes = res.context['votes']
         expected_votes = set([
             "vote with tag",

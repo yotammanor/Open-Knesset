@@ -16,7 +16,7 @@ from django.views.generic import ListView, DetailView
 from tagging.models import TaggedItem, Tag
 from tagging.utils import get_tag
 
-from auxiliary.forms import TagSuggestionForm
+from ok_tag.forms import TagSuggestionForm
 from auxiliary.mixins import GetMoreView
 from auxiliary.models import TagSuggestion, TagSynonym
 from auxiliary.views import logger
@@ -205,7 +205,7 @@ class TagList(ListView):
     """Tags index view"""
 
     model = Tag
-    template_name = 'auxiliary/tag_list.html'
+    template_name = 'ok_tag/tag_list.html'
 
     def get_queryset(self):
         return Tag.objects.all()
@@ -241,7 +241,7 @@ class TagDetail(DetailView, knessetAwareMixin):
 
     model = Tag
 
-    template_name = 'auxiliary/tag_detail.html'
+    template_name = 'ok_tag/tag_detail.html'
     slug_field = 'name'
 
     def create_tag_cloud(self, tag, limit=30, bills=None, votes=None, cms=None):

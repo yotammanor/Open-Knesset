@@ -6,7 +6,8 @@ from django.utils.html import escape, escapejs
 from django.utils.translation import ugettext_lazy as _
 from tagging.models import TaggedItem, Tag
 
-from auxiliary.models import TagSynonym, TagKeyphrase
+from auxiliary.models import TagSynonym, TagKeyphrase, TagSuggestion
+from ok_tag.tag_suggestions import approve as tag_suggestions_approve
 
 
 class TagSynonymAdmin(admin.ModelAdmin):
@@ -55,6 +56,7 @@ class TaggedItemAdmin(admin.ModelAdmin):
 
 class TagAdmin(admin.ModelAdmin):
     model = Tag
+    search_fields = ('name',)
     inlines = (TagSynonymInline,)
     list_filter = (TagTagSynonymListFilter,)
     list_display = ('name', 'synonyms',)
@@ -85,3 +87,12 @@ admin.site.register(TaggedItem, TaggedItemAdmin)
 
 admin.site.unregister(Tag)
 admin.site.register(Tag, TagAdmin)
+
+
+class TagSuggestionAdmin(admin.ModelAdmin):
+    model = TagSuggestion
+    list_display = ('name', 'suggested_by', 'object')
+    actions = [tag_suggestions_approve]
+
+
+admin.site.register(TagSuggestion, TagSuggestionAdmin)
