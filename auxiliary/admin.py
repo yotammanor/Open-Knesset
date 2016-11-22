@@ -3,8 +3,7 @@
 from django.contrib import admin
 from django.contrib.flatpages.admin import FlatPage, FlatPageAdmin as DjangoFlatPageAdmin
 
-from auxiliary.tag_suggestions import approve as tag_suggestions_approve
-from .models import Tidbit, TagSuggestion
+from .models import Tidbit
 
 
 class TidibitAdmin(admin.ModelAdmin):
@@ -14,14 +13,7 @@ class TidibitAdmin(admin.ModelAdmin):
     list_editable = ('ordering', 'is_active')
 
 
-class TagSuggestionAdmin(admin.ModelAdmin):
-    model = TagSuggestion
-    list_display = ('name', 'suggested_by', 'object')
-    actions = [tag_suggestions_approve]
-
-
 admin.site.register(Tidbit, TidibitAdmin)
-admin.site.register(TagSuggestion, TagSuggestionAdmin)
 
 
 class FlatPageAdmin(DjangoFlatPageAdmin):

@@ -25,7 +25,6 @@ from operator import attrgetter
 
 
 class PostResource(BaseResource):
-
     class Meta(BaseResource.Meta):
         limit = 50
         allowed_methods = ['get']
@@ -57,7 +56,7 @@ class PostResource(BaseResource):
 
 
 def get_synonyms(tag):
-    #return Tag.objects.filter(synonym_synonym_tag__tag=tag)
+    # return Tag.objects.filter(synonym_synonym_tag__tag=tag)
     if tag.id in synonyms_dict:
         return Tag.objects.filter(id__in=synonyms_dict[tag.id])
     else:
@@ -65,13 +64,14 @@ def get_synonyms(tag):
 
 
 def get_proper_synonyms(tag):
-    #return Tag.objects.filter(synonym_proper_tag__synonym_tag=tag)
+    # return Tag.objects.filter(synonym_proper_tag__synonym_tag=tag)
     if tag.id in proper_names_dict:
         return Tag.objects.filter(id=proper_names_dict[tag.id])
     else:
         return []
 
-#TODO: save this in cache
+
+# TODO: save this in cache
 synonyms_dict = {}
 proper_names_dict = {}
 try:
@@ -117,35 +117,36 @@ class TagResource(BaseResource):
     TAGGED_MODELS = (Vote, Bill, CommitteeMeeting)
 
     def build_bundle(self, obj=None, data=None, request=None, objects_saved=None):
-        bundle=super(TagResource,self).build_bundle(obj,data,request,objects_saved)
+        bundle = super(TagResource, self).build_bundle(obj, data, request, objects_saved)
         if 'jquery_autocomplete' in request.GET and 'query' in request.GET:
-            bundle.request.GET=request.GET.copy()
-            bundle.request.GET['name__startswith']=request.GET['query']
+            bundle.request.GET = request.GET.copy()
+            bundle.request.GET['name__startswith'] = request.GET['query']
         return bundle
 
-    def create_response(self,request,data):
+    def create_response(self, request, data):
         if 'jquery_autocomplete' in request.GET and 'query' in request.GET:
-            tags=[o.obj for o in data['objects']]
-            vals=TagSynonym.objects.filter(synonym_tag__in=tags).values('tag__name','synonym_tag__name')
-            synonyms=dict([(val['synonym_tag__name'],val['tag__name']) for val in vals])
-            suggestions=[]
+            tags = [o.obj for o in data['objects']]
+            vals = TagSynonym.objects.filter(synonym_tag__in=tags).values('tag__name', 'synonym_tag__name')
+            synonyms = dict([(val['synonym_tag__name'], val['tag__name']) for val in vals])
+            suggestions = []
             for obj in data['objects']:
-                name=obj.obj.name
+                name = obj.obj.name
                 if name in synonyms:
-                    suggestions.append(name+' ['+synonyms[name]+']')
+                    suggestions.append(name + ' [' + synonyms[name] + ']')
                 else:
                     suggestions.append(name)
-            data={
-              "query":request.GET['query'],
-              'suggestions':suggestions,
-              'data':[],
+            data = {
+                "query": request.GET['query'],
+                'suggestions': suggestions,
+                'data': [],
             }
-        return super(TagResource,self).create_response(request,data)
+        return super(TagResource, self).create_response(request, data)
 
     def build_filters(self, filters=None):
-        filters=super(TagResource,self).build_filters(filters)
+        filters = super(TagResource, self).build_filters(filters)
         all_tags = list(set().union(*[Tag.objects.usage_for_model(model) for model in self.TAGGED_MODELS]))
-        filters['id__in']=[tag.id for tag in all_tags]+[o['tag_id'] for o in TagSynonym.objects.all().values('tag_id')]
+        filters['id__in'] = [tag.id for tag in all_tags] + [o['tag_id'] for o in
+                                                            TagSynonym.objects.all().values('tag_id')]
         return filters
 
     def dehydrate_absolute_url(self, bundle):
@@ -156,8 +157,12 @@ class TagResource(BaseResource):
 
     def prepend_urls(self):
         return [
-            url(r'^(?P<resource_name>%s)/(?P<app_label>\w+)/(?P<object_type>\w+)/(?P<object_id>[0-9]+)/$' % self._meta.resource_name, self.wrap_view('get_object_tags'), name='tags-for-object'),
-            url(r'^(?P<resource_name>%s)/(?P<app_label>\w+)/(?P<object_type>\w+)/(?P<object_id>[0-9]+)/(?P<related_name>[_a-zA-Z]\w*)/$' % self._meta.resource_name, self.wrap_view('get_related_tags'), name='related-tags'),
+            url(
+                r'^(?P<resource_name>%s)/(?P<app_label>\w+)/(?P<object_type>\w+)/(?P<object_id>[0-9]+)/$' % self._meta.resource_name,
+                self.wrap_view('get_object_tags'), name='tags-for-object'),
+            url(
+                r'^(?P<resource_name>%s)/(?P<app_label>\w+)/(?P<object_type>\w+)/(?P<object_id>[0-9]+)/(?P<related_name>[_a-zA-Z]\w*)/$' % self._meta.resource_name,
+                self.wrap_view('get_related_tags'), name='related-tags'),
         ]
 
     def _create_response(self, request, objects):
@@ -195,6 +200,7 @@ class TagResource(BaseResource):
         except ContentType.DoesNotExist:
             pass
 
-        tags_ids = TaggedItem.objects.filter(object_id=kwargs['object_id']).filter(content_type=ctype).values_list('tag', flat=True)
+        tags_ids = TaggedItem.objects.filter(object_id=kwargs['object_id']).filter(content_type=ctype).values_list(
+            'tag', flat=True)
         tags = Tag.objects.filter(id__in=tags_ids)
         return self._create_response(request, tags)

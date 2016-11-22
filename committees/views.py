@@ -1,24 +1,21 @@
 # -*- coding: utf-8 -*
+import colorsys
 import datetime
+import difflib
+import itertools
 import json
+import logging
 import re
 
-import colorsys
-import difflib
-import logging
-
-import itertools
 import tagging
-from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Q
-
-import auxiliary.tag_suggestions
 from actstream import action
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.urlresolvers import reverse
+from django.db.models import Q
 from django.http import (HttpResponse, HttpResponseRedirect, Http404,
                          HttpResponseForbidden)
 from django.shortcuts import get_object_or_404, render_to_response
@@ -28,20 +25,21 @@ from django.utils.translation import ugettext_lazy, ugettext as _
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.generic import DetailView, ListView
 from tagging.models import TaggedItem, Tag
+
 import models
-from knesset.exceptions import HttpBadRequest
-from models import Committee, CommitteeMeeting, Topic
-from ok_tag.views import BaseTagMemberListView
+import ok_tag.tag_suggestions
 from auxiliary.mixins import GetMoreView
 from forms import EditTopicForm, LinksFormset
 from hashnav import method_decorator as hashnav_method_decorator
-from knesset.utils import clean_string, clean_string_no_quotes
+from knesset.utils import clean_string_no_quotes
 from laws.models import Bill, PrivateProposal
 from links.models import Link
+from lobbyists.models import Lobbyist
 from mks.models import Member
 from mks.utils import get_all_mk_names
 from mmm.models import Document
-from lobbyists.models import Lobbyist
+from models import Committee, CommitteeMeeting, Topic
+from ok_tag.views import BaseTagMemberListView
 
 logger = logging.getLogger("open-knesset.committees.views")
 
@@ -217,8 +215,8 @@ class MeetingDetailView(DetailView):
         context['members'] = members
 
         meeting_text = [cm.topics] + [part.body for part in cm.parts.all()]
-        context['tag_suggestions'] = auxiliary.tag_suggestions.extract_suggested_tags(cm.tags,
-                                                                                      meeting_text)
+        context['tag_suggestions'] = ok_tag.tag_suggestions.extract_suggested_tags(cm.tags,
+                                                                                   meeting_text)
 
         context['mentioned_lobbyists'] = cm.main_lobbyists_mentioned
         context['mentioned_lobbyist_corporations'] = cm.main_lobbyist_corporations_mentioned

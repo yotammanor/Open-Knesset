@@ -16,7 +16,7 @@
     <script type="text/javascript" src="{% static "js/waypoints.min.js" %}"> </script>
     <script type="text/javascript" src="{% static "js/committeemeeting_detail.js" %}"> </script>
 
-{% include "auxiliary/tags_object_edit_extrajs.html" with app_label="committees" object_type="committeemeeting" object_id=object.id %}
+{% include "auxiliary/../ok_tag/tags_object_edit_extrajs.html" with app_label="committees" object_type="committeemeeting" object_id=object.id %}
 {% endblock %}
 
 
@@ -140,7 +140,7 @@
 
         <div class="span3">
             <aside class="sidebar sidebar-agendas">
-                {% include "auxiliary/tags_object_edit.html" with tags=object.tags tag_suggestions=tag_suggestions %}
+                {% include "ok_tag/tags_object_edit.html" with tags=object.tags tag_suggestions=tag_suggestions %}
             </aside>
 
             {% if mentioned_lobbyists or mentioned_lobbyist_corporations %}

@@ -1,10 +1,9 @@
 from django import forms
-from django.forms.widgets import HiddenInput
-from django.utils.translation import ugettext_lazy as _
 from django.utils.safestring import mark_safe
+from django.utils.translation import ugettext_lazy as _
 
-from .models import ICON_CHOICES, Tidbit, Feedback, TagSuggestion
 from suggestions.forms import InstanceCreateSuggestionForm
+from .models import ICON_CHOICES, Tidbit, Feedback
 
 
 class SearchForm(forms.Form):
@@ -32,31 +31,12 @@ class TidbitSuggestionForm(InstanceCreateSuggestionForm):
 
         return data
 
-class TagSuggestionForm(InstanceCreateSuggestionForm):
-    name = forms.CharField(label=_('Name'))
-    app_label = forms.CharField(widget=HiddenInput)
-    object_type = forms.CharField(widget=HiddenInput)
-    object_id = forms.CharField(widget=HiddenInput)
-
-    class Meta:
-        model = TagSuggestion
-        caption = _('Suggest Tag')
-
-    def __init__(self, *args, **kwargs):
-        super(TagSuggestionForm, self).__init__(*args, **kwargs)
-        self.helper.form_action = 'suggest-tag-post'
-
-    def get_data(self, request):
-        data = super(TagSuggestionForm, self).get_data(request)
-        data['suggested_by'] = request.user
-        return data
-
 
 class FeedbackSuggestionForm(InstanceCreateSuggestionForm):
-
     content = forms.CharField(label=_('Content'),
                               widget=forms.Textarea(attrs={'rows': 7, 'cols': 120}),
-                              help_text=mark_safe(_('Content of your suggestion will be available to the public.<br/>If you want to send us sensitive information please send it via email:<br/><a href="mail@oknesset.org">mail@oknesset.org</a>')))
+                              help_text=mark_safe(_(
+                                  'Content of your suggestion will be available to the public.<br/>If you want to send us sensitive information please send it via email:<br/><a href="mail@oknesset.org">mail@oknesset.org</a>')))
     url = forms.CharField(widget=forms.HiddenInput, max_length=400)
 
     class Meta:
