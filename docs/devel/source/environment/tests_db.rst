@@ -56,8 +56,6 @@ On the c9.io environment there is a superuser preconfigured: admin / 123456
     python manage.py createsuperuser
 
 
-.. _debug_toolbar:
-
 Running the Development server
 =====================================
 
