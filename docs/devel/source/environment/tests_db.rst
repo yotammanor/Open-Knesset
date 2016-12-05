@@ -58,21 +58,6 @@ On the c9.io environment there is a superuser preconfigured: admin / 123456
 
 .. _debug_toolbar:
 
-Enable django-debug-toolbar
-==============================
-
-.. todo:: Expand on this
-
-Create `local_settings.py` in the `knesset` directory (where `settings.py` is
-located). To enable the `django-debug-toolbar`_ on the local developement address,
-put in that file:
-
-.. _django-debug-toolbar: http://pypi.python.org/pypi/django-debug-toolbar
-
-.. code-block:: python
-
-    INTERNAL_IPS = ('127.0.0.1',)
-
 Running the Development server
 =====================================
 
