@@ -13,7 +13,7 @@ sauce_username = ''
 sauce_accesskey = ''
 
 sauce_platforms = [
-    {"platform": "MacOS El Capitan 10.11", "browserName": "chrome", "version": "52"},
+    {"platform": "Mac OS X 10.11", "browserName": "chrome", "version": "52"},
     {"platform": "Windows 8.1", "browserName": "internet explorer", "version": "11"},
     {"platform": "Linux", "browserName": "firefox", "version": "44"}
 ]
@@ -50,20 +50,20 @@ class Runner(DiscoverRunner):
 
     def __init__(self, *args, **kwargs):
         global browser, sauce_username, sauce_accesskey
-        if os.environ.has_key('KNESSET_BROWSER'):
+        if os.environ.get('KNESSET_BROWSER'):
             browser = os.environ.get('KNESSET_BROWSER')
         else:
             browser = kwargs['browser']
         if browser == 'Sauce':
-            if os.environ.has_key('SAUCE_USERNAME'):
+            if os.environ.get('SAUCE_USERNAME'):
                 sauce_username = os.environ.get('SAUCE_USERNAME')
             else:
                 sauce_username = kwargs['sauceuser']
-            if os.environ.has_key('SAUCE_ACCESS_KEY'):
+            if os.environ.get('SAUCE_ACCESS_KEY'):
                 sauce_accesskey = os.environ.get('SAUCE_ACCESS_KEY')
             else:
                 sauce_accesskey = kwargs['sauceaccesskey']
-        if 'fullinitialization' in kwargs and kwargs['fullinitialization'] == True:
+        if 'fullinitialization' in kwargs.keys() and kwargs['fullinitialization']:
             self.full_initialization()
         super(Runner, self).__init__(*args, **kwargs)
 
