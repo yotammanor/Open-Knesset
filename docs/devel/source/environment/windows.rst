@@ -162,7 +162,7 @@ the `oknesset` directory and run::
 
     git clone git@github.com:your-name/Open-Knesset.git
 
-Replace `your-username` with the username you've registered at git hub.
+Replace `your-username` with the username you've registered at GitHub.
 
 .. _Open-Knesset repository: https://github.com/hasadna/Open-Knesset
 
