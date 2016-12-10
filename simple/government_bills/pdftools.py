@@ -3,37 +3,27 @@ import os
 import subprocess
 from string import uppercase
 import sys
-
 from textutil import asblocks, sanitize
 
 DEBUG=False
 
-def which(x):
-    for p in os.environ['PATH'].split(':'):
-        path = os.path.join(p, x)
-        if os.path.exists(path):
-            return path
-    return None
+def get_path_for_tool_by_toolname(toolname):
+    default_path = os.path.dirname(sys.modules[__name__].__file__)
+    path_options = [
+                os.path.join(default_path, '..', '..', '..', '..', '..', '..', 'parts', 'poppler', 'bin'),
+                os.path.join(default_path)
+                    ]
+    path_prefix_candidate_list = path_options + os.environ['PATH'].split(":")
 
-def firstl(f, it, default):
-    for x in it:
-        t = x() if callable(x) else x
-        if f(t):
-            return t
-    t = default() if callable(default) else default
-    return t
+    for path_prefix_option in path_prefix_candidate_list:
+        path_option = os.path.join(path_prefix_option, toolname)
+        if os.path.exists(path_option):
+            return path_option
+    else:
+        raise Exception(toolname + " not found. Check your PATH environment variable and installation of poppler")
 
-mod_path = os.path.dirname(sys.modules[__name__].__file__)
-if mod_path == '': mod_path = '.'
-
-def local_or_system(toolname):
-    return firstl(os.path.exists,
-        [os.path.join(mod_path, '..', '..', '..', '..', '..', '..',
-                      'parts', 'poppler', 'bin', toolname),
-         os.path.join(mod_path, toolname)], lambda: which(toolname))
-
-PDFTOTEXT=local_or_system('pdftotext')
-PDFINFO=local_or_system('pdfinfo')
+PDFTOTEXT=get_path_for_tool_by_toolname('pdftotext')
+PDFINFO=get_path_for_tool_by_toolname('pdfinfo')
 
 def pdftotext_version():
     if not PDFTOTEXT:
