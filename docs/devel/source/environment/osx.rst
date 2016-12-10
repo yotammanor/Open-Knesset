@@ -94,9 +94,7 @@ Installing PDF Command Line tools (Optional. This is only needed if you want to 
 
 Now we will install XPDF which is a requirement for running the scrapers.
 
-    brew tap homebrew/x11
-    brew cask install xquartz
-    brew install xpdf
+    brew install poppler
 
 Note that oknesset will look for the XPATH tools on the `PATH` environment variable. 
 
