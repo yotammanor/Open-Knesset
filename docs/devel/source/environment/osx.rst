@@ -90,9 +90,11 @@ Note the changed prompt which includes the virtualenv's name.
 Installing PDF Command Line tools (Optional. This is only needed if you want to work on the scrapers)
 =========================================
 
-.. code-block:: sh
 
-Now we will install XPDF which is a requirement for running the scrapers.
+Now we will install Poppler, which is a package that contains `pdfinfo` and `pdftotext`.
+Both are requirements for running the scrapers.
+
+.. code-block:: sh
 
     brew install poppler
 
