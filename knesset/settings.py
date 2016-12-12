@@ -86,7 +86,7 @@ MIDDLEWARE_CLASSES = (
     'pagination.middleware.PaginationMiddleware',
     'waffle.middleware.WaffleMiddleware',
     # make sure to keep the DebugToolbarMiddleware last
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
+    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
 
 AUTHENTICATION_BACKENDS = (
@@ -136,7 +136,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'tastypie_swagger',
-    'debug_toolbar',
+    # 'debug_toolbar',
     'tagging',
     'south',
     'planet',
@@ -162,6 +162,7 @@ INSTALLED_APPS = (
     'sslserver',
     'waffle',
     'import_export',
+    'django_slack',
     # 'knesset',
     'auxiliary',  # knesset apps
     'mks',
@@ -188,7 +189,7 @@ INSTALLED_APPS = (
     'lobbyists',
     'kikar',
     'ok_tag',
-    'django_slack'
+    'dials',
 )
 
 TEMPLATE_CONTEXT_PROCESSORS = (

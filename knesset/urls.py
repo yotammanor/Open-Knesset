@@ -25,6 +25,7 @@ from laws.models import Bill
 
 from lobbyists.urls import lobbyistpatterns
 from auxiliary.urls import auxiliarysurlpatterns
+from dials.urls import dialsurlpatterns
 
 from auxiliary.views import (
     main, post_annotation, post_details, post_feedback,
@@ -107,7 +108,7 @@ urlpatterns += staticfiles_urlpatterns() + static(settings.MEDIA_URL, document_r
 # urlpatterns += polyorgurlpatterns + personsurlpatterns
 urlpatterns += personsurlpatterns
 urlpatterns += auxiliarysurlpatterns
-
+urlpatterns += dialsurlpatterns
 if settings.DEBUG:
     import debug_toolbar
 
