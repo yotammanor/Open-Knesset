@@ -18,9 +18,15 @@ class Command(NoArgsCommand):
     reset_models = ('contenttypes.contenttype', 'sites.site',
                     'flatpages.flatpage')
     ignore_models = (
-        'sessions.session', 'auth.message', 'mailer',
-        'accounts.email_validation', 'hitcount', 'actstream.follow',
-        'avatar', 'suggestions', 'auxiliary.feedback', 'default.code',
+        'sessions.session',
+        'auth.message',
+        'mailer',
+        'accounts.email_validation',
+        'actstream.follow',
+        'avatar',
+        'suggestions',
+        'auxiliary.feedback',
+        'default.code',
         'corsheaders.corsmodel')
     only_latest = ('actstream.action', 'committees.protocolpart',
                    'committees.committeemeeting')

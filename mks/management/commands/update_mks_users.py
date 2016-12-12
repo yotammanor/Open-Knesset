@@ -11,7 +11,7 @@ from avatar.models import Avatar
 
 
 class Command(NoArgsCommand):
-    help = "Copy information from Member model to User, UserPrifle and Avatar"
+    help = "Copy information from Member model to User, UserProfile and Avatar"
 
     def handle_noargs(self, **options):
         # TODO: VALID_EMAIL_GROUP should be project-wide 
@@ -41,7 +41,7 @@ class Command(NoArgsCommand):
             content = ContentFile(image_url.read())
             avatar.avatar.save(user.username, content)
             try:
-                profile = user.get_profile()
+                profile = user.profiles.get()
             except:
                 profile = user.profiles.create()
 

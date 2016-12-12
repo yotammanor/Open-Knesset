@@ -1,9 +1,12 @@
+# encoding: utf-8
 # Django settings for knesset project.
 import os
 import logging
 from datetime import timedelta
 
 # dummy gettext, to get django-admin makemessages to find i18n texts in this file
+import sys
+
 gettext = lambda x: x
 
 DEBUG = True
@@ -81,6 +84,7 @@ MIDDLEWARE_CLASSES = (
     'django.contrib.messages.middleware.MessageMiddleware',  # keep after session
     'django.middleware.csrf.CsrfViewMiddleware',
     'pagination.middleware.PaginationMiddleware',
+    'waffle.middleware.WaffleMiddleware',
     # make sure to keep the DebugToolbarMiddleware last
     'debug_toolbar.middleware.DebugToolbarMiddleware',
 )
@@ -121,7 +125,7 @@ LOCALE_PATHS = (
     os.path.join(PROJECT_ROOT, 'locale'),
 )
 INSTALLED_APPS = (
-    'django.contrib.auth',          # django apps
+    'django.contrib.auth',  # django apps
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
@@ -140,7 +144,7 @@ INSTALLED_APPS = (
     'django_extensions',
     'actstream',
     'avatar',
-    'hitcount',
+
     'annotatetext',
     'mailer',
     'backlinks',
@@ -156,8 +160,10 @@ INSTALLED_APPS = (
     'storages',
     'corsheaders',
     'sslserver',
-    #'knesset',
-    'auxiliary',                  # knesset apps
+    'waffle',
+    'import_export',
+    # 'knesset',
+    'auxiliary',  # knesset apps
     'mks',
     'mmm',
     'laws',
@@ -180,6 +186,9 @@ INSTALLED_APPS = (
     'suggestions',
     'okscraper_django',
     'lobbyists',
+    'kikar',
+    'ok_tag',
+    'django_slack'
 )
 
 TEMPLATE_CONTEXT_PROCESSORS = (
@@ -196,7 +205,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
 
 INTERNAL_IPS = ()
 # Add the following line to your local_settings.py files to enable django-debug-toolar:
-#INTERNAL_IPS = ('127.0.0.1',)
+# INTERNAL_IPS = ('127.0.0.1',)
 
 LOCAL_DEV = True
 
@@ -212,14 +221,42 @@ LOGIN_REDIRECT_URL = '/'
 
 USER_AGENT = "Mozilla/4.0 (compatible; MSIE 8.0; Windows NT 6.2; Trident/4.0; SLCC2; .NET CLR 2.0.50727; .NET CLR 3.5.30729; .NET CLR 3.0.30729; Media Center PC 6.0)"
 
-LOG_FILENAME = os.path.join(PROJECT_ROOT, 'open-knesset.log')
-logger = logging.getLogger("open-knesset")
-logger.setLevel(logging.DEBUG)  # override this in prod server to logging.ERROR
-h = logging.FileHandler(LOG_FILENAME)
-h.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(asctime)s\t%(name)s:%(lineno)d\t%(levelname)s\t%(message)s")
-h.setFormatter(formatter)
-logger.addHandler(h)
+LOG_FILENAME = os.path.join(PROJECT_ROOT, 'open-knesset.log')
+oknesset_logger = logging.getLogger("open-knesset")
+oknesset_logger.setLevel(logging.DEBUG)  # override this in prod server to logging.ERROR
+file_handler = logging.FileHandler(LOG_FILENAME)
+file_handler.setLevel(logging.INFO)
+
+file_handler.setFormatter(formatter)
+oknesset_logger.addHandler(file_handler)
+
+# Console loggers, Best practice always log to stdout and stderr and let third party environment to deal with logging
+# See 12 factor app http://12factor.net/logs
+# Todo refactor this to support stderr and out and more dynamic config supporting sentry etc
+root_logger = logging.getLogger('')  # root logger
+root_logger.setLevel(logging.INFO)
+stdout_handler = logging.StreamHandler(stream=sys.stdout)
+
+stdout_handler.setFormatter(formatter)
+stdout_handler.setLevel(logging.INFO)
+
+stderr_handler = logging.StreamHandler(stream=sys.stderr)
+
+stderr_handler.setFormatter(formatter)
+stderr_handler.setLevel(logging.ERROR)
+
+root_logger.addHandler(stderr_handler)
+root_logger.addHandler(stdout_handler)
+
+request_logger = logging.getLogger('requests')
+request_logger.setLevel(logging.ERROR)
+request_logger.addHandler(stderr_handler)
+
+opbeat_logger = logging.getLogger('opbeat.errors')
+request_logger.setLevel(logging.ERROR)
+request_logger.addHandler(stderr_handler)
+request_logger.addHandler(stderr_handler)
 
 GOOGLE_CUSTOM_SEARCH = "007833092092208924626:1itz_l8x4a4"
 GOOGLE_MAPS_API_KEYS = {'dev': 'ABQIAAAAWCfW8hHVwzZc12qTG0qLEhQCULP4XOMyhPd8d_NrQQEO8sT8XBQdS2fOURLgU1OkrUWJE1ji1lJ-3w',
@@ -255,14 +292,9 @@ ANNOTATETEXT_FLAGS = (
 )
 
 AUTO_GENERATE_AVATAR_SIZES = (75, 48)
+AVATAR_GRAVATAR_BASE_URL = 'https://www.gravatar.com/avatar/'
 
-HITCOUNT_KEEP_HIT_ACTIVE = {'hours': 1}
-HITCOUNT_HITS_PER_IP_LIMIT = 0
-HITCOUNT_EXCLUDE_USER_GROUP = ()
-
-TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
 NOSE_ARGS = ['--with-xunit']
-
 
 SERIALIZATION_MODULES = {
     'oknesset': 'auxiliary.serializers'
@@ -272,6 +304,10 @@ API_LIMIT_PER_PAGE = 1000
 
 SOUTH_TESTS_MIGRATE = False
 
+SOUTH_MIGRATION_MODULES = {
+
+    'waffle': 'waffle.south_migrations',
+}
 
 TINYMCE_DEFAULT_CONFIG = {
     'mode': "textareas",
@@ -318,9 +354,21 @@ LOGIN_REDIRECT_TARGETS = {
     }
 }
 
+KIKAR_BASE_URL = 'http://www.kikar.org'
+
 # if you add a local_settings.py file, it will override settings here
 # but please, don't commit it to git.
 DEBUG_TOOLBAR_PATCH_SETTINGS = False
+
+TEST_RUNNER = 'knesset.common_test_runner.KnessetTestRunner'
+
+DEVSERVER_MODULES = (
+    # 'devserver.modules.sql.SQLRealTimeModule',
+    'devserver.modules.sql.SQLSummaryModule',
+    'devserver.modules.profile.ProfileSummaryModule',
+    # 'devserver.modules.profile.MemoryUseModule'
+)
+
 try:
     from local_settings import *
 except ImportError:

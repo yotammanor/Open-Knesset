@@ -51,6 +51,10 @@ Contents:
     css_docs
     tips
     browsertests
+    scraping/index
+    devops
+    feature_toggle
+    project_management
 
 Indices and tables
 ==================

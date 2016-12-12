@@ -114,7 +114,7 @@ class Command(BaseCommand):
         try:
             return serializers.serialize(format, chain(*objects_chains), indent=indent,
                         use_natural_keys=use_natural_keys, stream=sys.stdout)
-        except Exception, e:
+        except Exception as e:
             if show_traceback:
                 raise
             raise CommandError("Unable to serialize database: %s" % e)

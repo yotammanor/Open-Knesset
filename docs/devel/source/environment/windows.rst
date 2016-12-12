@@ -34,7 +34,7 @@ Python
 (32 or 64 bit). As of this writing, the latest one is `2.7.8`_.
 
 .. _2.7.8: http://www.python.org/download/releases/2.7.8/
-.. _Download the latest Python 2.7: http://python.org/download/releases/
+.. _Download the latest Python 2.7: https://www.python.org/downloads/
 
 Once downloaded, run the installer, and accept defaults.
 
@@ -162,7 +162,7 @@ the `oknesset` directory and run::
 
     git clone git@github.com:your-name/Open-Knesset.git
 
-Replace `your-username` with the username you've registered at git hub.
+Replace `your-username` with the username you've registered at GitHub.
 
 .. _Open-Knesset repository: https://github.com/hasadna/Open-Knesset
 

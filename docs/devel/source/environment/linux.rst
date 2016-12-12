@@ -8,12 +8,14 @@ Installing Initial Requirements
 On Linux we'll be creating a clean virtualenv, so in addtion we'll need
 developer tools (to compile PIL, lxml etc).
 
-Debian and derivatives like Ubuntu and Mint
---------------------------------------------
+Debian and derivatives like Ubuntu and Mint, Including c9.io
+------------------------------------------------------------
 
 .. code-block:: sh
 
+    sudo apt-get update
     sudo apt-get install build-essential git python python-dev python-setuptools python-virtualenv python-pip
+    sudo apt-get install libjpeg-dev libfreetype6 libfreetype6-dev
     sudo apt-get build-dep python-imaging
     sudo apt-get build-dep python-lxml
 
@@ -75,7 +77,7 @@ the `oknesset` directory and run::
 
     git clone https://github.com/your-username/Open-Knesset.git
 
-Replace `your-username` with the username you've registered at git hub.
+Replace `your-username` with the username you've registered at GitHub.
 
 .. note::
 
@@ -84,6 +86,8 @@ Replace `your-username` with the username you've registered at git hub.
     will look like::
 
         git@github.com:your-username/Open-Knesset.git
+
+    For c9.io you will have to use ssh keys - you will need to add c9.io ssh key to your GitHub Profile's trusted keys.
 
 .. _github guide on ssh keys: https://help.github.com/articles/generating-ssh-keys#platform-linux
 
@@ -102,6 +106,7 @@ run:
 
 .. code-block:: sh
 
+    pip install --upgrade pip
     pip install -r Open-Knesset/requirements.txt
     
 And wait ...

@@ -18,3 +18,10 @@ knesset/templates/last_build.txt
 media/avatars
 media/agendas
 data/committee_mms_videos
+/data/plenum_protocols
+/node_modules
+notebooks/
+npm-debug.log
+*.egg-info
+presence/presence.txt
+presence/presence_log.txt

@@ -1,22 +1,25 @@
-function placeHelptext(obj,left,top) {
-  $('#helptextcontainer').empty();
-  obj.clone().appendTo($('#helptextcontainer'))
-
-  if (left<500) {
-      $('#helptextcontainer .helptext').removeClass('right')
-      $('#helptextcontainer .helptext').addClass('left')
-  } else {
-      $('#helptextcontainer .helptext').removeClass('left')
-      $('#helptextcontainer .helptext').addClass('right')
-  }
-
-  $('#helptextcontainer .helptext').css('z-index',1000);
-  $('#helptextcontainer .helptext .x').bind('click',function(){
-        $('#helptextcontainer').empty();});
-  $('#helptextcontainer .helptext').css('display','inline-block');
-  $('#helptextcontainer .helptext').css('top',top-50).css('left',left);
+function showHelpText(elt) {
+    var helptext = $(elt).data('helptext');
+    var moreinfo = $(elt).data('moreinfo');
+    if (moreinfo) {
+        helptext += '<p><a href="'+moreinfo+'">למידע נוסף</a></p>'
+    }
+    $('#okhelptextscontainer .modal-body p').html(helptext);
+    $('#okhelptextscontainer').modal();
 }
-$('body').append('<div id="helptextcontainer"></div>');
-$(document).ready(function() {
-  $('.quest-mark').click(function(e) {placeHelptext($(e.currentTarget).find(".helptext"),e.pageX,e.pageY)});
+$(function() {
+   $('body').append('' +
+        '<div id="okhelptextscontainer" class="modal hide fade" tabindex="-1" role="dialog" aria-hidden="true">' +
+            // '<div class="modal-header">' +
+            //     '<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>' +
+            //     '<h3>Modal header</h3>' +
+            // '</div>' +
+            '<div class="modal-body">' +
+                '<p></p>' +
+            '</div>' +
+            '<div class="modal-footer">' +
+                '<button class="btn" data-dismiss="modal" aria-hidden="true">סגור</button>' +
+            '</div>' +
+        '</div>' +
+   '');
 });

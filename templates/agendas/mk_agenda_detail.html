@@ -1,5 +1,5 @@
 {% extends "site_base.html" %}
-{% load i18n tagging_tags laws_tags common_visual_elements links_tags comments user_tags hitcount_tags %}
+{% load i18n tagging_tags laws_tags common_visual_elements links_tags comments user_tags %}
 {% load static from staticfiles %}
 {% block extratitle %}{{ title }}{% endblock %}
 {% block keywords %}{{ object.name }}, {{ member }}{% endblock %}
@@ -14,11 +14,7 @@
 {% block nav-agendas %}class="active"{% endblock %}
 
 {% block extrajs %}
-<script type="text/javascript"><!--
-    $(document).ready(function() {
-        {% get_hit_count_javascript for object %}
-    });
---></script>
+
 {% endblock %}
 
 {% block divcontent %}

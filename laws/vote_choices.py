@@ -1,5 +1,8 @@
 from django.utils.translation import ugettext_lazy as _
 from django.db.models import Q
+from collections import OrderedDict
+
+from laws.enums import BillStages
 
 TYPE_CHOICES = (
     ('all', _('All votes')),
@@ -30,29 +33,46 @@ ORDER_CHOICES = (
     ('votes', _('Number of votes')),
 )
 
+BILL_STAGES = OrderedDict((
+    ('UNKNOWN', BillStages.UNKNOWN),
+    ('FROZEN', BillStages.FROZEN),
+    ('PROPOSED', BillStages.PROPOSED),
+    ('PRE_APPROVED', BillStages.PRE_APPROVED),
+    ('FAILED_PRE_APPROVAL', BillStages.FAILED_PRE_APPROVAL),
+    ('CONVERTED_TO_DISCUSSION', BillStages.CONVERTED_TO_DISCUSSION),
+    ('IN_COMMITTEE', BillStages.IN_COMMITTEE),
+    ('FIRST_VOTE', BillStages.FIRST_VOTE),
+    ('FAILED_FIRST_VOTE', BillStages.FAILED_FIRST_VOTE),
+    ('COMMITTEE_CORRECTIONS', BillStages.COMMITTEE_CORRECTIONS),
+    ('APPROVED', BillStages.APPROVED),
+    ('FAILED_APPROVAL', BillStages.FAILED_APPROVAL),
+))
+
 BILL_STAGE_CHOICES = (
-        (u'?', _(u'Unknown')),
-        (u'0', _(u'Frozen in previous knesset')),
-        (u'1', _(u'Proposed')),
-        (u'2', _(u'Pre-Approved')),
-        (u'-2',_(u'Failed Pre-Approval')),
-        (u'-2.1', _(u'Converted to discussion')),
-        (u'3', _(u'In Committee')),
-        (u'4', _(u'First Vote')),
-        (u'-4',_(u'Failed First Vote')),
-        (u'5', _(u'Committee Corrections')),
-        (u'6', _(u'Approved')),
-        (u'-6',_(u'Failed Approval')),
+    (BillStages.UNKNOWN, _(u'Unknown')),
+    (BillStages.FROZEN, _(u'Frozen in previous knesset')),
+    (BillStages.PROPOSED, _(u'Proposed')),
+    (BillStages.PRE_APPROVED, _(u'Pre-Approved')),
+    (BillStages.FAILED_PRE_APPROVAL, _(u'Failed Pre-Approval')),
+    (BillStages.CONVERTED_TO_DISCUSSION, _(u'Converted to discussion')),
+    (BillStages.IN_COMMITTEE, _(u'In Committee')),
+    (BillStages.FIRST_VOTE, _(u'First Vote')),
+    (BillStages.FAILED_FIRST_VOTE, _(u'Failed First Vote')),
+    (BillStages.COMMITTEE_CORRECTIONS, _(u'Committee Corrections')),
+    (BillStages.APPROVED, _(u'Approved')),
+    (BillStages.FAILED_APPROVAL, _(u'Failed Approval')),
 )
 
-BILL_AGRR_STAGES = { 'proposed':Q(stage__isnull=False),
-                'pre':Q(stage='2')|Q(stage='3')|Q(stage='4')|Q(stage='5')|Q(stage='6'),
-                'first':Q(stage='4')|Q(stage='5')|Q(stage='6'),
-                'approved':Q(stage='6'),
-              }
+BILL_AGRR_STAGES = {'proposed': Q(stage__isnull=False),
+                    'pre': Q(stage=BillStages.PRE_APPROVED) | Q(stage=BillStages.IN_COMMITTEE) | Q(
+                        stage=BillStages.FIRST_VOTE) | Q(stage=BillStages.COMMITTEE_CORRECTIONS) | Q(
+                        stage=BillStages.APPROVED),
+                    'first': Q(stage=BillStages.FIRST_VOTE) | Q(stage=BillStages.COMMITTEE_CORRECTIONS) | Q(
+                        stage=BillStages.APPROVED),
+                    'approved': Q(stage=BillStages.APPROVED),
+                    }
 
 BILL_TAGGED_CHOICES = (
     ('all', _('All')),
     ('false', _('Untagged Proposals')),
 )
-

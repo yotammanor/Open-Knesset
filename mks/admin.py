@@ -1,6 +1,11 @@
 from django.contrib import admin
 from django.contrib.contenttypes import generic
 from django.db.models import Q
+from django.core.cache import cache
+from django.core.cache.utils import make_template_fragment_key
+import urllib
+
+from import_export.admin import ImportExportModelAdmin
 
 from models import Member, Membership, MemberAltname
 from models import CoalitionMembership, Correlation, Party, \
@@ -50,31 +55,35 @@ class MemberRelatedVideosInline(generic.GenericTabularInline):
         return qs
 
 
-class CoalitionMembershipAdmin(admin.ModelAdmin):
+class CoalitionMembershipAdmin(ImportExportModelAdmin):
     list_display = ('party', 'start_date', 'end_date')
+
+
 admin.site.register(CoalitionMembership, CoalitionMembershipAdmin)
 
 
-class PartyAdmin(admin.ModelAdmin):
+class PartyAdmin(ImportExportModelAdmin):
     ordering = ('name',)
     list_display = ('name', 'knesset', 'start_date', 'end_date',
                     'is_coalition', 'number_of_members',
                     'number_of_seats')
-    list_filter = ('knesset', )
+    list_filter = ('knesset',)
     inlines = (MembershipInline,)
+
+
 admin.site.register(Party, PartyAdmin)
 
 
-class MemberAdmin(admin.ModelAdmin):
+class MemberAdmin(ImportExportModelAdmin):
     ordering = ('name',)
-#    fields = ('name','start_date','end_date')
+    #    fields = ('name','start_date','end_date')
     list_display = ('name', 'gender', 'PartiesString', 'current_party',
                     'is_current', 'current_position')
     list_editable = ('is_current', 'current_position')
     search_fields = ['name']
     inlines = (MembershipInline, MemberLinksInline, MemberAltnameInline, MemberPersonInline,
                MemberRelatedVideosInline)
-    list_filter = ('current_party__knesset', 'gender')
+    list_filter = ('current_party__knesset', 'gender', 'is_current', 'current_party',)
 
     # A template for a very customized change view:
     change_form_template = 'admin/simple/change_form_with_extra.html'
@@ -93,30 +102,56 @@ class MemberAdmin(admin.ModelAdmin):
     def queryset(self, request):
         return super(MemberAdmin, self).queryset(
             request).select_related('current_party')
+
+    def save_model(self, request, obj, form, change):
+        super(MemberAdmin, self).save_model(request, obj, form, change)
+        # Delete the cache of the current member after updating:
+        cache.delete('mk_%d' % obj.id)
+        # Delete the template key
+        obj_url = urllib.unquote(obj.get_absolute_url())
+        if not isinstance(obj_url, unicode):
+            obj_url = obj_url.decode('utf-8')
+        key = make_template_fragment_key('mks_detail', [obj.id, 1, obj_url])
+        cache.delete(key)
+
+
 admin.site.register(Member, MemberAdmin)
 
 
 class CorrelationAdmin(admin.ModelAdmin):
     ordering = ('-normalized_score',)
+
+
 admin.site.register(Correlation, CorrelationAdmin)
 
 
-class MembershipAdmin(admin.ModelAdmin):
+class MembershipAdmin(ImportExportModelAdmin):
+    list_select_related = True
     ordering = ('member__name',)
+    list_display = ('member', 'party', 'start_date', 'end_date')
+    list_filter = ('party', )
+
+
 admin.site.register(Membership, MembershipAdmin)
 
 
 class AwardTypeAdmin(admin.ModelAdmin):
     pass
+
+
 admin.site.register(AwardType, AwardTypeAdmin)
 
 
-class AwardAdmin(admin.ModelAdmin):
+class AwardAdmin(ImportExportModelAdmin):
     list_display = ('member', 'award_type', 'date_given')
     raw_id_fields = ('member',)
+
+
 admin.site.register(Award, AwardAdmin)
 
 
 class KnessetAdmin(admin.ModelAdmin):
-    pass
+    list_display = ('number', 'start_date', 'end_date')
+
+
 admin.site.register(Knesset, KnessetAdmin)

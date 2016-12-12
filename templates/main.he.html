@@ -1,174 +1,203 @@
 {% extends "site_base.html" %}
-{% block extrahead %} <link rel="alternate" type="application/rss+xml" title="RSS" href="{% url 'main-actions-feed' %}" /> {% endblock %}
-{% load i18n i18ninclude search %}{% load static from staticfiles %}
-{% block description %}{% trans 'Open Knesset - Opening the Knesset to the public' %}. {% trans 'Non partisan, non commercial site that brings you relevant, detailed and accurate information about the knesset' %}{% endblock %}
+{% block extrahead %}
+    <link rel="alternate" type="application/rss+xml" title="RSS" href="{% url 'main-actions-feed' %}"/> {% endblock %}
+{% load i18n i18ninclude search waffle_tags  %}{% load static from staticfiles %}
+{% block description %}{% trans 'Open Knesset - Opening the Knesset to the public' %}.
+    {% trans 'Non partisan, non commercial site that brings you relevant, detailed and accurate information about the knesset' %}{% endblock %}
 {% block extratitle %}{% trans 'Home' %}{% endblock %}
 {% block nav-main-page %} class="selected" {% endblock %}
 
 {% block extrajs %}
-<script type="text/javascript">
-    $(function() {
-        var btn = $("#events-more");
-        if (btn) {
-            btn.attr("data-initial", $("#upcoming-events li").length)
-        }
-{% if tidbits %}
-        $('#tidbitCarousel').carousel({interval: 7000})
-{% endif %}
-    });
-</script>
+    <script type="text/javascript">
+        $(function () {
+            var btn = $("#events-more");
+            if (btn) {
+                btn.attr("data-initial", $("#upcoming-events li").length)
+            }
+            {% if tidbits %}
+                $('#tidbitCarousel').carousel({interval: 7000});
+            {% endif %}
+        });
+    </script>
 
 {% endblock %}
 
 {% block divcontent %}
 
-<div id="tidbitCarousel" class="carousel slide card card-main" style="margin-top:20px">
-    <!--ol class="carousel-indicators">
+    <div id="tidbitCarousel" class="carousel slide card card-main" style="margin-top:20px">
+        <!--ol class="carousel-indicators">
     {% for tidbit in tidbits  %}
         <li {% if forloop.first %} class="active"{% endif %} data-slide-to="{{forloop.counter0}}" data-target="#tidbitCarousel"> </li>
     {% endfor %}
     </ol-->
-    <!-- Carousel items -->
-    <div class="carousel-inner">
-        {% for tidbit in tidbits  %}
-        <div class="item {% if forloop.first %}active{% endif %}">
-            <img class="pull-right tidbit-pic"
-                src="{% if tidbit.photo %}{{tidbit.photo.url}}{% else %}{{STATIC_URL}}img/tidbits/{{tidbit.icon}}.png{% endif %}"
-                alt="Tidbit photo">
-            <strong class="tidbit-icon-{{tidbit.icon}}">{{tidbit.title}}</strong>
-            <div class='tidbit-content'>{{tidbit.content|safe}}</div>
-            <a class="btn btn-more" href="{{tidbit.button_link}}">{{tidbit.button_text}}</a>
-        </div>
-        {% empty %}
-        <div class="item active">
-            <h1>No Tidbits</h1>
-            <div>Seems like the db is clean of tidbits.</div>
-            <a class="btn" href="admin/auxiliary/tidbit/add/">Add a tidbit</a>
-        </div>
-        {% endfor %}
-        {% include "auxiliary/_suggestion_button.html" with suggest_for="tidbit" %}
-    </div>
-    <!-- Carousel nav -->
-    <a class="carousel-control left" href="#tidbitCarousel" data-slide="prev">&lsaquo;</a>
-    <a class="carousel-control right" href="#tidbitCarousel" data-slide="next">&rsaquo;</a>
-</div>
+        <!-- Carousel items -->
+        <div class="carousel-inner">
+            {% for tidbit in tidbits %}
+                <div class="item {% if forloop.first %}active{% endif %}">
+                    <img class="pull-right tidbit-pic"
+                         src="
 
-<div class="row">
-    <div class="span8">
-      <div class="card card-list card-list-latest">
-        <header>
-            <h2>
-                <i class="fa fa-calendar"></i>
-                {% trans "Upcoming Events" %}
-            </h2>
-        </header>
-        <ul id="upcoming-events">
-        {% if events %}
-          {% for o in events %}
-              {% include "events/_event_li.html" %}
-          {% endfor %}
-        {% else %}
-            <li>לא נמצאו אירועים</li>
-        {% endif %}
-        </ul>
-        {% if events_more %}
-        <footer>
-        <button id="events-more" class="btn btn-mini btn-expand" data-provide="okmore"
-            data-loading-text="{% trans "Loading" %} ..."
-            autocomplete="off" data-target="#upcoming-events"
-            data-url="{% url 'more-upcoming-events' %}"
-            data-initial="INITIAL_EVENTS"
-            >{% trans "More Upcoming Events" %} +</button>
-        </footer>
-        {% endif %}
-      </div>
-    </div>
-    <div class="span4">
 
-        <aside class="sidebar">
-            <h2>מה אפשר לעשות באתר?</h2>
-            <ul>
-              <li>
-                  <a href="{% url 'help' %}#follow-members">לעקוב אחרי הצעות חוק</a>
-              </li>
-              <li>
-                  <a href="{% url 'help' %}#search-bills">לחפש הצעות חוק לפי נושא</a>
-              </li>
-              <li>
-                  <a href="{% url 'help' %}#follow-member-votes">מעקב הצבעות חבר כנסת</a>
-              </li>
-              <li>
-                  <a href="{% url 'help' %}#members-data">להשוות נתוני חברי־הכנסת</a>
-              </li>
-              <li>
-                  <a href="{% url 'help' %}#protocols">לקרוא את הפרוטוקולים</a>
-              </li>
-              {% comment %}<li>
+
+
+
+
+
+                                 {% if tidbit.photo %}{{ tidbit.photo.url }}{% else %}{{ STATIC_URL }}img/tidbits/{{ tidbit.icon }}.png{% endif %}"
+                         alt="Tidbit photo">
+                    <strong class="tidbit-icon-{{ tidbit.icon }}">{{ tidbit.title }}</strong>
+                    <div class='tidbit-content'>{{ tidbit.content|safe }}</div>
+                    <a class="btn btn-more" href="{{ tidbit.button_link }}">{{ tidbit.button_text }}</a>
+                </div>
+            {% empty %}
+                <div class="item active">
+                    <h1>No Tidbits</h1>
+                    <div>Seems like the db is clean of tidbits.</div>
+                    <a class="btn" href="admin/auxiliary/tidbit/add/">Add a tidbit</a>
+                </div>
+            {% endfor %}
+            {% include "auxiliary/_suggestion_button.html" with suggest_for="tidbit" %}
+        </div>
+        <!-- Carousel nav -->
+        <a class="carousel-control left" href="#tidbitCarousel" data-slide="prev">&lsaquo;</a>
+        <a class="carousel-control right" href="#tidbitCarousel" data-slide="next">&rsaquo;</a>
+    </div>
+
+    <div class="row">
+        <div class="span8">
+            <div class="card card-list card-list-latest">
+                <header>
+                    <h2>
+                        <i class="fa fa-calendar"></i>
+                        {% trans "Upcoming Events" %}
+                    </h2>
+                </header>
+                <ul id="upcoming-events">
+                    {% if events %}
+                        {% for o in events %}
+                            {% include "events/_event_li.html" %}
+                        {% endfor %}
+                    {% else %}
+                        <li>לא נמצאו אירועים</li>
+                    {% endif %}
+                </ul>
+                {% if events_more %}
+                    <footer>
+                        <button id="events-more" class="btn btn-mini btn-expand" data-provide="okmore"
+                                data-loading-text="{% trans "Loading" %} ..."
+                                autocomplete="off" data-target="#upcoming-events"
+                                data-url="{% url 'more-upcoming-events' %}"
+                                data-initial="INITIAL_EVENTS"
+                        >{% trans "More Upcoming Events" %} +
+                        </button>
+                    </footer>
+                {% endif %}
+            </div>
+        </div>
+        <div class="span4">
+
+            <aside class="sidebar">
+                <h2>מה אפשר לעשות באתר?</h2>
+                <ul>
+                    <li>
+                        <a href="{% url 'help' %}#follow-members">לעקוב אחרי הצעות חוק</a>
+                    </li>
+                    {% switch "show_search_by_tags" %}
+                    <li>
+                        <a href="{% url 'help' %}#search-bills">לחפש הצעות חוק לפי נושא</a>
+                    </li>
+                    {% endswitch %}
+                    <li>
+                        <a href="{% url 'help' %}#follow-member-votes">מעקב הצבעות חבר כנסת</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'help' %}#members-data">להשוות נתוני חברי־הכנסת</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'help' %}#protocols">לקרוא את הפרוטוקולים</a>
+                    </li>
+                    {% comment %}<li>
                 <a href="{% url 'lobbyists' %}">לראות מידע על לוביסטים</a>
               </li>{% endcomment %}
-            </ul>
-        </aside>
-        <aside class="sidebar">
-          <h2>מהי כנסת פתוחה ?</h2>
-          <ul>
-              <li class="agenda-mini clearfix">
-                  <p>
-                      אתר כנסת פתוחה הוא פרויקט מבית הסדנא לידע ציבורי, החושף
-                      ומנגיש מידע על המתרחש בכנסת. מטרת הפרויקט היא להגביר את
-                      השקיפות השלטונית בישראל, ולאפשר לציבור להכיר את פעילות
-                      נבחריו.
-                  </p>
-                  <p>
-                      האתר עדיין בפיתוח, ואנו מתנצלים מראש על באגים ושגיאות בנתונים.
-                  </p>
-                  <a class="btn btn-more" href="/about/">קראו עוד אודות כנסת פתוחה</a>
-              </li>
-              <li>
-                  <p>
-                      <a href="http://www.hasadna.org.il/"><img src="/static/img/hasadna-logo.png" style="width:50px; float:left"></a>
-                      כנסת פתוחה מפותח על ידי עמותת
-                      <a href="http://www.hasadna.org.il/">הסדנא לידע ציבורי</a>.
-                      אנחנו זקוקים לעזרתכם להפיץ את האתר:
-                  </p>
-                  <!-- AddToAny BEGIN -->
-                  <p class="a2a_kit a2a_default_style" style="width:200px; margin:0 auto;">
-                      <a class="a2a_dd" href="//www.addtoany.com/share_save">שיתוף</a>
-                      <span class="a2a_divider"></span>
-                      <a class="a2a_button_email"></a>
-                      <a class="a2a_button_facebook"></a>
-                      <a class="a2a_button_twitter"></a>
-                      <a class="a2a_button_google_plus"></a>
-                      <a class="a2a_button_delicious"></a>
-                      <a class="a2a_button_digg"></a>
-                      <script type="text/javascript">
-                      var a2a_config = a2a_config || {};
-                      a2a_config.locale = "he";
-                      </script>
-                      <script type="text/javascript" src="//static.addtoany.com/menu/page.js"></script>
-                  </p>
-                  <!-- AddToAny END -->
-              </li>
-          </ul>
-        </aside>
+                </ul>
+            </aside>
+            <aside class="sidebar">
+                <h2>מהי כנסת פתוחה ?</h2>
+                <ul>
+                    <li class="agenda-mini clearfix">
+                        <p>
+                            אתר כנסת פתוחה הוא פרויקט מבית הסדנא לידע ציבורי, החושף
+                            ומנגיש מידע על המתרחש בכנסת. מטרת הפרויקט היא להגביר את
+                            השקיפות השלטונית בישראל, ולאפשר לציבור להכיר את פעילות
+                            נבחריו.
+                        </p>
+                        <p>
+                           האתר נמצא בפיתוח פעיל. אנא דווחו לנו על באגים או שגיאות בנתונים.
+                        </p>
+                        <a class="btn btn-more" href="/about/">קראו עוד אודות כנסת פתוחה</a>
+                    </li>
+                    <li>
+                        <p>
+                            <a href="http://www.hasadna.org.il/"><img src="/static/img/hasadna-logo.png"
+                                                                      style="width:50px; float:left"></a>
+                            כנסת פתוחה מפותח על ידי עמותת
+                            <a href="http://www.hasadna.org.il/">הסדנא לידע ציבורי</a>.
+                            אנחנו זקוקים לעזרתכם להפיץ את האתר:
+                        </p>
+                        <!-- AddToAny BEGIN -->
+                        <p class="a2a_kit a2a_default_style" style="width:200px; margin:0 auto;">
+                            <a class="a2a_dd" href="//www.addtoany.com/share_save">שיתוף</a>
+                            <span class="a2a_divider"></span>
+                            <a class="a2a_button_email"></a>
+                            <a class="a2a_button_facebook"></a>
+                            <a class="a2a_button_twitter"></a>
+                            <a class="a2a_button_google_plus"></a>
+                            <a class="a2a_button_delicious"></a>
+                            <a class="a2a_button_digg"></a>
+                            <script type="text/javascript">
+                                var a2a_config = a2a_config || {};
+                                a2a_config.locale = "he";
+                            </script>
+                            <script type="text/javascript" src="//static.addtoany.com/menu/page.js"></script>
+                        </p>
+                        <!-- AddToAny END -->
+                    </li>
+                </ul>
+            </aside>
+            <aside class="sidebar" id="kikar-facebook-updates-panel">
+
+                {% include 'kikar/_facebook_status_sidbar_update_elem.html' %}
+                <div>
+                    <header><h2>עדכוני פייסבוק של חברי וחברות הכנסת</h2></header>
+                    <ul id="kikar-facebook-updates-ul">
+                    </ul>
+                    <footer style="text-align: center">
+                        <span id="loading-statuses-symbol"><i class="fa fa-2x fa-spinner fa-spin"></i> </span>
+                        <button id="statuses-more" class="btn btn-mini btn-expand-fb"
+                                data-target="#kikar-facebook-updates-ul" data-offset="0">{% trans "More Facebook Statuses" %} +
+                        </button>
+                    </footer>
+                </div>
+            </aside>
+        </div>
     </div>
-</div>
-{% if FUTURE %}
-<div class="row">
-    <div class="span6">
-      <div class="card card-list">
-        <header>
-          <h2>{% trans "comments" %}</h2>
-        </header>
-      </div>
-    </div>
-    <div class="span6">
-      <div class="card card-list">
-        <header>
-          <h2>{% trans "Annotations" %}</h2>
-        </header>
-      </div>
-    </div>
-</div>
-{% endif %}
+    {% if FUTURE %}
+        <div class="row">
+            <div class="span6">
+                <div class="card card-list">
+                    <header>
+                        <h2>{% trans "comments" %}</h2>
+                    </header>
+                </div>
+            </div>
+            <div class="span6">
+                <div class="card card-list">
+                    <header>
+                        <h2>{% trans "Annotations" %}</h2>
+                    </header>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 
 {% endblock %}

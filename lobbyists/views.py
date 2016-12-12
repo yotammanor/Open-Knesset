@@ -47,12 +47,17 @@ class LobbyistCorporationsListView(TemplateView):
     template_name = 'lobbyists/lobbyistcorporation_list.html'
 
     def get_context_data(self):
-        corporations = [c.cached_data for c in LobbyistHistory.objects.latest().main_corporations.order_by('name')]
-        if not self.request.GET.get('order_by_name', ''):
-            corporations = sorted(corporations, key=lambda c: c['combined_lobbyists_count'], reverse=True)
+        try:
+            corporations = [c.cached_data for c in LobbyistHistory.objects.latest().main_corporations.order_by('name')]
+            if not self.request.GET.get('order_by_name', ''):
+                corporations = sorted(corporations, key=lambda c: c['combined_lobbyists_count'], reverse=True)
+        except ObjectDoesNotExist:
+            # this is meant to support case where lobbyists history data doesn't exist
+            # it shouldn't happen in normal cases, only during testing or when starting from empty DB
+            corporations = []
         fcs = []
         private_lobbyists_count = 0
-        private_corporation = {}
+        private_corporation = None
         for corporation in corporations:
             if not corporation['name'] and not corporation['source_id']:
                 private_corporation = corporation
@@ -62,9 +67,10 @@ class LobbyistCorporationsListView(TemplateView):
                 fcs.append(corporation)
             #else:
             #    private_lobbyists_count = private_lobbyists_count + corporation['combined_lobbyists_count']
-        private_corporation['is_private_lobbyists'] = True
-        fcs.insert(0, private_corporation)
-        private_corporation['combined_lobbyists_count'] = private_lobbyists_count
+        if private_corporation is not None:
+            private_corporation['is_private_lobbyists'] = True
+            fcs.insert(0, private_corporation)
+            private_corporation['combined_lobbyists_count'] = private_lobbyists_count
         return {
             'corporations': fcs
         }
@@ -81,9 +87,9 @@ class LobbyistDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super(LobbyistDetailView, self).get_context_data(**kwargs)
         lobbyist = context['object']
-        context['represents'] = lobbyist.latest_data.represents.all()
-        context['corporation'] = lobbyist.latest_corporation
-        context['data'] = lobbyist.latest_data
+        context['represents'] = lobbyist.latest_data.represents.all() if lobbyist.latest_data else []
+        context['corporation'] = lobbyist.latest_corporation if lobbyist.latest_data else None
+        context['data'] = lobbyist.latest_data if lobbyist.latest_data else {}
         context['links'] = Link.objects.for_model(context['object'])
         return context
 

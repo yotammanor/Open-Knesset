@@ -1,5 +1,5 @@
 {% extends "site_base.html" %}
-{% load i18n comments annotatetags hashtag mks_tags agendas_tags hitcount_tags pagination_tags %}
+`{% load i18n comments annotatetags hashtag mks_tags agendas_tags pagination_tags %}
 {% load static from staticfiles %}
 
 {% block extratitle %}{{ object.topics|safe|truncatewords:10 }}{% endblock %}
@@ -15,13 +15,8 @@
     <script type="text/javascript" src="{% static "js/jquery.autocomplete.js" %}"></script>
     <script type="text/javascript" src="{% static "js/waypoints.min.js" %}"> </script>
     <script type="text/javascript" src="{% static "js/committeemeeting_detail.js" %}"> </script>
-<script type="text/javascript">
-    $(document).ready(function() {
-        {% get_hit_count_javascript for object %}
-    });
-    // current hit count = {% get_hit_count for object %}
-</script>
-{% include "auxiliary/tags_object_edit_extrajs.html" with app_label="committees" object_type="committeemeeting" object_id=object.id %}
+
+{% include "auxiliary/../ok_tag/tags_object_edit_extrajs.html" with app_label="committees" object_type="committeemeeting" object_id=object.id %}
 {% endblock %}
 
 
@@ -67,12 +62,14 @@
                         <input type="hidden" name="user_input_type" value="mk">
                         <label for="id_mk_name">{% trans "Suggest an MK" %}</label>
                         <input type="text" name="mk_name" id="id_mk_name">
+                        <input type="hidden" name="mk_id">
                         <input type="submit" value="{% trans "Submit" %}" class="btn">
                     </form>
                     <form method="post" action="." class="form-inline">{% csrf_token %}
                         <input type="hidden" name="user_input_type" value="remove-mk">
-                        <label for="id_mk_name">{% trans "Remove an MK" %}</label>
-                        <input type="text" name="mk_name" id="id_mk_name">
+                        <label for="id_mk_name_to_remove">{% trans "Remove an MK" %}</label>
+                        <input type="text" name="mk_name_to_remove" id="id_mk_name_to_remove">
+                        <input type="hidden" name="mk_id">
                         <input type="submit" value="{% trans "Submit" %}" class="btn">
                     </form>
                     <form method="post" action="." class="form-inline">{% csrf_token %}
@@ -143,7 +140,7 @@
 
         <div class="span3">
             <aside class="sidebar sidebar-agendas">
-                {% include "auxiliary/tags_object_edit.html" with tags=object.tags tag_suggestions=tag_suggestions %}
+                {% include "ok_tag/tags_object_edit.html" with tags=object.tags tag_suggestions=tag_suggestions %}
             </aside>
 
             {% if mentioned_lobbyists or mentioned_lobbyist_corporations %}

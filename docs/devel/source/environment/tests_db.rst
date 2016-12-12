@@ -13,6 +13,7 @@ an initial development db.
       less typing
     - Run the manage.py commands from the `Open-Knesset` directory, with the
       virtualenv activated.
+    - If you used the c9.io worksapce, you should run the following command to get you in the write directory: cd oknesset/Open-Knesset/ && . ../bin/activate
 
 
 Running Tests
@@ -29,6 +30,13 @@ Download the Development DB
 Download and extract dev.db.zip_ or dev.db.bz2_ (bz2 is smaller). After
 unpacking, **place dev.db in the `Open-Knesset` directory**.
 
+On c9.io (or similar linux environment) you can write the following code:
+
+.. code-block:: sh
+
+    wget http://oknesset-devdb.s3.amazonaws.com/dev.db.zip
+    unzip dev.db.zip
+
 .. _dev.db.zip: http://oknesset-devdb.s3.amazonaws.com/dev.db.zip
 .. _dev.db.bz2: http://oknesset-devdb.s3.amazonaws.com/dev.db.bz2
 
@@ -41,6 +49,7 @@ To make sure everything is up to date, run the database schema migrations:
 
 You might want to create your own superuser:
 
+On the c9.io environment there is a superuser preconfigured: admin / 123456
 
 .. code-block:: sh
 

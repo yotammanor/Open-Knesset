@@ -1,19 +1,27 @@
-#encoding: utf-8
+# encoding: utf-8
 from datetime import date
+
+import itertools
+
+import waffle
 from dateutil.relativedelta import relativedelta
 from django.db import models
-from django.core.cache import cache
+import datetime
+
 from django.core.urlresolvers import reverse
 from django.db.models import Q, Max
-from django.utils.translation import ugettext_lazy as _, ugettext
+from django.utils.translation import ugettext_lazy as _
 from django.contrib.auth.models import User
 from planet.models import Blog
-from knesset.utils import cannonize
+
+from knesset import utils
+from laws.enums import BillStages
+
 from links.models import Link
-import difflib
+
 from mks.managers import (
-    BetterManager, PartyManager, KnessetManager, CurrentKnessetMembersManager,
-    CurrentKnessetPartyManager, MembershipManager)
+    PartyManager, KnessetManager, CurrentKnessetMembersManager,
+    CurrentKnessetPartyManager, MembershipManager, CurrentKnessetActiveMembersManager, MemberManager)
 
 GENDER_CHOICES = (
     (u'M', _('Male')),
@@ -48,7 +56,6 @@ class CoalitionMembership(models.Model):
 
 
 class Knesset(models.Model):
-
     number = models.IntegerField(_('Knesset number'), primary_key=True)
     start_date = models.DateField(_('Start date'), blank=True, null=True)
     end_date = models.DateField(_('End date'), blank=True, null=True)
@@ -56,6 +63,10 @@ class Knesset(models.Model):
     objects = KnessetManager()
 
     def __unicode__(self):
+        return self.name
+
+    @property
+    def name(self):
         return _(u'Knesset %(number)d') % {'number': self.number}
 
     def get_absolute_url(self):
@@ -119,10 +130,12 @@ class Party(models.Model):
 
     def NameWithLink(self):
         return '<a href="%s">%s</a>' % (self.get_absolute_url(), self.name)
+
     NameWithLink.allow_tags = True
 
     def MembersString(self):
         return ", ".join([m.NameWithLink() for m in self.members.all().order_by('name')])
+
     MembersString.allow_tags = True
 
     def member_list(self):
@@ -133,8 +146,8 @@ class Party(models.Model):
         date"""
         memberships = CoalitionMembership.objects.filter(party=self)
         for membership in memberships:
-            if (not membership.start_date or membership.start_date <= date) and\
-               (not membership.end_date or membership.end_date >= date):
+            if (not membership.start_date or membership.start_date <= date) and \
+                    (not membership.end_date or membership.end_date >= date):
                 return True
         return False
 
@@ -165,6 +178,7 @@ class Membership(models.Model):
     position = models.PositiveIntegerField(blank=True, default=999)
 
     objects = MembershipManager()
+
     def __unicode__(self):
         return "%s-%s (%s-%s)" % (self.member.name, self.party.name, str(self.start_date), str(self.end_date))
 
@@ -173,13 +187,25 @@ class MemberAltname(models.Model):
     member = models.ForeignKey('Member')
     name = models.CharField(max_length=64)
 
+    def save(self, **kwargs):
+        super(MemberAltname, self).save(**kwargs)
+        [person.add_alias(self.name) for person in self.member.person.all()]
+
+    def delete(self, **kwargs):
+        persons = list(self.member.person.all())
+        name = self.name
+        super(MemberAltname, self).delete(**kwargs)
+        [person.del_alias(name) for person in persons]
+
 
 class Member(models.Model):
+    id = models.IntegerField(primary_key=True,
+                             help_text="Pay attention that the value of this field must correspond to the official Knesset member id")
     name = models.CharField(max_length=64)
     parties = models.ManyToManyField(
-        Party, related_name='all_members', through='Membership')
+        'Party', related_name='all_members', through='Membership')
     current_party = models.ForeignKey(
-        Party, related_name='members', blank=True, null=True)
+        'Party', related_name='members', blank=True, null=True)
     current_position = models.PositiveIntegerField(blank=True, default=999)
     start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
@@ -196,8 +222,10 @@ class Member(models.Model):
     year_of_aliyah = models.IntegerField(blank=True, null=True)
     is_current = models.BooleanField(default=True, db_index=True)
     blog = models.OneToOneField(Blog, blank=True, null=True)
-    place_of_residence = models.CharField(blank=True, null=True, max_length=100, help_text=_('an accurate place of residence (for example, an address'))
-    area_of_residence = models.CharField(blank=True, null=True, max_length=100, help_text=_('a general area of residence (for example, "the negev"'))
+    place_of_residence = models.CharField(blank=True, null=True, max_length=100,
+                                          help_text=_('an accurate place of residence (for example, an address'))
+    area_of_residence = models.CharField(blank=True, null=True, max_length=100,
+                                         help_text=_('a general area of residence (for example, "the negev"'))
     place_of_residence_lat = models.CharField(
         blank=True, null=True, max_length=16)
     place_of_residence_lon = models.CharField(
@@ -220,8 +248,9 @@ class Member(models.Model):
 
     backlinks_enabled = models.BooleanField(default=True)
 
-    objects = BetterManager()
+    objects = MemberManager()
     current_knesset = CurrentKnessetMembersManager()
+    current_members = CurrentKnessetActiveMembersManager()
 
     class Meta:
         ordering = ['name']
@@ -233,6 +262,15 @@ class Member(models.Model):
 
     def save(self, **kwargs):
         self.recalc_average_monthly_committee_presence()
+        if self.id is None:
+            try:
+                max_id = Member.objects.all().aggregate(Max('id'))['id__max']
+                if max_id is None:
+                    max_id = 0
+            except:
+                max_id = 0
+            max_id += 1
+            self.id = max_id
         super(Member, self).save(**kwargs)
 
     def average_votes_per_month(self):
@@ -245,22 +283,28 @@ class Member(models.Model):
         return self.name
 
     def name_with_dashes(self):
-        return self.name.replace(' - ', ' ').replace("'", "").replace(u"”", '').replace("`", "").replace("(", "").replace(")", "").replace(u'\xa0', ' ').replace(' ', '-')
+        return self.name.replace(' - ', ' ').replace("'", "").replace(u"”", '').replace("`", "").replace("(",
+                                                                                                         "").replace(
+            ")", "").replace(u'\xa0', ' ').replace(' ', '-')
 
     def Party(self):
         return self.parties.all().order_by('-membership__start_date')[0]
 
     def PartiesString(self):
         return ", ".join([p.NameWithLink() for p in self.parties.all().order_by('membership__start_date')])
+
     PartiesString.allow_tags = True
 
     def party_at(self, date):
         """Returns the party this memeber was at given date
         """
-        memberships = Membership.objects.filter(member=self)
+        # make sure date is not a datetime object
+        if isinstance(date, datetime.datetime):
+            date = datetime.date(date.year, date.month, date.day)
+        memberships = Membership.objects.filter(member=self).order_by('-start_date')
         for membership in memberships:
-            if (not membership.start_date or membership.start_date <= date) and\
-               (not membership.end_date or membership.end_date >= date):
+            if (not membership.start_date or membership.start_date <= date) and \
+                    (not membership.end_date or membership.end_date >= date):
                 return membership.party
         return None
 
@@ -339,42 +383,76 @@ class Member(models.Model):
             return None
 
     def committee_meetings_per_month(self):
-        d = Knesset.objects.current_knesset().start_date
+
         service_time = self.service_time()
         if not service_time or not self.id:
             return 0
-        return round(self.committee_meetings.filter(
-            date__gt=d).count() * 30.0 / service_time, 2)
+        return round(self.total_meetings_count_current_knesset * 30.0 / service_time, 2)
+
+    def committee_meeting_current_knesset(self):
+        d = Knesset.objects.current_knesset().start_date
+        return self.committee_meetings.filter(
+            date__gte=d)
+
+    @property
+    def participated_in_committees_for_current_knesset(self):
+        committee_meetings = list(self.committee_meeting_current_knesset())
+        committees = set()
+        for committee, meetings in itertools.groupby(committee_meetings, lambda x: x.committee.name):
+            committees.add(committee)
+
+        return committees
+
+    def total_meetings_count_for_committee(self, committee_name):
+        return self.committee_meeting_current_knesset().filter(committee__name=committee_name).count()
+
+    def get_active_committees(self):
+        return itertools.chain(self.committees.exclude(hide=True),
+                               self.chaired_committees.exclude(hide=True),
+                               )
+
+    @property
+    def total_meetings_count_current_knesset(self):
+        return self.committee_meeting_current_knesset().count()
 
     @models.permalink
     def get_absolute_url(self):
         return ('member-detail-with-slug',
                 [str(self.id), self.name_with_dashes()])
 
+    def get_current_knesset_bills_by_stage_url(self, stage):
+        current_knesset = Knesset.objects.current_knesset()
+        return utils.reverse_with_query('bill-list',
+                                        query_kwargs={'member': self.id, 'knesset_id': current_knesset.number,
+                                                      'stage': stage})
+
     def NameWithLink(self):
         return '<a href="%s">%s</a>' % (self.get_absolute_url(), self.name)
+
     NameWithLink.allow_tags = True
 
     @property
     def get_role(self):
         if self.current_role_descriptions:
             return self.current_role_descriptions
+        return self.get_gender_aware_mk_role_description()
+
+    def get_gender_aware_mk_role_description(self):
         if self.is_current:
             if self.is_female():
                 if self.current_party.is_coalition:
-                    return ugettext('Coalition Member (female)')
+                    return _('Coalition Member (female)')
                 else:
-                    return ugettext('Opposition Member (female)')
+                    return _('Opposition Member (female)')
             else:
                 if self.current_party.is_coalition:
-                    return ugettext('Coalition Member (male)')
+                    return _('Coalition Member (male)')
                 else:
-                    return ugettext('Opposition Member (male)')
-
+                    return _('Opposition Member (male)')
         if self.is_female():
-            return ugettext('Past Member (female)')
+            return _('Past Member (female)')
         else:
-            return ugettext('Past Member (male)')
+            return _('Past Member (male)')
 
     @property
     def roles(self):
@@ -383,17 +461,11 @@ class Member(models.Model):
         return [x.strip() for x in self.get_role.split('|')]
 
     @property
-    def committees(self):
-        """Committee list (splitted by comma)"""
-
-        return [x.strip() for x in self.committees.split(',')]
-
-    @property
     def is_minister(self):
         """Check if one of the roles starts with minister"""
 
         # TODO Once we have roles table change this
-        minister = ugettext('Minister')
+        minister = _('Minister')
         return any(x.startswith(minister) for x in self.roles)
 
     @property
@@ -409,18 +481,45 @@ class Member(models.Model):
         return self.current_party.is_coalition
 
     def recalc_bill_statistics(self):
+        if waffle.switch_is_active('use_old_statistics'):
+            self._calc_bill_statistics_by_bill_stage_date()
+        else:
+            self._calc_bill_statistics_by_proposal_dates()
+
+    def _calc_bill_statistics_by_proposal_dates(self):
+        current_knesset = Knesset.objects.current_knesset()
+        knesset_range = current_knesset.start_date, current_knesset.end_date or date.today()
+        member_bills = self.bills.get_bills_by_private_proposal_date_for_member(knesset_range, member=self)
+        self.bills_stats_proposed = member_bills.count()
+        self.bills_stats_pre = member_bills.filter(
+
+            stage__in=[BillStages.PRE_APPROVED, BillStages.IN_COMMITTEE, BillStages.FIRST_VOTE,
+                       BillStages.COMMITTEE_CORRECTIONS, BillStages.APPROVED, BillStages.FAILED_FIRST_VOTE,
+                       BillStages.FAILED_APPROVAL]).count()
+        self.bills_stats_first = member_bills.filter(
+            stage__in=[BillStages.FIRST_VOTE, BillStages.COMMITTEE_CORRECTIONS, BillStages.APPROVED,
+                       BillStages.FAILED_APPROVAL]).count()
+        self.bills_stats_approved = member_bills.filter(
+            stage=BillStages.APPROVED).count()
+        self.save()
+
+    def _calc_bill_statistics_by_bill_stage_date(self):
+        # Deprecated method, here to allow reverting if needed
         d = Knesset.objects.current_knesset().start_date
-        self.bills_stats_proposed = self.proposals_proposed.filter(
-            date__gte=d).count()
-        self.bills_stats_pre = self.proposals_proposed.filter(
-            date__gte=d,
-            bill__stage__in=['2', '3', '4', '5', '6']).count()
-        self.bills_stats_first = self.proposals_proposed.filter(
-            date__gte=d,
-            bill__stage__in=['4', '5', '6']).count()
-        self.bills_stats_approved = self.proposals_proposed.filter(
-            date__gte=d,
-            bill__stage='6').count()
+        self.bills_stats_proposed = self.bills.filter(
+            stage_date__gte=d).count()
+        self.bills_stats_pre = self.bills.filter(
+            stage_date__gte=d,
+            stage__in=[BillStages.PRE_APPROVED, BillStages.IN_COMMITTEE, BillStages.FIRST_VOTE,
+                       BillStages.COMMITTEE_CORRECTIONS, BillStages.APPROVED, BillStages.FAILED_FIRST_VOTE,
+                       BillStages.FAILED_APPROVAL]).count()
+        self.bills_stats_first = self.bills.filter(
+            stage_date__gte=d,
+            stage__in=[BillStages.FIRST_VOTE, BillStages.COMMITTEE_CORRECTIONS, BillStages.APPROVED,
+                       BillStages.FAILED_APPROVAL]).count()
+        self.bills_stats_approved = self.bills.filter(
+            stage_date__gte=d,
+            stage=BillStages.APPROVED).count()
         self.save()
 
     def recalc_average_weekly_presence_hours(self):
@@ -476,10 +575,10 @@ class Member(models.Model):
         return self.awards_and_convictions.filter(award_type__valence__lt=0)
 
 
-
 class WeeklyPresence(models.Model):
     member = models.ForeignKey('Member')
-    date = models.DateField(blank=True, null=True)  # contains the date of the begining of the relevant week (actually monday)
+    date = models.DateField(blank=True,
+                            null=True)  # contains the date of the begining of the relevant week (actually monday)
     hours = models.FloatField(
         blank=True)  # number of hours this member was present during this week
 
@@ -510,7 +609,8 @@ class Award(models.Model):
         return u"%s - %s" % (self.member, self.award_type)
 
     class Meta:
-        ordering = ('-date_given', )
+        ordering = ('-date_given',)
+
 
 # force signal connections
 from listeners import *

@@ -1,0 +1,29 @@
+1 02,14 * * * /oknesset_data/oknesset/Open-Knesset/manage.py update_all_feeds 2>&1 | /usr/bin/logger -t open_knesset
+05 06,12,18 * * * /oknesset_data/presence/PresenceChecker.sh 2>&1 | /usr/bin/logger -t open_knesset
+30 03 * * * /oknesset_data/oknesset/Open-Knesset/manage.py update_videos --only-members --current-knesset 2>&1 | /usr/bin/logger -t open_knesset
+45 03 * * * /oknesset_data/oknesset/Open-Knesset/manage.py parse_plenum_protocols --download --parse 2>&1 | /usr/bin/logger -t open_knesset
+00 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py parse_future_plenum_meetings 2>&1 | /usr/bin/logger -t open_knesset
+15 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py syncdata --update 2>&1 | /usr/bin/logger -t open_knesset
+34 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py scrape_committee_meetings --from_days=100 2>&1 | /usr/bin/logger -t open_knesset
+12 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py scrape_committees 2>&1 | /usr/bin/logger -t open_knesset
+59 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py send_email_to_editors 2>&1 | /usr/bin/logger -t open_knesset
+00 05 * * * /oknesset_data/oknesset/Open-Knesset/manage.py notify --daily 2>&1 | /usr/bin/logger -t open_knesset
+01 05 * * 5 /oknesset_data/oknesset/Open-Knesset/manage.py notify --weekly 2>&1 | /usr/bin/logger -t open_knesset
+03 05 * * * /oknesset_data/oknesset/Open-Knesset/manage.py parse_future_committee_meetings 2>&1 | /usr/bin/logger -t open_knesset
+30 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py okscrape lobbyists --dblog 2>&1 | /usr/bin/logger -t open_knesset
+#20 05 * * 1,3,5 /oknesset_data/oknesset/Open-Knesset/manage.py update_sitemap 2>&1 | /usr/bin/logger -t open_knesset
+26 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py scrape_votes 2>&1 | /usr/bin/logger -t open_knesset
+30 16 * * * /oknesset_data/oknesset/Open-Knesset/manage.py rescrape_missing_data_votes 2>&1 | /usr/bin/logger -t open_knesset
+43 04 * * * /oknesset_data/oknesset/Open-Knesset/manage.py update_links_from_kikar 2>&1 | /usr/bin/logger -t open_knesset
+53 03 * * * /oknesset_data/oknesset/Open-Knesset/manage.py okscrape events PersonsEventsScraper --dblog 2>&1 | /usr/bin/logger -t open_knesset
+
+# email handling
+02 01,05,09,13,17,21 * * * /oknesset_data/oknesset/Open-Knesset/manage.py send_mail 2>&1 | /usr/bin/logger -t open_knesset
+15 17,21 * * * /oknesset_data/oknesset/Open-Knesset/manage.py retry_deferred 2>&1 | /usr/bin/logger -t open_knesset
+0 0 * * * /oknesset_data/oknesset/Open-Knesset/manage.py purge_mail_log 30 2>&1 | /usr/bin/logger -t open_knesset
+
+
+# following is part of knesset-data project (https://github.com/hasadna/knesset-data)
+# you should set the github auth token here (but only on the server of course)
+# KNESSET_DATA_GITHUB_TOKEN=...
+26 02 * * * /oknesset_data/knesset-data/python/bin/metadata_monitor.sh periodic

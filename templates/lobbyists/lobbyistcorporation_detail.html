@@ -4,6 +4,8 @@
 {% block keywords %}{{ object }}{% endblock %}
 {% block description %}{{ object }} - {% trans 'Open Knesset - Opening the Knesset to the public' %}{% endblock %}
 
+{% block nav-lobbyists %}class="active"{% endblock %}
+
 {% block breadcrumbs %}
     <li><a href="{% url 'lobbyists' %}">{% trans "Lobbying Corporations" %}</a> <span class="divider">/</span></li>
     <li class="active">

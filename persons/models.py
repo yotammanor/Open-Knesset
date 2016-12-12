@@ -164,6 +164,11 @@ class Person(models.Model):
         self.save()
         return user
 
+    def add_alias(self, alias):
+        PersonAlias.objects.get_or_create(name=alias, person=self)
+
+    def del_alias(self, alias):
+        PersonAlias.objects.filter(name=alias, person=self).delete()
 
 @receiver(post_save, sender=Member)
 def member_post_save(sender, **kwargs):

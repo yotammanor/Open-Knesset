@@ -1,5 +1,5 @@
 {% extends "site_base.html" %}
-{% load lookup i18n tagging_tags laws_tags bills_tags common_visual_elements links_tags comments user_tags hitcount_tags committees_tags %}
+{% load lookup i18n tagging_tags laws_tags bills_tags common_visual_elements links_tags comments user_tags committees_tags %}
 {% load static from staticfiles %}
 {% block extratitle %}{{ object.name }}{% endblock %}
 {% block keywords %}{{ object.name }}{% endblock %}
@@ -57,7 +57,11 @@
             <section class="card card-list">
                 <div class="spacer text-center">
                 {% if object.is_public %}
-                    <iframe width="600" height="400" frameborder="0" src="{% url 'agenda-embed' %}?agenda_id={{object.id}}"></iframe>
+                    {% if object.infogram_external_identifier and object.infogram_src %}
+                        <script id={{ object.infogram_external_identifier }} src={{ object.infogram_src }} type="text/javascript"></script>
+                    {% else %}
+                        <iframe width="600" height="400" frameborder="0" src="{% url 'agenda-embed' %}?agenda_id={{object.id}}"></iframe>
+                    {% endif %}
                 {% else %}
                   <p>
                     {% trans 'Note: This agenda is private. It is only viewable by its editors. If you feel this agenda should be made public, contact us at' %}
@@ -166,11 +170,7 @@
 {% endblock %} {# divcontent #}
 
 {% block footer %}
-<script type="text/javascript"><!--
-    $(document).ready(function() {
-        {% get_hit_count_javascript for object %}
-    });
---></script>
+
 {% endblock %}
 
 

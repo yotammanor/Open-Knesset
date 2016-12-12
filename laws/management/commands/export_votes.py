@@ -1,18 +1,19 @@
+# encoding: utf-8
 import os, csv
 from operator import attrgetter
 from django.core.management.base import NoArgsCommand
 from django.conf import settings
 
-from tagging.models import Tag, TaggedItem
+from tagging.models import Tag
 
-from mks.models import Member,Party
-from laws.models import Vote,VoteAction,Bill
+from mks.models import Member
+from laws.models import Vote, Bill
+
 
 class Command(NoArgsCommand):
-
     def handle_noargs(self, **options):
-        mks = Member.objects.order_by('current_party__is_coalition','current_party__name')\
-                .values('id','name','current_party__name')
+        mks = Member.objects.order_by('current_party__is_coalition', 'current_party__name') \
+            .values('id', 'name', 'current_party__name')
         f = open(os.path.join(settings.DATA_ROOT, 'mks.csv'), 'wt')
         mk_writer = csv.writer(f, quoting=csv.QUOTE_NONNUMERIC)
         for mk in mks:
@@ -73,10 +74,3 @@ class Command(NoArgsCommand):
 
         f.close()
         f2.close()
-
-
-
-
-
-
-
