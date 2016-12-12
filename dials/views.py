@@ -12,7 +12,7 @@ def dial_svg(request, slug):
     else:
         color = "green" #TODO: pick a color
     return render_to_response("dials/svg.html",
-            {'width': dial.precent * 10,
+            {'width': dial.precent * 746 / 100,
              'precent': dial.precent,
              'color': color,
              })
