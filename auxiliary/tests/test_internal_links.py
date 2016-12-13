@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*
 import datetime
+import os
 import re
 
 import waffle
@@ -17,7 +18,7 @@ from mks.models import Knesset, Party, Member, WeeklyPresence
 
 
 class InternalLinksTest(TestCase):
-    fixtures = ['auxiliary/fixtures/flatpages.json']
+    fixtures = [os.path.normpath('auxiliary/fixtures/flatpages.json')]
 
     def setUp(self):
         Knesset.objects._current_knesset = None
