@@ -24,8 +24,9 @@
           <li><h2>איך חישבנו?</h2><br>
                 {{ dial.description|linebreaks }} </li>
           <li>אתם מוזמנים להוסיף את המכוון לאתר שלכם ולעזור לנו לפתוח את הכנסת.
-          פשוט תעתיקו את הקוד שלהלן:
-          <textarea style="width: 96%;margin-top:0.5em;" readonly ><iframe src="http://oknesset.org/{{dial.slug}}" />
+          פשוט תעתיקו את הקוד שלהלן לאתר שלכן:
+          <textarea style="width: 96%;margin-top:0.5em;direction:ltr;" readonly >
+<iframe src="http://oknesset.org{% url 'dial-svg' dial.slug %}"></iframe>
           </textarea></li>
         </ul>
 
