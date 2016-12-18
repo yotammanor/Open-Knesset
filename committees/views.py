@@ -7,8 +7,9 @@ import json
 import logging
 import re
 
-import tagging
 import waffle
+
+import tagging
 from actstream import action
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -53,11 +54,12 @@ class CommitteeListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super(CommitteeListView, self).get_context_data(**kwargs)
-        context["topics"] = Topic.objects.summary()[:self.INITIAL_TOPICS]
-        context[
-            "topics_more"] = Topic.objects.summary().count() > self.INITIAL_TOPICS
         context['tags_cloud'] = Tag.objects.cloud_for_model(CommitteeMeeting)
-        context["INITIAL_TOPICS"] = self.INITIAL_TOPICS
+        if waffle.flag_is_active(self.request, 'show_committee_topics'):
+            context["topics"] = Topic.objects.summary()[:self.INITIAL_TOPICS]
+            context["topics_more"] = \
+                Topic.objects.summary().count() > self.INITIAL_TOPICS
+            context["INITIAL_TOPICS"] = self.INITIAL_TOPICS
 
         return context
 
@@ -130,7 +132,8 @@ class CommitteeDetailView(DetailView):
         cached_context[
             'more_unpublished_available'] = more_unpublished_available
         cached_context['annotations'] = cm.annotations.order_by('-timestamp')
-        cached_context['topics'] = cm.topic_set.summary()[:5]
+        if waffle.flag_is_active(self.request, 'show_committee_topics'):
+            cached_context['topics'] = cm.topic_set.summary()[:5]
 
 
 
