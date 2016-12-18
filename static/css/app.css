@@ -8174,9 +8174,7 @@ body.infinity-protocol #content-main > div > div.row > div.span3 {
   overflow: hidden;
   max-width: 100%;
 }
-.embed-container iframe,
-.embed-container object,
-.embed-container embed {
+.embed-container iframe object embed {
   position: absolute;
   top: 0;
   left: 0;
@@ -8198,12 +8196,12 @@ body.infinity-protocol #content-main > div > div.row > div.span3 {
   border-color: #dddddd;
 }
 @media (min-width: 768px) {
-  .img-fb-status-attachment {
+  .img-fb-status-attachment .img-fb-status-attachment {
     max-width: 50%;
   }
 }
 @media (max-width: 767px) {
-  .img-fb-status-attachment {
+  .img-fb-status-attachment .img-fb-status-attachment {
     max-width: 100%;
   }
 }
