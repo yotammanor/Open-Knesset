@@ -1,10 +1,10 @@
-{% load links_tags %}<div class="card-party-members {{extra_class}}">
+{% load links_tags waffle_tags %}<div class="card-party-members {{extra_class}}">
     <div>
 {% for member in members %}
-        <div class="party-member-photo">
+        <div class="party-member-photo{% flag 'show_member_presence' %} party-member-photo-with-presence{% endflag %}">
             <a href="{{member.get_absolute_url}}">
                 <img src="{{member.img_url}}">
-                <span class="party-member-name">{{member.name}}</span>
+                <span class="party-member-name {% flag 'show_member_presence' %} party-member-name-with-presence{% endflag %}">{{member.name}}</span>
             </a>
           <div class="party-member-extra">{% block member_extra %}{% endblock %}</div>
           <div class="party-member-info">
