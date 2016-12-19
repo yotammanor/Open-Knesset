@@ -56,11 +56,15 @@ class CommitteeListView(ListView):
         context = super(CommitteeListView, self).get_context_data(**kwargs)
         context['tags_cloud'] = Tag.objects.cloud_for_model(CommitteeMeeting)
         if waffle.flag_is_active(self.request, 'show_committee_topics'):
-            context["topics"] = Topic.objects.summary()[:self.INITIAL_TOPICS]
-            context["topics_more"] = \
-                Topic.objects.summary().count() > self.INITIAL_TOPICS
-            context["INITIAL_TOPICS"] = self.INITIAL_TOPICS
+            context = self._add_topics_to_context(context)
 
+        return context
+
+    def _add_topics_to_context(self, context):
+        context["topics"] = Topic.objects.summary()[:self.INITIAL_TOPICS]
+        context["topics_more"] = \
+            Topic.objects.summary().count() > self.INITIAL_TOPICS
+        context["INITIAL_TOPICS"] = self.INITIAL_TOPICS
         return context
 
 
