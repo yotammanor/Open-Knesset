@@ -7,6 +7,11 @@ from textutil import asblocks, sanitize
 
 DEBUG=False
 
+
+class PdfToolnameNotFoundException(object):
+    pass
+
+
 def get_path_for_tool_by_toolname(toolname):
     default_path = os.path.dirname(sys.modules[__name__].__file__)
     path_options = [
@@ -20,7 +25,8 @@ def get_path_for_tool_by_toolname(toolname):
         if os.path.exists(path_option):
             return path_option
     else:
-        raise Exception(toolname + " not found. Check your PATH environment variable and installation of poppler")
+        raise PdfToolnameNotFoundException(
+            toolname + " not found. Check your PATH environment variable and installation of poppler")
 
 PDFTOTEXT=get_path_for_tool_by_toolname('pdftotext')
 PDFINFO=get_path_for_tool_by_toolname('pdfinfo')
