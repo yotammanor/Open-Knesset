@@ -163,96 +163,20 @@ I have a deadline''')
         # cleanup
         self.ti.delete()
 
-    def test_committee_all_members_return_all_types_of_related_members(self):
-        committee_3 = Committee.objects.create(name='c3')
-        chairperson_mk = Member.objects.create(name='Chief')
-        member_mk = Member.objects.create(name='member')
-        replacement_mk = Member.objects.create(name='replacement')
-        committee_3.members.add(member_mk)
-        committee_3.chairpersons.add(chairperson_mk)
-        committee_3.replacements.add(replacement_mk)
-
-        all_members = committee_3.all_members()
-        self.assertIn(member_mk, all_members)
-        self.assertIn(replacement_mk, all_members)
-        self.assertIn(chairperson_mk, all_members)
-
-        # cleanup
-        committee_3.members.all().delete()
-        committee_3.chairpersons.all().delete()
-        committee_3.replacements.all().delete()
-        chairperson_mk.delete()
-        member_mk.delete()
-        replacement_mk.delete()
-        committee_3.delete()
-
-    def test_committee_members_by_name_returns_in_correct_order(self):
-        committee_3 = Committee.objects.create(name='c3')
-        member_1 = Member.objects.create(name='member_1')
-        member_3 = Member.objects.create(name='member_3')
-        member_2 = Member.objects.create(name='member_2')
-        committee_3.members.add(member_1)
-        committee_3.members.add(member_3)
-        committee_3.members.add(member_2)
-
-        members_by_name = committee_3.members_by_name()
-        self.assertEqual(member_1, members_by_name[0])
-        self.assertEqual(member_3, members_by_name[-1])
-
-        # cleanup
-        committee_3.members.all().delete()
-        member_1.delete()
-        member_2.delete()
-        member_3.delete()
-        committee_3.delete()
-
-    def test_committee_members_by_presence_returns_in_correct_order(self):
-        committee_3 = Committee.objects.create(name='c3')
-        meeting_1 = committee_3.meetings.create(date=datetime.now(),
-                                                topics="django",
-                                                protocol_text='''jacob:
-        I am a perfectionist
-        adrian:
-        I have a deadline''')
-        meeting_2 = committee_3.meetings.create(date=datetime.now(),
-                                                topics="python",
-                                                protocol_text='''spam spam''')
-        member_1 = Member.objects.create(name='member_1')
-        member_3 = Member.objects.create(name='member_3')
-        member_2 = Member.objects.create(name='member_2')
-        committee_3.members.add(member_1)
-        committee_3.members.add(member_3)
-        committee_3.members.add(member_2)
-        meeting_1.mks_attended.add(member_3)
-        meeting_2.mks_attended.add(member_3)
-        meeting_2.mks_attended.add(member_1)
-
-        members_by_presence = committee_3.members_by_presence()
-        self.assertEqual([member_3, member_1, member_2], members_by_presence)
-
-        # cleanup
-        committee_3.members.all().delete()
-        member_1.delete()
-        member_2.delete()
-        member_3.delete()
-        meeting_1.delete()
-        meeting_2.delete()
-        committee_3.delete()
-
     @waffle_testutils.override_flag('show_member_presence', active=True)
     def test_committee_has_show_presence_in_context_when_flag_is_set(
             self):
         res = self.client.get(self.committee_1.get_absolute_url())
         self.assertEqual(res.status_code, 200)
-        self.assertTrue(res.context['show_member_presence'],
-                        msg="context property 'show_member_presence'"
-                            " was not set to True.")
+
+        self.verify_presence_data_in_response(res,
+                                              is_expected_in_response=True)
 
     @waffle_testutils.override_flag('show_member_presence', active=False)
     def test_committee_does_not_show_presence_in_context_when_flag_is_unset(
             self):
         res = self.client.get(self.committee_1.get_absolute_url())
         self.assertEqual(res.status_code, 200)
-        self.assertFalse(res.context['show_member_presence'],
-                         msg="context property 'show_member_presence'"
-                             " was not set to False.")
+
+        self.verify_presence_data_in_response(res,
+                                              is_expected_in_response=False)

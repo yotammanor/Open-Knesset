@@ -5,6 +5,7 @@ import sys
 import traceback
 from datetime import datetime, timedelta, date
 from django.db import models
+from django.db.models.query_utils import Q
 from django.utils.translation import ugettext_lazy as _, ugettext
 from django.utils.text import Truncator
 from django.contrib.contenttypes import generic
@@ -121,19 +122,19 @@ class Committee(models.Model):
                          params=[self.id]).distinct()
 
     def members_by_name(self, ids=None, current_only=False):
-        """Return a list of all members, sorted by their name.
+        """Return a queryset of all members, sorted by their name.
         """
-        members = self.all_members(current_only=current_only, ids=ids)
-        return sorted(members, key=lambda x: x.name)
+        members = self.members_extended(current_only=current_only, ids=ids)
+        return members.order_by('name')
 
     def members_by_presence(self, ids=None, from_date=None,
                             current_only=False):
-        """Return the members with computed presence percentage.
+        """Returns a list of members with computed presence percentage.
         If ids is not provided, this will return committee members. if ids is
         provided, this will return presence data for the given members.
         """
 
-        members = self.all_members(current_only, ids)
+        members = self.members_extended(current_only, ids)
 
         if from_date is not None:
             include_this_year = False
@@ -167,27 +168,22 @@ class Committee(models.Model):
                     year_member_meetings,
                     year_meet_count)
 
-        members.sort(key=lambda x: x.meetings_percentage, reverse=True)
-        return members
+        return sorted(members, key=lambda x: x.meetings_percentage,
+                      reverse=True)
 
-    def all_members(self, current_only=False, ids=None):
+    def members_extended(self, current_only=False, ids=None):
         '''
-        Get a list of all members, chairpersons and replacements of a committee.
+        a queryset of Members who are part of the committee, as members,
+        chairpersons or replacements.
         '''
+        query = Q(committees=self) | Q(chaired_committees=self) | Q(
+            replacing_in_committees=self)
+        qs = Member.objects.filter(query).distinct()
         if ids is not None:
-            members = list(Member.objects.filter(id__in=ids))
-        else:
-            if current_only:
-                members = list((self.members.filter(is_current=True) |
-                                self.chairpersons.filter(is_current=True) |
-                                self.replacements.filter(
-                                    is_current=True)).distinct())
-            else:
-                # What we actually would like to have is only member, active **during** that period
-                members = list((self.members.all() |
-                                self.chairpersons.all() |
-                                self.replacements.all()).distinct())
-        return members
+            return qs.filter(id__in=ids)
+        if current_only:
+            return qs.filter(is_current=True)
+        return qs
 
     def recent_meetings(self, limit=10, do_limit=True):
         relevant_meetings = self.meetings.all().order_by('-date')
