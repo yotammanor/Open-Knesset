@@ -4,6 +4,7 @@ import subprocess
 from string import uppercase
 import sys
 from textutil import asblocks, sanitize
+from django.utils.functional import SimpleLazyObject
 
 DEBUG=False
 
@@ -28,8 +29,8 @@ def get_path_for_tool_by_toolname(toolname):
         raise PdfToolnameNotFoundException(
             toolname + " not found. Check your PATH environment variable and installation of poppler")
 
-PDFTOTEXT=get_path_for_tool_by_toolname('pdftotext')
-PDFINFO=get_path_for_tool_by_toolname('pdfinfo')
+PDFTOTEXT=SimpleLazyObject(lambda: get_path_for_tool_by_toolname('pdftotext'))
+PDFINFO=SimpleLazyObject(lambda: get_path_for_tool_by_toolname('pdfinfo'))
 
 def pdftotext_version():
     if not PDFTOTEXT:
@@ -39,7 +40,7 @@ def pdftotext_version():
     p.kill()
     return major, minor, patchlevel
 
-PDFTOTEXT_VERSION = pdftotext_version()
+PDFTOTEXT_VERSION = SimpleLazyObject(lambda: pdftotext_version())
 
 if DEBUG:
     print "pdftotext from %s, version %s" % (PDFTOTEXT, str(PDFTOTEXT_VERSION))
