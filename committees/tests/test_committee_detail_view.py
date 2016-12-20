@@ -6,6 +6,7 @@ from django.core.urlresolvers import reverse
 from django.contrib.auth.models import User, Group, Permission
 from django.contrib.contenttypes.models import ContentType
 
+from waffle import testutils as waffle_testutils
 from tagging.models import Tag, TaggedItem
 from waffle import testutils as waffle_testutils
 
@@ -73,6 +74,7 @@ I have a deadline''')
         self.mk_1.delete()
         self.topic.delete()
 
+    @waffle_testutils.override_flag('show_committee_topics', active=True)
     def test_committee_list_view(self):
         res = self.client.get(reverse('committee-list'))
         self.assertEqual(res.status_code, 200)
@@ -82,6 +84,32 @@ I have a deadline''')
                          [self.committee_1.id, self.committee_2.id, ])
         self.assertQuerysetEqual(res.context['topics'],
                                  ["<Topic: hello>"])
+
+    @waffle_testutils.override_flag('show_committee_topics', active=False)
+    def test_committee_list_view_topics_are_hidden_when_flag_inactive(self):
+        res = self.client.get(reverse('committee-list'))
+        self.assertEqual(res.status_code, 200)
+        with self.assertRaises(KeyError, msg="'topics' key should not appear"
+                                             " in context, but exists."):
+            topics = res.context['topics']
+
+    @waffle_testutils.override_flag('show_committee_topics', active=True)
+    def test_committee_topics_is_displayed_when_flag_is_active(self):
+        res = self.client.get(self.committee_1.get_absolute_url())
+
+        self.assertEqual(res.status_code, 200)
+        topics = res.context['topics']
+        self.assertTrue(topics,
+                        msg="'topics' key should appear in context, but isn't")
+
+    @waffle_testutils.override_flag('show_committee_topics', active=False)
+    def test_committee_topics_is_hidden_when_flag_is_not_active(self):
+        res = self.client.get(self.committee_1.get_absolute_url())
+
+        self.assertEqual(res.status_code, 200)
+        with self.assertRaises(KeyError, msg="'topics' key should not appear"
+                                             " in context, but exists."):
+            topics = res.context['topics']
 
     def test_committee_returns_a_list_of_meetings(self):
         res = self.client.get(self.committee_1.get_absolute_url())
