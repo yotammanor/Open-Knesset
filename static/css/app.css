@@ -7370,13 +7370,19 @@ ol {
   text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.5), 1px -1px 0 rgba(0, 0, 0, 0.5), -1px 1px 0 rgba(0, 0, 0, 0.5), 1px 1px 0 rgba(0, 0, 0, 0.5);
 }
 .card-party-members.committee-members .party-member-photo {
-  height: 127px;
+  height: 102px;
 }
 .card-party-members.committee-members .party-member-photo .party-member-extra {
   bottom: 0px;
   top: auto;
 }
+.card-party-members.committee-members .party-member-photo-with-presence {
+  height: 127px;
+}
 .card-party-members.committee-members .party-member-name {
+  bottom: 15px;
+}
+.card-party-members.committee-members .party-member-name-with-presence {
   bottom: 40px;
 }
 .sidebar {
@@ -7961,7 +7967,7 @@ div.color_swatch {
   font-size: 16px;
   text-decoration: none;
   border-color: #e6e6e6;
-  color: black;
+  color: #000;
 }
 #google-search-results .gcsc-branding,
 #google-search-results .gsc-results {
