@@ -87,6 +87,13 @@ class BaseCommitteeTestCase(TestCase):
             value=is_expected_in_response
         )
 
+    def verify_topics_in_response(self, res, is_expected_in_response):
+        self._verify_attribute_in_response_context_equals_to_value(
+            res,
+            attribute='topics',
+            value=is_expected_in_response
+        )
+
     def _verify_attribute_in_response_context_equals_to_value(self, res,
                                                               attribute,
                                                               value):
