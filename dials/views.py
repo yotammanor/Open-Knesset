@@ -7,11 +7,11 @@ from models import Dial
 def dial_svg(request, slug):
     dial = get_object_or_404(Dial, slug=slug)
     if dial.precent < 15:
-        color = "#ED1C24"
-    elif dial.precent < 40:
-        color = "orange" #TODO: pick a color
+        color = "#ED1C24" # red
+    elif dial.precent < 60:
+        color = "#F7AA1E" # orange
     else:
-        color = "green" #TODO: pick a color
+        color = "#509E33" # green
     return render_to_response("dials/dial.html",
             {'width': dial.precent * 746 / 100,
              'precent': dial.precent,
