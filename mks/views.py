@@ -478,7 +478,6 @@ class MemberDetailView(DetailView):
                 'bills_statistics': bills_statistics,
                 'agendas': agendas,
                 'presence': presence,
-                # 'current_knesset_start_date': date(2009, 2, 24), #obviously wrong, but does not look like used in template
                 'factional_discipline': factional_discipline,
                 'votes_against_own_bills': votes_against_own_bills,
                 'general_discipline': general_discipline,
