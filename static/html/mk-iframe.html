@@ -24,15 +24,15 @@
       var okURI = '',
           mk = getUrlVars()["id"],
           mkId = Number(mk),
-          params = {};
+          params = {}, mkURI;
 
       if (isNaN(mkId)) {
           mkURI = okURI + "/api/v2/member/";
           params = ["name="+mk,
                 "extra_fields=gender,is_current,roles,committees,bills_stats_proposed,bills_stats_approved,average_weekly_presence_rank"].join("&")
       } else {
-          mkURI = okUoRI + "/api/v2/member/" + mkId + '/'
-      };
+          mkURI = okURI + "/api/v2/member/" + mkId + '/'
+      }
 
       jQuery.ajax(mkURI, {processData: false, data :params,
         success: function(data){

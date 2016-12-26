@@ -60,7 +60,7 @@ function generateMkFrameSet(params) {
   function createMkPopup(elem, mk) {
       var okURI = okURL.substr(0, okURL.length-1),
           mkId = Number(mk),
-          params = {};
+          params = {}, mkURI;
 
       if (isNaN(mkId)) {
           mkURI = okURI + "/api/v2/member/";
@@ -68,7 +68,7 @@ function generateMkFrameSet(params) {
                 "extra_fields=gender,is_current,roles,committees,bills_stats_proposed,bills_stats_approved,average_weekly_presence_rank"].join("&")
       } else {
           mkURI = okURI + "/api/v2/member/" + mkId + '/'
-      };
+      }
 
       jQuery.ajax(mkURI, {processData: false, data :params,
         success: function(data){
