@@ -26,9 +26,9 @@
 	<rect x="187" y="101" fill="#F7AA1E" width="447" opacity="0.7" height="174"/>
 	<rect x="187" y="101" fill="#ED1C24" width="111" opacity="0.7" height="174"/>
 	<text transform="matrix(1 0 0 1 494.8242 219.6426)" fill="#FFFFFF" font-family="'Lato-Bold'" font-size="94">6%</text>
-  <rect x="231" y="51" fill="#25408F" width="12" height="284"/>
-  <rect x="222" y="101" fill="#25408F" width="30" opacity="0.4" height="174"/>
-  <rect x="212" y="101" fill="#25408F" width="50" opacity="0.2" height="174"/>
+  <rect x="231" y="101" fill="#194EF2" width="12" height="174"/>
+  <rect x="222" y="101" fill="#194EF2" width="30" opacity="0.4" height="174"/>
+  <rect x="212" y="101" fill="#194EF2" width="50" opacity="0.2" height="174"/>
 </g>
 <g id="Layer_1">
 	<rect x="49" y="44" fill="#25408F" width="1023" height="20"/>
