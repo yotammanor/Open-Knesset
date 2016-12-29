@@ -13,7 +13,7 @@ from waffle import testutils as waffle_testutils
 from committees.tests.base import BaseCommitteeTestCase
 from laws.models import Bill
 from mks.models import Member, Knesset
-from committees.models import Committee, CommitteeMeeting
+from committees.models import Committee, CommitteeMeeting, Topic
 
 just_id = lambda x: x.id
 APP = 'committees'
@@ -90,23 +90,21 @@ I have a deadline''')
         res = self.client.get(reverse('committee-list'))
         self.assertEqual(res.status_code, 200)
 
-        self.verify_topics_in_response(res, is_expected_in_response=False)
-
+        self.verify_topics_not_in_response(res)
 
     @waffle_testutils.override_flag('show_committee_topics', active=True)
     def test_committee_topics_is_displayed_when_flag_is_active(self):
         res = self.client.get(self.committee_1.get_absolute_url())
         self.assertEqual(res.status_code, 200)
 
-        self.verify_topics_in_response(res, is_expected_in_response=True)
+        self.verify_topics_in_response(res, is_expected_in_response=Topic.objects.filter(title='hello'))
 
     @waffle_testutils.override_flag('show_committee_topics', active=False)
     def test_committee_topics_is_hidden_when_flag_is_not_active(self):
         res = self.client.get(self.committee_1.get_absolute_url())
         self.assertEqual(res.status_code, 200)
 
-        self.verify_topics_in_response(res, is_expected_in_response=False)
-
+        self.verify_topics_not_in_response(res)
 
     def test_committee_returns_a_list_of_meetings(self):
         res = self.client.get(self.committee_1.get_absolute_url())
