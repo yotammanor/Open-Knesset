@@ -94,6 +94,9 @@ class BaseCommitteeTestCase(TestCase):
             value=is_expected_in_response
         )
 
+    def verify_topics_not_in_response(self, res):
+        self.assertNotIn('topics', res.context, msg="Expected topics to be exist in context but did")
+
     def _verify_attribute_in_response_context_equals_to_value(self, res,
                                                               attribute,
                                                               value):
@@ -102,7 +105,7 @@ class BaseCommitteeTestCase(TestCase):
                           "but isn't.".format(attribute))
 
         attr_val = res.context[attribute]
-        self.assertEquals(attr_val, value,
+        self.assertEquals(str(attr_val), str(value),
                           msg="context property {} Should be of value {}, "
                               "but is {}.".format(attribute, value, attr_val))
 
