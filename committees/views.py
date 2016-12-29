@@ -7,6 +7,8 @@ import json
 import logging
 import re
 
+import waffle
+
 import tagging
 from actstream import action
 from django.contrib import messages
@@ -52,11 +54,17 @@ class CommitteeListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super(CommitteeListView, self).get_context_data(**kwargs)
-        context["topics"] = Topic.objects.summary()[:self.INITIAL_TOPICS]
-        context["topics_more"] = Topic.objects.summary().count() > self.INITIAL_TOPICS
         context['tags_cloud'] = Tag.objects.cloud_for_model(CommitteeMeeting)
-        context["INITIAL_TOPICS"] = self.INITIAL_TOPICS
+        if waffle.flag_is_active(self.request, 'show_committee_topics'):
+            context = self._add_topics_to_context(context)
 
+        return context
+
+    def _add_topics_to_context(self, context):
+        context["topics"] = Topic.objects.summary()[:self.INITIAL_TOPICS]
+        context["topics_more"] = \
+            Topic.objects.summary().count() > self.INITIAL_TOPICS
+        context["INITIAL_TOPICS"] = self.INITIAL_TOPICS
         return context
 
 
@@ -72,7 +80,8 @@ class TopicsMoreView(GetMoreView):
 
 class CommitteeDetailView(DetailView):
     model = Committee
-    queryset = Committee.objects.prefetch_related('members', 'chairpersons', 'replacements', 'events',
+    queryset = Committee.objects.prefetch_related('members', 'chairpersons',
+                                                  'replacements', 'events',
                                                   'meetings', ).all()
     view_cache_key = 'committee_detail_%d'
     SEE_ALL_THRESHOLD = 10
@@ -80,7 +89,8 @@ class CommitteeDetailView(DetailView):
     def get_context_data(self, *args, **kwargs):
         context = super(CommitteeDetailView, self).get_context_data(**kwargs)
         cm = context['object']
-        cm.sorted_mmm_documents = cm.mmm_documents.order_by('-publication_date')[:self.SEE_ALL_THRESHOLD]
+        cm.sorted_mmm_documents = cm.mmm_documents.order_by(
+            '-publication_date')[:self.SEE_ALL_THRESHOLD]
 
         cached_context = cache.get(self.view_cache_key % cm.id, {})
         if not cached_context:
@@ -94,7 +104,14 @@ class CommitteeDetailView(DetailView):
     def _build_context_data(self, cached_context, cm):
         cached_context['chairpersons'] = cm.chairpersons.all()
         cached_context['replacements'] = cm.replacements.all()
-        members = cm.members_by_presence(current_only=True)
+
+        if waffle.flag_is_active(self.request, 'show_member_presence'):
+            cached_context['show_member_presence'] = True
+            members = cm.members_by_presence(current_only=True)
+        else:
+            cached_context['show_member_presence'] = False
+            members = cm.members_by_name(current_only=True)
+
         links = list(Link.objects.for_model(Member))
         links_by_member = {}
         for k, g in itertools.groupby(links, lambda x: x.object_pk):
@@ -102,19 +119,26 @@ class CommitteeDetailView(DetailView):
         for member in members:
             member.cached_links = links_by_member.get(str(member.pk), [])
         cached_context['members'] = members
-        recent_meetings, more_meetings_available = cm.recent_meetings(limit=self.SEE_ALL_THRESHOLD)
+        recent_meetings, more_meetings_available = cm.recent_meetings(
+            limit=self.SEE_ALL_THRESHOLD)
         cached_context['meetings_list'] = recent_meetings
         cached_context['more_meetings_available'] = more_meetings_available
-        future_meetings, more_future_meetings_available = cm.future_meetings(limit=self.SEE_ALL_THRESHOLD)
+        future_meetings, more_future_meetings_available = cm.future_meetings(
+            limit=self.SEE_ALL_THRESHOLD)
         cached_context['future_meetings_list'] = future_meetings
-        cached_context['more_future_meetings_available'] = more_future_meetings_available
+        cached_context[
+            'more_future_meetings_available'] = more_future_meetings_available
         cur_date = datetime.datetime.now()
         not_yet_published_meetings, more_unpublished_available = cm.protocol_not_yet_published_meetings(
             end_date=cur_date, limit=self.SEE_ALL_THRESHOLD)
-        cached_context['protocol_not_yet_published_list'] = not_yet_published_meetings
-        cached_context['more_unpublished_available'] = more_unpublished_available
+        cached_context[
+            'protocol_not_yet_published_list'] = not_yet_published_meetings
+        cached_context[
+            'more_unpublished_available'] = more_unpublished_available
         cached_context['annotations'] = cm.annotations.order_by('-timestamp')
-        cached_context['topics'] = cm.topic_set.summary()[:5]
+        if waffle.flag_is_active(self.request, 'show_committee_topics'):
+            cached_context['topics'] = cm.topic_set.summary()[:5]
+
 
 
 class MeetingDetailView(DetailView):
@@ -146,10 +170,14 @@ class MeetingDetailView(DetailView):
         pk = self.kwargs.get(self.pk_url_kwarg, None)
         slug = self.kwargs.get(self.slug_url_kwarg, None)
         if pk is not None:
-            #Double prefetch since prefetch does not work over filter
-            queryset = queryset.filter(pk=pk).prefetch_related('parts', 'parts__speaker__mk', 'lobbyists_mentioned',
-                                                               'mks_attended', 'mks_attended__current_party',
-                                                               'committee__members', 'committee__chairpersons',
+            # Double prefetch since prefetch does not work over filter
+            queryset = queryset.filter(pk=pk).prefetch_related('parts',
+                                                               'parts__speaker__mk',
+                                                               'lobbyists_mentioned',
+                                                               'mks_attended',
+                                                               'mks_attended__current_party',
+                                                               'committee__members',
+                                                               'committee__chairpersons',
                                                                'committee__replacements')
 
         # Next, try looking up by slug.
@@ -172,20 +200,25 @@ class MeetingDetailView(DetailView):
         return obj
 
     def get_queryset(self):
-        return super(MeetingDetailView, self).get_queryset().select_related('committee')
+        return super(MeetingDetailView, self).get_queryset().select_related(
+            'committee')
 
     def get_context_data(self, *args, **kwargs):
         context = super(MeetingDetailView, self).get_context_data(**kwargs)
         cm = context['object']
         colors = {}
-        speakers = cm.parts.order_by('speaker__mk').values_list('header', 'speaker__mk').distinct()
+        speakers = cm.parts.order_by('speaker__mk').values_list('header',
+                                                                'speaker__mk').distinct()
         n = speakers.count()
         for (i, (p, mk)) in enumerate(speakers):
-            (r, g, b) = colorsys.hsv_to_rgb(float(i) / n, 0.5 if mk else 0.3, 255)
+            (r, g, b) = colorsys.hsv_to_rgb(float(i) / n, 0.5 if mk else 0.3,
+                                            255)
             colors[p] = 'rgb(%i, %i, %i)' % (r, g, b)
-        context['title'] = _('%(committee)s meeting on %(date)s') % {'committee': cm.committee.name,
-                                                                     'date': cm.date_string}
-        context['description'] = self._resolve_committee_meeting_description(cm)
+        context['title'] = _('%(committee)s meeting on %(date)s') % {
+            'committee': cm.committee.name,
+            'date': cm.date_string}
+        context['description'] = self._resolve_committee_meeting_description(
+            cm)
         page = self.request.GET.get('page', None)
         if page:
             context['description'] += _(' page %(page)s') % {'page': page}
@@ -196,16 +229,17 @@ class MeetingDetailView(DetailView):
         context['parts_lengths'] = json.dumps(parts_lengths)
         context['paginate_by'] = models.COMMITTEE_PROTOCOL_PAGINATE_BY
 
-        if cm.committee.type == 'plenum':
-            members = cm.mks_attended.order_by('name')
-
-            context['hide_member_presence'] = True
-        else:
+        if cm.committee.type != 'plenum' and \
+                waffle.flag_is_active(self.request, 'show_member_presence'):
             # get meeting members with presence calculation
-            meeting_members_ids = set(member.id for member in cm.mks_attended.all())
+            meeting_members_ids = set(
+                member.id for member in cm.mks_attended.all())
             members = cm.committee.members_by_presence(ids=meeting_members_ids)
+            context['show_member_presence'] = True
+        else:
+            members = cm.mks_attended.order_by('name')
+            context['show_member_presence'] = False
 
-            context['hide_member_presence'] = False
         links = list(Link.objects.for_model(Member))
         links_by_member = {}
         for k, g in itertools.groupby(links, lambda x: x.object_pk):
@@ -215,11 +249,14 @@ class MeetingDetailView(DetailView):
         context['members'] = members
 
         meeting_text = [cm.topics] + [part.body for part in cm.parts.all()]
-        context['tag_suggestions'] = ok_tag.tag_suggestions.extract_suggested_tags(cm.tags,
-                                                                                   meeting_text)
+        context[
+            'tag_suggestions'] = ok_tag.tag_suggestions.extract_suggested_tags(
+            cm.tags,
+            meeting_text)
 
         context['mentioned_lobbyists'] = cm.main_lobbyists_mentioned
-        context['mentioned_lobbyist_corporations'] = cm.main_lobbyist_corporations_mentioned
+        context[
+            'mentioned_lobbyist_corporations'] = cm.main_lobbyist_corporations_mentioned
 
         return context
 
@@ -240,7 +277,8 @@ class MeetingDetailView(DetailView):
         request = self.request
         user_input_type = request.POST.get('user_input_type')
 
-        handler = self._resolve_handler_by_user_input_type(user_input_type=user_input_type)
+        handler = self._resolve_handler_by_user_input_type(
+            user_input_type=user_input_type)
         handler(cm, request)
 
         return HttpResponseRedirect(".")
@@ -259,7 +297,8 @@ class MeetingDetailView(DetailView):
             raise Http404()
         try:
             lobbyist_to_remove = Lobbyist.objects.get(
-                Q(Q(person__name=lobbyist_name) | Q(person__aliases__name=lobbyist_name)))
+                Q(Q(person__name=lobbyist_name) | Q(
+                    person__aliases__name=lobbyist_name)))
             cm.lobbyists_mentioned.remove(lobbyist_to_remove)
         except Lobbyist.DoesNotExist:
             raise Http404()
@@ -270,7 +309,8 @@ class MeetingDetailView(DetailView):
             raise Http404()
         try:
             lobbyist_to_add = Lobbyist.objects.get(
-                Q(Q(person__name=lobbyist_name) | Q(person__aliases__name=lobbyist_name)))
+                Q(Q(person__name=lobbyist_name) | Q(
+                    person__aliases__name=lobbyist_name)))
             cm.lobbyists_mentioned.add(lobbyist_to_add)
         except Lobbyist.DoesNotExist:
             raise Http404()
@@ -330,7 +370,8 @@ class MeetingDetailView(DetailView):
         else:  # not a number, maybe its p/1234
             m = re.findall('\d+', bill_id)
             if len(m) != 1:
-                raise ValueError("didn't find exactly 1 number in bill_id=%s" % bill_id)
+                raise ValueError(
+                    "didn't find exactly 1 number in bill_id=%s" % bill_id)
             pp = PrivateProposal.objects.get(proposal_id=m[0])
             bill = pp.bill
         if bill.stage in ['1', '2', '-2',
@@ -368,7 +409,8 @@ class TopicListView(ListView):
     def get_context_data(self, **kwargs):
         context = super(TopicListView, self).get_context_data(**kwargs)
         committee_id = self.kwargs.get("committee_id", False)
-        context["committee"] = committee_id and Committee.objects.get(pk=committee_id)
+        context["committee"] = committee_id and Committee.objects.get(
+            pk=committee_id)
         return context
 
 
@@ -418,7 +460,8 @@ def edit_topic(request, committee_id, topic_id=None):
                 link.object_pk = topic.id
                 link.save()
 
-            messages.add_message(request, messages.INFO, 'Topic has been updated')
+            messages.add_message(request, messages.INFO,
+                                 'Topic has been updated')
             return HttpResponseRedirect(
                 reverse('topic-detail', args=[topic.id]))
 
@@ -437,9 +480,10 @@ def edit_topic(request, committee_id, topic_id=None):
             links_formset = LinksFormset(queryset=Link.objects.none())
     return render_to_response('committees/edit_topic.html',
                               context_instance=RequestContext(request,
-                                                              {'edit_form': edit_form,
-                                                               'links_formset': links_formset,
-                                                               }))
+                                                              {
+                                                                  'edit_form': edit_form,
+                                                                  'links_formset': links_formset,
+                                                                  }))
 
 
 @login_required
@@ -451,7 +495,8 @@ def delete_topic(request, pk):
             topic.status = models.TOPIC_DELETED
             topic.save()
             return HttpResponseRedirect(reverse('committee-detail',
-                                                args=[topic.committees.all()[0].id]))
+                                                args=[topic.committees.all()[
+                                                          0].id]))
 
         # Render a form on GET
         else:
@@ -492,7 +537,8 @@ class MeetingsListView(ListView):
 
     def get_queryset(self):
         c_id = self.kwargs.get('committee_id', None)
-        qs = CommitteeMeeting.objects.filter_and_order(**dict(self.request.GET))
+        qs = CommitteeMeeting.objects.filter_and_order(
+            **dict(self.request.GET))
         if c_id:
             qs = qs.filter(committee__id=c_id)
         return qs
@@ -504,7 +550,8 @@ class UnpublishedProtocolslistView(ListView):
     template_name = 'committees/committee_full_events_list.html'
 
     def get_context_data(self, *args, **kwargs):
-        context = super(UnpublishedProtocolslistView, self).get_context_data(**kwargs)
+        context = super(UnpublishedProtocolslistView, self).get_context_data(
+            **kwargs)
         committee_id = self.kwargs.get('committee_id')
         if committee_id:
             # items = context['object_list']
@@ -514,8 +561,9 @@ class UnpublishedProtocolslistView(ListView):
                 committee_name = _('Knesset Plenum')
             else:
                 committee_name = committee.name
-            context['title'] = _('All unpublished protocols by %(committee)s') % {
-                'committee': committee_name}
+            context['title'] = _(
+                'All unpublished protocols by %(committee)s') % {
+                                   'committee': committee_name}
             context['committee'] = committee
         else:
             raise Http404('missing committee_id')
@@ -531,7 +579,8 @@ class UnpublishedProtocolslistView(ListView):
         committee_id = self.kwargs.get('committee_id')
         committee = Committee.objects.get(pk=committee_id)
         end_date = datetime.datetime.now()
-        qs = committee.protocol_not_yet_published_meetings(end_date=end_date, do_limit=False)
+        qs = committee.protocol_not_yet_published_meetings(end_date=end_date,
+                                                           do_limit=False)
         return qs
 
 
@@ -541,7 +590,8 @@ class FutureMeetingslistView(ListView):
     template_name = 'committees/committee_full_events_list.html'
 
     def get_context_data(self, *args, **kwargs):
-        context = super(FutureMeetingslistView, self).get_context_data(**kwargs)
+        context = super(FutureMeetingslistView, self).get_context_data(
+            **kwargs)
         committee_id = self.kwargs.get('committee_id')
         if committee_id:
             committee = Committee.objects.get(pk=committee_id)
@@ -690,13 +740,15 @@ class CommitteeMMMDocuments(ListView):
         if date:
             try:
                 date = parse_date(date)
-                documents = Document.objects.filter(req_committee__id=self.c_id,
-                                                    publication_date=date).order_by(
+                documents = Document.objects.filter(
+                    req_committee__id=self.c_id,
+                    publication_date=date).order_by(
                     '-publication_date')
             except:
                 raise
         else:
-            documents = Document.objects.filter(req_committee__id=self.c_id).order_by(
+            documents = Document.objects.filter(
+                req_committee__id=self.c_id).order_by(
                 '-publication_date')
         return documents
 
