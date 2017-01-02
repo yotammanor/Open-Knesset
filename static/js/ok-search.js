@@ -16,17 +16,17 @@
       _requesting = false;
 
   var OKSearch = function (element, options) {
-    this.$element = $(element)
-    this.options = $.extend({}, $.fn.oksearch.defaults, options)
-    this.matcher = this.options.matcher || this.matcher
-    this.highlighter = this.options.highlighter || this.highlighter
-    this.updater = this.options.updater || this.updater
+    this.$element = $(element);
+    this.options = $.extend({}, $.fn.oksearch.defaults, options);
+    this.matcher = this.options.matcher || this.matcher;
+    this.highlighter = this.options.highlighter || this.highlighter;
+    this.updater = this.options.updater || this.updater;
     this.source = this.options.source || this.sourceItems;
 
-    this.$menu = $(this.options.menu)
+    this.$menu = $(this.options.menu);
 
-    this.shown = false
-    this.listen()
+    this.shown = false;
+    this.listen();
 
     // #TODO hardcoded for now
     this.searchFor = {
@@ -70,7 +70,7 @@
             }
         }
     }
-  }
+  };
 
   OKSearch.prototype = {
 
@@ -91,10 +91,10 @@
              $.each(that.searchFor, function(key, value) {
                  _okItems[key] = res[count][0].objects;
                  count++;
-             })
+             });
              that.lookup();
          })
-         .always(function() {_requesting = false;})
+         .always(function() {_requesting = false;});
 
         return this;
     }

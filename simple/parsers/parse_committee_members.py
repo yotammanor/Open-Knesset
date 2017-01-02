@@ -67,7 +67,7 @@ class Command(BaseCommand):
         return ll
 
     def update_committee_members_db(self, data):
-        for name, details in data.iteritems():
+        for name, details in data.items():
             chairpersons, members, replacements = details
             try:
                 chairpersons = self.convert_to_mks(chairpersons)

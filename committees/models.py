@@ -5,6 +5,7 @@ import sys
 import traceback
 from datetime import datetime, timedelta, date
 from django.db import models
+from django.db.models.query_utils import Q
 from django.utils.translation import ugettext_lazy as _, ugettext
 from django.utils.text import Truncator
 from django.contrib.contenttypes import generic
@@ -27,7 +28,8 @@ from lobbyists.models import LobbyistHistory, LobbyistCorporation
 from itertools import groupby
 from hebrew_numbers import gematria_to_int
 from mks.utils import get_all_mk_names
-from knesset_data.protocols.committee import CommitteeMeetingProtocol as KnessetDataCommitteeMeetingProtocol
+from knesset_data.protocols.committee import \
+    CommitteeMeetingProtocol as KnessetDataCommitteeMeetingProtocol
 from knesset_data.protocols.exceptions import AntiwordException
 
 COMMITTEE_PROTOCOL_PAGINATE_BY = 120
@@ -39,14 +41,21 @@ class Committee(models.Model):
     name = models.CharField(max_length=256)
     # comma separated list of names used as name aliases for harvesting
     aliases = models.TextField(null=True, blank=True)
-    members = models.ManyToManyField('mks.Member', related_name='committees', blank=True)
-    chairpersons = models.ManyToManyField('mks.Member', related_name='chaired_committees', blank=True)
-    replacements = models.ManyToManyField('mks.Member', related_name='replacing_in_committees', blank=True)
+    members = models.ManyToManyField('mks.Member', related_name='committees',
+                                     blank=True)
+    chairpersons = models.ManyToManyField('mks.Member',
+                                          related_name='chaired_committees',
+                                          blank=True)
+    replacements = models.ManyToManyField('mks.Member',
+                                          related_name='replacing_in_committees',
+                                          blank=True)
     events = generic.GenericRelation(Event, content_type_field="which_type",
                                      object_id_field="which_pk")
     description = models.TextField(null=True, blank=True)
-    portal_knesset_broadcasts_url = models.URLField(max_length=1000, blank=True)
-    type = models.CharField(max_length=10, default=CommitteeTypes.committee, choices=CommitteeTypes.as_choices(),
+    portal_knesset_broadcasts_url = models.URLField(max_length=1000,
+                                                    blank=True)
+    type = models.CharField(max_length=10, default=CommitteeTypes.committee,
+                            choices=CommitteeTypes.as_choices(),
                             db_index=True)
     hide = models.BooleanField(default=False)
     # Deprecated? In use? does not look in use
@@ -101,19 +110,31 @@ class Committee(models.Model):
         committee_tn = Committee._meta.db_table
         annotation_tn = Annotation._meta.db_table
         protocol_part_ct = ContentType.objects.get_for_model(ProtocolPart)
-        ret = Annotation.objects.select_related().filter(content_type=protocol_part_ct)
+        ret = Annotation.objects.select_related().filter(
+            content_type=protocol_part_ct)
         return ret.extra(tables=[protocol_part_tn,
                                  meeting_tn, committee_tn],
-                         where=["%s.object_id=%s.id" % (annotation_tn, protocol_part_tn),
-                                "%s.meeting_id=%s.id" % (protocol_part_tn, meeting_tn),
+                         where=["%s.object_id=%s.id" % (
+                             annotation_tn, protocol_part_tn),
+                                "%s.meeting_id=%s.id" % (
+                                    protocol_part_tn, meeting_tn),
                                 "%s.committee_id=%%s" % meeting_tn],
                          params=[self.id]).distinct()
 
-    def members_by_presence(self, ids=None, from_date=None, current_only=False):
-        """Return the members with computed presence percentage.
+    def members_by_name(self, ids=None, current_only=False):
+        """Return a queryset of all members, sorted by their name.
+        """
+        members = self.members_extended(current_only=current_only, ids=ids)
+        return members.order_by('name')
+
+    def members_by_presence(self, ids=None, from_date=None,
+                            current_only=False):
+        """Returns a list of members with computed presence percentage.
         If ids is not provided, this will return committee members. if ids is
         provided, this will return presence data for the given members.
         """
+
+        members = self.members_extended(current_only, ids)
 
         if from_date is not None:
             include_this_year = False
@@ -128,25 +149,14 @@ class Committee(models.Model):
             year_start = date.today().replace(month=1, day=1)
             return res_set.filter(date__gte=year_start)
 
-        if ids is not None:
-            members = list(Member.objects.filter(id__in=ids))
-        else:
-            if current_only:
-                members = list((self.members.filter(is_current=True) |
-                                self.chairpersons.filter(is_current=True) |
-                                self.replacements.filter(is_current=True)).distinct())
-            else:
-                # What we actually would like to have is only member, active **during** that period
-                members = list((self.members.all() |
-                                self.chairpersons.all() |
-                                self.replacements.all()).distinct())
-
-        d = Knesset.objects.current_knesset().start_date if from_date is None else from_date
+        d = Knesset.objects.current_knesset().start_date if from_date is None \
+            else from_date
         meetings_with_mks = self.meetings.filter(
             mks_attended__isnull=False).distinct()
         all_meet_count = meetings_with_mks.filter(
             date__gte=d).count()
-        year_meet_count = filter_this_year(meetings_with_mks).count() if include_this_year else None
+        year_meet_count = filter_this_year(
+            meetings_with_mks).count() if include_this_year else None
         for m in members:
             all_member_meetings = m.committee_meetings.filter(committee=self,
                                                               date__gte=d)
@@ -154,11 +164,26 @@ class Committee(models.Model):
                                                      all_meet_count)
             if include_this_year:
                 year_member_meetings = filter_this_year(all_member_meetings)
-                m.meetings_percentage_year = count_percentage(year_member_meetings,
-                                                              year_meet_count)
+                m.meetings_percentage_year = count_percentage(
+                    year_member_meetings,
+                    year_meet_count)
 
-        members.sort(key=lambda x: x.meetings_percentage, reverse=True)
-        return members
+        return sorted(members, key=lambda x: x.meetings_percentage,
+                      reverse=True)
+
+    def members_extended(self, current_only=False, ids=None):
+        '''
+        a queryset of Members who are part of the committee, as members,
+        chairpersons or replacements.
+        '''
+        query = Q(committees=self) | Q(chaired_committees=self) | Q(
+            replacing_in_committees=self)
+        qs = Member.objects.filter(query).distinct()
+        if ids is not None:
+            return qs.filter(id__in=ids)
+        if current_only:
+            return qs.filter(is_current=True)
+        return qs
 
     def recent_meetings(self, limit=10, do_limit=True):
         relevant_meetings = self.meetings.all().order_by('-date')
@@ -170,18 +195,23 @@ class Committee(models.Model):
 
     def future_meetings(self, limit=10, do_limit=True):
         current_date = datetime.now()
-        relevant_events = self.events.filter(when__gt=current_date).order_by('when')
+        relevant_events = self.events.filter(when__gt=current_date).order_by(
+            'when')
         if do_limit:
             more_available = relevant_events.count() > limit
             return relevant_events[:limit], more_available
         else:
             return relevant_events
 
-    def protocol_not_yet_published_meetings(self, end_date, limit=10, do_limit=True):
-        start_date = self.meetings.all().order_by('-date').first().date + timedelta(days=1) \
+    def protocol_not_yet_published_meetings(self, end_date, limit=10,
+                                            do_limit=True):
+        start_date = self.meetings.all().order_by(
+            '-date').first().date + timedelta(days=1) \
             if self.meetings.count() > 0 \
             else datetime.now()
-        relevant_events = self.events.filter(when__gt=start_date, when__lte=end_date).order_by('-when')
+        relevant_events = self.events.filter(when__gt=start_date,
+                                             when__lte=end_date).order_by(
+            '-when')
 
         if do_limit:
             more_available = relevant_events.count() > limit
@@ -191,14 +221,16 @@ class Committee(models.Model):
 
 
 not_header = re.compile(
-    r'(^אני )|((אלה|אלו|יבוא|מאלה|ייאמר|אומר|אומרת|נאמר|כך|הבאים|הבאות):$)|(\(.\))|(\(\d+\))|(\d\.)'.decode('utf8'))
+    r'(^אני )|((אלה|אלו|יבוא|מאלה|ייאמר|אומר|אומרת|נאמר|כך|הבאים|הבאות):$)|(\(.\))|(\(\d+\))|(\d\.)'.decode(
+        'utf8'))
 
 
 def legitimate_header(line):
     """Returns true if 'line' looks like something should be a protocol part header"""
     if re.match(r'^\<.*\>\W*$', line):  # this is a <...> line.
         return True
-    if not (line.strip().endswith(':')) or len(line) > 50 or not_header.search(line):
+    if not (line.strip().endswith(':')) or len(line) > 50 or not_header.search(
+            line):
         return False
     return True
 
@@ -226,15 +258,20 @@ class CommitteeMeetingManager(models.Manager):
 
 class CommitteesMeetingsOnlyManager(CommitteeMeetingManager):
     def get_queryset(self):
-        return super(CommitteesMeetingsOnlyManager, self).get_queryset().exclude(committee__type=CommitteeTypes.plenum)
+        return super(CommitteesMeetingsOnlyManager,
+                     self).get_queryset().exclude(
+            committee__type=CommitteeTypes.plenum)
 
 
 class CommitteeMeeting(models.Model):
     committee = models.ForeignKey(Committee, related_name='meetings')
     date_string = models.CharField(max_length=256)
     date = models.DateField(db_index=True)
-    mks_attended = models.ManyToManyField('mks.Member', related_name='committee_meetings')
-    votes_mentioned = models.ManyToManyField('laws.Vote', related_name='committee_meetings', blank=True)
+    mks_attended = models.ManyToManyField('mks.Member',
+                                          related_name='committee_meetings')
+    votes_mentioned = models.ManyToManyField('laws.Vote',
+                                             related_name='committee_meetings',
+                                             blank=True)
     protocol_text = models.TextField(null=True, blank=True)
     # the date the protocol text was last downloaded and saved
     protocol_text_update_date = models.DateField(blank=True, null=True)
@@ -245,9 +282,12 @@ class CommitteeMeeting(models.Model):
     tagged_items = generic.GenericRelation(TaggedItem,
                                            object_id_field="object_id",
                                            content_type_field="content_type")
-    lobbyists_mentioned = models.ManyToManyField('lobbyists.Lobbyist', related_name='committee_meetings', blank=True)
-    lobbyist_corporations_mentioned = models.ManyToManyField('lobbyists.LobbyistCorporation',
-                                                             related_name='committee_meetings', blank=True)
+    lobbyists_mentioned = models.ManyToManyField('lobbyists.Lobbyist',
+                                                 related_name='committee_meetings',
+                                                 blank=True)
+    lobbyist_corporations_mentioned = models.ManyToManyField(
+        'lobbyists.LobbyistCorporation',
+        related_name='committee_meetings', blank=True)
     datetime = models.DateTimeField(db_index=True, null=True, blank=True)
     knesset_id = models.IntegerField(null=True, blank=True)
 
@@ -299,7 +339,8 @@ class CommitteeMeeting(models.Model):
     def save(self, **kwargs):
         super(CommitteeMeeting, self).save(**kwargs)
 
-    def create_protocol_parts(self, delete_existing=False, mks=None, mk_names=None):
+    def create_protocol_parts(self, delete_existing=False, mks=None,
+                              mk_names=None):
         """ Create protocol parts from this instance's protocol_text
             Optionally, delete existing parts.
             If the meeting already has parts, and you don't ask to
@@ -309,7 +350,8 @@ class CommitteeMeeting(models.Model):
         logger.debug('create_protocol_parts %s' % delete_existing)
         if delete_existing:
             ppct = ContentType.objects.get_for_model(ProtocolPart)
-            annotations = Annotation.objects.filter(content_type=ppct, object_id__in=self.parts.all)
+            annotations = Annotation.objects.filter(content_type=ppct,
+                                                    object_id__in=self.parts.all)
             logger.debug(
                 'deleting %d annotations, because I was asked to delete the relevant protocol parts on cm.id=%d' % (
                     annotations.count(), self.id))
@@ -327,9 +369,11 @@ class CommitteeMeeting(models.Model):
         else:
             def get_protocol_part(i, part):
                 logger.debug('creating protocol part %s' % i)
-                return ProtocolPart(meeting=self, order=i, header=part.header, body=part.body)
+                return ProtocolPart(meeting=self, order=i, header=part.header,
+                                    body=part.body)
 
-            with KnessetDataCommitteeMeetingProtocol.get_from_text(self.protocol_text) as protocol:
+            with KnessetDataCommitteeMeetingProtocol.get_from_text(
+                    self.protocol_text) as protocol:
                 # TODO: use bulk_create (I had a strange error when using it)
                 # ProtocolPart.objects.bulk_create(
                 # for testing, you could just save one part:
@@ -337,7 +381,8 @@ class CommitteeMeeting(models.Model):
                 list([
                          get_protocol_part(i, part).save()
                          for i, part
-                         in zip(range(1, len(protocol.parts) + 1), protocol.parts)
+                         in
+                         zip(range(1, len(protocol.parts) + 1), protocol.parts)
                          ])
             self.protocol_parts_update_date = datetime.now()
             self.save()
@@ -350,7 +395,8 @@ class CommitteeMeeting(models.Model):
             download_for_existing_meeting(self)
         else:
             try:
-                with KnessetDataCommitteeMeetingProtocol.get_from_url(self.src_url) as protocol:
+                with KnessetDataCommitteeMeetingProtocol.get_from_url(
+                        self.src_url) as protocol:
                     self.protocol_text = protocol.text
                     self.protocol_text_update_date = datetime.now()
                     self.save()
@@ -368,24 +414,31 @@ class CommitteeMeeting(models.Model):
         if redownload: self.redownload_protocol()
         if self.committee.type == 'plenum':
             # See above
-            from plenum.management.commands.parse_plenum_protocols_subcommands.parse import parse_for_existing_meeting
+            from plenum.management.commands.parse_plenum_protocols_subcommands.parse import \
+                parse_for_existing_meeting
             parse_for_existing_meeting(self)
         else:
             self.create_protocol_parts(delete_existing=True)
             self.find_attending_members(mks, mk_names)
 
     def update_from_dataservice(self, dataservice_object=None):
-        from committees.management.commands.scrape_committee_meetings import Command as ScrapeCommitteeMeetingCommand
-        from knesset_data.dataservice.committees import CommitteeMeeting as DataserviceCommitteeMeeting
+        from committees.management.commands.scrape_committee_meetings import \
+            Command as ScrapeCommitteeMeetingCommand
+        from knesset_data.dataservice.committees import \
+            CommitteeMeeting as DataserviceCommitteeMeeting
         if dataservice_object is None:
             ds_meetings = [
                 ds_meeting for ds_meeting
-                in DataserviceCommitteeMeeting.get(self.committee.knesset_id, self.date - timedelta(days=1),
-                                                   self.date + timedelta(days=1))
+                in DataserviceCommitteeMeeting.get(self.committee.knesset_id,
+                                                   self.date - timedelta(
+                                                       days=1),
+                                                   self.date + timedelta(
+                                                       days=1))
                 if str(ds_meeting.id) == str(self.knesset_id)
                 ]
             if len(ds_meetings) != 1:
-                raise Exception('could not found corresponding dataservice meeting')
+                raise Exception(
+                    'could not found corresponding dataservice meeting')
             dataservice_object = ds_meetings[0]
         meeting_transformed = ScrapeCommitteeMeetingCommand().get_committee_meeting_fields_from_dataservice(
             dataservice_object)
@@ -397,7 +450,8 @@ class CommitteeMeeting(models.Model):
         res = None
         parts = self.parts.filter(body__contains=u'ישיבה')
         if parts.count() > 0:
-            r = re.search(u'ישיבה (.*)$', self.parts.filter(body__contains=u'ישיבה').first().body)
+            r = re.search(u'ישיבה (.*)$', self.parts.filter(
+                body__contains=u'ישיבה').first().body)
             if r:
                 res = gematria_to_int(r.groups()[0])
         return res
@@ -405,14 +459,16 @@ class CommitteeMeeting(models.Model):
     def plenum_link_votes(self):
         from laws.models import Vote
         if self.plenum_meeting_number:
-            for vote in Vote.objects.filter(meeting_number=self.plenum_meeting_number):
+            for vote in Vote.objects.filter(
+                    meeting_number=self.plenum_meeting_number):
                 for part in self.parts.filter(header__contains=u'הצבעה'):
                     r = re.search(r' (\d+)$', part.header)
                     if r and vote.vote_number == int(r.groups()[0]):
                         url = part.get_absolute_url()
                         Link.objects.get_or_create(
                             object_pk=vote.pk,
-                            content_type=ContentType.objects.get_for_model(Vote),
+                            content_type=ContentType.objects.get_for_model(
+                                Vote),
                             url=url,
                             defaults={
                                 'title': u'לדיון בישיבת המליאה'
@@ -432,32 +488,38 @@ class CommitteeMeeting(models.Model):
         if cid is None:  # missing this committee knesset id
             return []  # can't get bg material
 
-        url = 'http://www.knesset.gov.il/agenda/heb/material.asp?c=%s&t=%s&d=%s' % (cid, time, date)
+        url = 'http://www.knesset.gov.il/agenda/heb/material.asp?c=%s&t=%s&d=%s' % (
+            cid, time, date)
         data = urllib2.urlopen(url)
         bg_links = []
         if data.url == url:  # if no bg material exists we get redirected to a different page
             bgdata = BeautifulSoup(data.read()).findAll('a')
 
             for i in bgdata:
-                bg_links.append({'url': 'http://www.knesset.gov.il' + i['href'], 'title': i.string})
+                bg_links.append(
+                    {'url': 'http://www.knesset.gov.il' + i['href'],
+                     'title': i.string})
 
         return bg_links
 
     @property
     def bg_material(self):
         return Link.objects.filter(object_pk=self.id,
-                                   content_type=ContentType.objects.get_for_model(CommitteeMeeting).id)
+                                   content_type=ContentType.objects.get_for_model(
+                                       CommitteeMeeting).id)
 
     def find_attending_members(self, mks=None, mk_names=None):
         logger.debug('find_attending_members')
         if mks is None and mk_names is None:
             logger.debug('get_all_mk_names')
             mks, mk_names = get_all_mk_names()
-        with KnessetDataCommitteeMeetingProtocol.get_from_text(self.protocol_text) as protocol:
+        with KnessetDataCommitteeMeetingProtocol.get_from_text(
+                self.protocol_text) as protocol:
             attended_mk_names = protocol.find_attending_members(mk_names)
             for name in attended_mk_names:
                 i = mk_names.index(name)
-                if not mks[i].party_at(self.date):  # not a member at time of this meeting?
+                if not mks[i].party_at(
+                        self.date):  # not a member at time of this meeting?
                     continue  # then don't search for this MK.
                 self.mks_attended.add(mks[i])
         logger.debug('meeting %d now has %d attending members' % (
@@ -474,7 +536,8 @@ class CommitteeMeeting(models.Model):
         for lobbyist in self.main_lobbyists_mentioned:
             latest_corporation = lobbyist.cached_data.get('latest_corporation')
             if latest_corporation:
-                corporation = LobbyistCorporation.objects.get(id=latest_corporation['id'])
+                corporation = LobbyistCorporation.objects.get(
+                    id=latest_corporation['id'])
                 if corporation not in ret and corporation.main_corporation == corporation:
                     ret.append(corporation)
         return ret
@@ -494,7 +557,8 @@ class ProtocolPart(models.Model):
     order = models.IntegerField()
     header = models.TextField(blank=True, null=True)
     body = models.TextField(blank=True, null=True)
-    speaker = models.ForeignKey('persons.Person', blank=True, null=True, related_name='protocol_parts')
+    speaker = models.ForeignKey('persons.Person', blank=True, null=True,
+                                related_name='protocol_parts')
     objects = ProtocolPartManager()
     type = models.TextField(blank=True, null=True, max_length=20)
 
@@ -512,9 +576,10 @@ class ProtocolPart(models.Model):
                 return "%s#speech-%d-%d" % (self.meeting.get_absolute_url(),
                                             self.meeting.id, self.order)
             else:
-                return "%s?page=%d#speech-%d-%d" % (self.meeting.get_absolute_url(),
-                                                    page_num,
-                                                    self.meeting.id, self.order)
+                return "%s?page=%d#speech-%d-%d" % (
+                    self.meeting.get_absolute_url(),
+                    page_num,
+                    self.meeting.id, self.order)
 
     def __unicode__(self):
         return "%s %s: %s" % (self.meeting.committee.name, self.header,
@@ -531,12 +596,14 @@ class TopicManager(models.Manager):
     get_public = lambda self: self.filter(status__in=PUBLIC_TOPIC_STATUS)
 
     by_rank = lambda self: self.extra(select={
-        'rank': '((100/%s*rating_score/(1+rating_votes+%s))+100)/2' % (Topic.rating.range, Topic.rating.weight)
+        'rank': '((100/%s*rating_score/(1+rating_votes+%s))+100)/2' % (
+            Topic.rating.range, Topic.rating.weight)
     }).order_by('-rank')
 
     def summary(self, order='-rank'):
         return self.filter(status__in=PUBLIC_TOPIC_STATUS).extra(select={
-            'rank': '((100/%s*rating_score/(1+rating_votes+%s))+100)/2' % (Topic.rating.range, Topic.rating.weight)
+            'rank': '((100/%s*rating_score/(1+rating_votes+%s))+100)/2' % (
+                Topic.rating.range, Topic.rating.weight)
         }).order_by(order)
         # TODO: rinse it so this will work
         return self.get_public().by_rank()
@@ -558,7 +625,8 @@ class Topic(models.Model):
     '''
 
     creator = models.ForeignKey(User)
-    editors = models.ManyToManyField(User, related_name='editing_topics', null=True, blank=True)
+    editors = models.ManyToManyField(User, related_name='editing_topics',
+                                     null=True, blank=True)
     title = models.CharField(max_length=256,
                              verbose_name=_('Title'))
     description = models.TextField(blank=True,
@@ -600,10 +668,11 @@ class Topic(models.Model):
 
     def set_status(self, status, message=''):
         self.status = status
-        self.log = '\n'.join((u'%s: %s' % (self.get_status_display(), datetime.now()),
-                              u'\t%s' % message,
-                              self.log,)
-                             )
+        self.log = '\n'.join(
+            (u'%s: %s' % (self.get_status_display(), datetime.now()),
+             u'\t%s' % message,
+             self.log,)
+        )
         self.save()
 
     def can_edit(self, user):

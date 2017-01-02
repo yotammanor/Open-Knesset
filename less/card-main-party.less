@@ -72,7 +72,6 @@
 	
 	> div {
 		margin: 9px;
-    
 	}
 		
 
@@ -173,19 +172,29 @@
    }
 
   &.committee-members {
-    @extra-height: 47px;
+    @extra-height: 22px;
+    @presence-height: 25px;
 
     .party-member-photo {
       height: @photo-height + @extra-height;
 
       .party-member-extra {
+
         bottom: 0px;
         top: auto;
       }
     }
+    .party-member-photo-with-presence {
+      height: @photo-height + @extra-height + @presence-height;
+
+    }
 
     .party-member-name { 
         bottom: -7px + @extra-height;
+
+    }
+    .party-member-name-with-presence {
+        bottom: -7px + @extra-height + @presence-height;
 
     }
   }

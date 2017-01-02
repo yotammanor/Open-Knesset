@@ -9,20 +9,21 @@ from django.core.exceptions import ObjectDoesNotExist
 from bs4 import BeautifulSoup
 from persons.models import Role
 from mks.models import Member
+from simple.constants import KNESSET_GOVERNMENT_PAGE
 
-logger = logging.getLogger("open-knesset.persons.update_gov_roles")
+logger = logging.getLogger(__name__)
+
 
 class Command(NoArgsCommand):
     option_list = NoArgsCommand.option_list + (
         make_option('--dont_ask', action='store_true', dest='dont_ask',
-            help="always answer 'ignore' instead of asking the user. used for debugging"),
+                    help="always answer 'ignore' instead of asking the user. used for debugging"),
     )
-    
-    #TODO: scrape for the last gov
-    GOVS = range(20,34)
-    URI = "http://www.knesset.gov.il/govt/heb/GovtByNumber.asp?govt={}"
-    
-    
+
+    # TODO: scrape for the last gov
+    GOVS = range(20, 34)
+    URI = KNESSET_GOVERNMENT_PAGE
+
     def handle_noargs(self, **options):
         for i in self.GOVS:
             page = urllib.urlopen(self.URI.format(i)).read()
@@ -49,17 +50,17 @@ class Command(NoArgsCommand):
 
                     # now get the field we need for the db
                     try:
-                        end_date = datetime.strptime(end_date,"%d/%m/%Y")
+                        end_date = datetime.strptime(end_date, "%d/%m/%Y")
                     except ValueError:
                         end_date = None
                         logger.warn(u"failed for parse end_date for: {} {} {}".format(
                             org, person, role))
 
                     r, created = Role.objects.get_or_create(person=person,
-                            start_date=datetime.strptime(start_date,"%d/%m/%Y"),
-                            end_date=end_date,
-                            text=role,
-                            org=org,
-                            )
+                                                            start_date=datetime.strptime(start_date, "%d/%m/%Y"),
+                                                            end_date=end_date,
+                                                            text=role,
+                                                            org=org,
+                                                            )
                     if created:
                         logger.info(r)

@@ -16,6 +16,7 @@ CANONICAL_PARTY_ALIASES = {'עבודה': 'העבודה',
                            'יחד  (ישראל חברתית דמוקרטית) והבחירה הדמוקרטית': 'מרצ-יחד והבחירה הדמוקרטית',
                            }
 
+KNESSET_BASE_LAW_RTF_URL = r"http://www.knesset.gov.il/privatelaw"
 SECOND_AND_THIRD_READING_LAWS_URL = 'http://www.knesset.gov.il/privatelaw/plaw_display.asp?LawTp=2'
 PRIVATE_LAWS_URL = r"http://www.knesset.gov.il/privatelaw/Plaw_display.asp?lawtp=1"
 KNESSET_LAWS_URL = r"http://www.knesset.gov.il/laws/heb/template.asp?Type=3"
@@ -29,3 +30,4 @@ KNESSET_PROTOCOL_SEARCH_PAGE = "http://online.knesset.gov.il/eprotocol/PUBLIC/Se
 KNESSET_SYNCED_PROTOCOL_PAGE = 'http://online.knesset.gov.il/eprotocol/PLAYER/PEPlayer.aspx?ProtocolID=%s'
 
 KNESSET_PRESENT_MKS_PAGE = 'http://www.knesset.gov.il/presence/heb/PresentList.aspx'
+KNESSET_GOVERNMENT_PAGE = "http://www.knesset.gov.il/govt/heb/GovtByNumber.asp?govt={}"

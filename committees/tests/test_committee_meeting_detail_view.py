@@ -7,7 +7,9 @@ from django.conf import settings
 from django.contrib.auth.models import User, Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.urlresolvers import reverse
+
 from tagging.models import Tag
+from waffle import testutils as waffle_testutils
 
 from committees.models import Committee
 from committees.tests.base import BaseCommitteeTestCase
@@ -21,7 +23,8 @@ class CommitteeMeetingDetailViewTestCase(BaseCommitteeTestCase):
     def setUp(self):
         super(CommitteeMeetingDetailViewTestCase, self).setUp()
         self.knesset = Knesset.objects.create(number=1,
-                                              start_date=datetime.today() - timedelta(days=1))
+                                              start_date=datetime.today() - timedelta(
+                                                  days=1))
         self.committee_1 = Committee.objects.create(name='c1')
         self.committee_2 = Committee.objects.create(name='c2')
         self.meeting_1 = self.committee_1.meetings.create(date=datetime.now(),
@@ -42,16 +45,19 @@ I have a deadline''')
         (self.group, created) = Group.objects.get_or_create(name='Valid Email')
         if created:
             self.group.save()
-        self.group.permissions.add(Permission.objects.get(name='Can add annotation'))
+        self.group.permissions.add(
+            Permission.objects.get(name='Can add annotation'))
         self.jacob.groups.add(self.group)
 
         ct = ContentType.objects.get_for_model(Tag)
-        self.adrian.user_permissions.add(Permission.objects.get(codename='add_tag', content_type=ct))
+        self.adrian.user_permissions.add(
+            Permission.objects.get(codename='add_tag', content_type=ct))
 
         self.bill_1 = Bill.objects.create(stage='1', title='bill 1')
         self.mk_1 = Member.objects.create(name='mk 1')
         self.topic = self.committee_1.topic_set.create(creator=self.jacob,
-                                                       title="hello", description="hello world")
+                                                       title="hello",
+                                                       description="hello world")
         self.tag_1 = Tag.objects.create(name='tag1')
         self.given_mk_attended_meeting(self.meeting_1, self.mk_1)
 
@@ -86,7 +92,8 @@ I have a deadline''')
         res = self._given_protocol_annotation(part)
         self.assertEqual(res.status_code, 302)
         annotation = Annotation.objects.get(object_id=part.id,
-                                            content_type=ContentType.objects.get_for_model(part).id)
+                                            content_type=ContentType.objects.get_for_model(
+                                                part).id)
         self.assertEqual(annotation.selection, 'perfect')
         # ensure the activity has been recorded
         stream = Action.objects.stream_for_actor(self.jacob)
@@ -118,12 +125,14 @@ I have a deadline''')
                                 'lengthcheck': len(part.body),
                                 'comment': 'not quite',
                                 'object_id': part.id,
-                                'content_type': ContentType.objects.get_for_model(part).id,
+                                'content_type': ContentType.objects.get_for_model(
+                                    part).id,
                                 })
         self.assertEqual(res.status_code, 302)
 
         annotations = Annotation.objects.filter(object_id=part.id,
-                                                content_type=ContentType.objects.get_for_model(part).id)
+                                                content_type=ContentType.objects.get_for_model(
+                                                    part).id)
         self.assertEqual(annotations.count(), 2)
         # ensure we will see it on the committee page
         c_annotations = self.committee_1.annotations
@@ -152,7 +161,8 @@ I have a deadline''')
                                  'lengthcheck': len(part.body),
                                  'comment': 'just perfect',
                                  'object_id': part.id,
-                                 'content_type': ContentType.objects.get_for_model(part).id,
+                                 'content_type': ContentType.objects.get_for_model(
+                                     part).id,
                                  })
 
     def test_committee_meeting_returns_correct_members(self):
@@ -162,13 +172,16 @@ I have a deadline''')
                                 'committees/committeemeeting_detail.html')
         self.verify_expected_members_in_context(res, [self.mk_1.id])
 
-    def test_mk_from_current_knesset_that_are_not_current_members_are_also_displayed(self):
-        not_current_mk = Member.objects.create(name='mk is no more', is_current=False)
+    def test_mk_from_current_knesset_that_are_not_current_members_are_also_displayed(
+            self):
+        not_current_mk = Member.objects.create(name='mk is no more',
+                                               is_current=False)
         self.given_mk_attended_meeting(self.meeting_1, not_current_mk)
         self._given_mk_added_to_meeting(self.meeting_1, not_current_mk)
         res = self.client.get(self.meeting_1.get_absolute_url())
         self.assertEqual(res.status_code, 200)
-        self.verify_expected_members_in_context(res, [self.mk_1.id, not_current_mk.pk])
+        self.verify_expected_members_in_context(res, [self.mk_1.id,
+                                                      not_current_mk.pk])
 
     def test_user_can_not_add_a_bill_to_meetings_if_not_login(self):
         res = self.client.post(reverse('committee-meeting',
@@ -176,7 +189,8 @@ I have a deadline''')
         self._verify_bill_not_in_meeting(self.bill_1, self.meeting_1)
         self.assertEqual(res.status_code, 302)
         self.assertTrue(res['location'].startswith('%s%s' %
-                                                   ('http://testserver', settings.LOGIN_URL)))
+                                                   ('http://testserver',
+                                                    settings.LOGIN_URL)))
 
     def test_post_removing_and_adding_mk_to_committee_meetings(self):
         mk_1 = self.mk_1
@@ -231,17 +245,20 @@ I have a deadline''')
         meeting = self.meeting_1
         self._verify_lobbyist_not_mentioned_in_meetings(lobbyist, meeting)
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
-        res = self._given_lobbyist_added_to_meeting(meeting, lobbyist_name=alias.name)
+        res = self._given_lobbyist_added_to_meeting(meeting,
+                                                    lobbyist_name=alias.name)
         self.assertEqual(res.status_code, 302)
         self._verify_lobbyist_mentioned_in_meetings(lobbyist, meeting)
 
-        res = self._given_lobbyist_removed_from_meeting(meeting, lobbyist_name=alias.name)
+        res = self._given_lobbyist_removed_from_meeting(meeting,
+                                                        lobbyist_name=alias.name)
         self._verify_lobbyist_not_mentioned_in_meetings(lobbyist, meeting)
 
     def test_adding_non_existent_lobbyist_returns_404(self):
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
         meeting = self.meeting_1
-        res = self._given_lobbyist_added_to_meeting(meeting, lobbyist_name='non existing')
+        res = self._given_lobbyist_added_to_meeting(meeting,
+                                                    lobbyist_name='non existing')
         self.assertEqual(res.status_code, 404)
 
     def test_committee_meetings_handles_missing_lobbyist_data(self):
@@ -302,3 +319,21 @@ I have a deadline''')
         self.assertEqual(res.status_code, 200)
         self.new_tag = Tag.objects.get(name='new tag')
         self.assertIn(self.new_tag, self.meeting_1.tags)
+
+    @waffle_testutils.override_flag('show_member_presence', active=True)
+    def test_meeting_has_show_presence_in_context_when_flag_is_set(
+            self):
+        res = self.client.get(self.meeting_1.get_absolute_url())
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.context['show_member_presence'],
+                        msg="context property 'show_member_presence'"
+                            " was not set to True.")
+
+    @waffle_testutils.override_flag('show_member_presence', active=False)
+    def test_meeting_does_not_show_presence_in_context_when_flag_is_unset(
+            self):
+        res = self.client.get(self.meeting_1.get_absolute_url())
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.context['show_member_presence'],
+                         msg="context property 'show_member_presence'"
+                             " was not set to False.")
