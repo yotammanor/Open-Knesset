@@ -1,10 +1,13 @@
 #!/usr/bin/python
 import os
-import subprocess
 from string import uppercase
 import sys
 from textutil import asblocks, sanitize
 from django.utils.functional import SimpleLazyObject
+if os.name == 'posix' and sys.version_info[0] < 3:
+    import subprocess32 as subprocess
+else:
+    import subprocess
 
 DEBUG=False
 
