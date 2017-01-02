@@ -3,15 +3,17 @@ from django.shortcuts import get_object_or_404, render_to_response
 from django.template import RequestContext
 from models import Dial
 
-# Create your views here.
+GRADE_N_COLOR = ((15, "#ED1C24"), # < 15% red color
+                 (60, "#F7AA1E"), # < 60% orange color
+                 (100, "#509E33"),# green all the way to 100%
+                )
+
 def dial_svg(request, slug):
     dial = get_object_or_404(Dial, slug=slug)
-    if dial.precent < 15:
-        color = "#ED1C24" # red
-    elif dial.precent < 60:
-        color = "#F7AA1E" # orange
-    else:
-        color = "#509E33" # green
+    for grade, color in GRADE_N_COLOR:
+        if dial.precent < grade:
+            break;
+
     return render_to_response("dials/dial.html",
             {'width': dial.precent * 746 / 100,
              'precent': dial.precent,
