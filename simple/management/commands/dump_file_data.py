@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 
 class Command(NoArgsDbLogCommand):
-    help = "loading pre existing files to db"
+    help = "dump data to tsv files"
 
     requires_model_validation = False
 
