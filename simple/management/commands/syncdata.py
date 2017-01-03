@@ -163,7 +163,7 @@ class Command(NoArgsDbLogCommand):
         count = -1
         lines = page.split('\n')
         for line in lines:
-
+            link = None
             r = re.search("""Href=\"(.*?)\">""", line)
             if r is not None:
                 link = 'http://www.knesset.gov.il/privatelaw/' + r.group(1)
@@ -172,7 +172,8 @@ class Command(NoArgsDbLogCommand):
                 name = r.group(1).replace("</td>", "").strip()
                 if len(name) > 1 and name.find('span') < 0:
                     names.append(name)
-                    links.append(link)
+                    if link:
+                        links.append(link)
                     exps.append('')
                     count += 1
             if re.search("""arrResume\[\d*\]""", line) is not None:
