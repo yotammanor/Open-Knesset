@@ -1,0 +1,36 @@
+{% extends "site_base.html" %}
+{% load i18n i18ninclude %}
+{% block extratitle %}כמה הכנסת פתוחה?{% endblock %}
+
+{% block breadcrumbs %}
+    <li>כמה הכנסת פתוחה?</li>
+{% endblock %}
+
+{% block description %}{% trans "About" %} {% trans 'Open Knesset - Opening the Knesset to the public' %}{% endblock %}
+{% block divcontent %}
+  <div class="row">
+    <div class="cards span3">
+    </div>
+    <div class="cards span6">
+      <section class="card card-list card-list-latest compact">
+        <header>
+          <h1>כמה הכנסת פתוחה?</h1>
+        </header>
+
+        <ul>
+          <li>במשך מעל שבע שנים אנחנו מגרדים מידע מהכנסת וזה לא הופך ליותר קל.
+          בשם השקיפות, אנחנו מפרסמים מדד לאיכות המידע שנגיש מהכנסת.  הציון
+          והתיאור שלהלן מתעדכנים על ידי צוות מפתחי האתר בהתאם למצב.</li>
+          <li><h2>איך חישבנו?</h2><br>
+                {{ dial.description|linebreaks }} </li>
+          <li>אתם מוזמנים להוסיף את המכוון לאתר שלכם ולעזור לנו לפתוח את הכנסת.
+          פשוט תעתיקו את הקוד שלהלן לאתר שלכן:
+          <textarea style="width: 96%;margin-top:0.5em;direction:ltr;" readonly >
+<iframe src="http://oknesset.org{% url 'dial-svg' dial.slug %}"></iframe>
+          </textarea></li>
+        </ul>
+
+      </section>
+    </div>
+  </div>
+{% endblock %}
