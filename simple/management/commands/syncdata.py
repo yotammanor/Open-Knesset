@@ -13,7 +13,6 @@ import urllib2
 from cStringIO import StringIO
 from optparse import make_option
 
-
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models import Max
@@ -61,14 +60,10 @@ class Command(NoArgsDbLogCommand):
     option_list = NoArgsDbLogCommand.option_list + (
         make_option('--all', action='store_true', dest='all',
                     help="runs all the syncdata sub processes (like --download --load --process --dump)"),
-        make_option('--download', action='store_true', dest='download',
-                    help="download data from knesset website to local files."),
-        make_option('--load', action='store_true', dest='load',
-                    help="load the data from local files to the db."),
+
         make_option('--process', action='store_true', dest='process',
                     help="run post loading process."),
-        make_option('--dump', action='store_true', dest='dump-to-file',
-                    help="write votes to tsv files (mainly for debug, or for research team)."),
+
         make_option('--laws', action='store_true', dest='laws',
                     help="download and parse laws"),
         make_option('--presence', action='store_true', dest='presence',
@@ -92,34 +87,20 @@ class Command(NoArgsDbLogCommand):
         logger = self._logger
 
         all_options = options.get('all', False)
-        download = options.get('download', False)
-        load = options.get('load', False)
+
         process = options.get('process', False)
-        dump_to_file = options.get('dump-to-file', False)
+
         update = options.get('update', False)
         laws = options.get('laws', False)
         presence = options.get('presence', False)
 
         if all_options:
-            download = True
-            load = True
             process = True
-            dump_to_file = True
 
-        selected_options = [all_options, download, load, process, dump_to_file, update, laws]
+        selected_options = [all_options, process, update, laws]
         if not any(selected_options):
             logger.error(
                 "no arguments found. doing nothing. \ntry -h for help.\n--all to run the full syncdata flow.\n--update for an online dynamic update.")
-
-        if download:
-            logger.info("beginning download phase")
-            self.download_all()
-            # self.get_laws_data()
-
-        if load:
-            logger.info("beginning load phase")
-            self.update_members_from_file()
-            self.update_db_from_files()
 
         if process:
             logger.info("beginning process phase")
@@ -131,10 +112,6 @@ class Command(NoArgsDbLogCommand):
             self.find_proposals_in_other_data()
             self.merge_duplicate_laws()
             self.correct_votes_matching()
-
-        if dump_to_file:
-            logger.info("writing votes to tsv file")
-            self.dump_to_file()
 
         if presence:
             self.update_presence()
@@ -208,16 +185,6 @@ class Command(NoArgsDbLogCommand):
 
         return names, exps, links
 
-    def get_laws_data(self):
-        f = gzip.open(os.path.join(DATA_ROOT, 'laws.tsv.gz'), "wb")
-        for x in range(0, 910, 26):  # TODO: find limits of download
-            # for x in range(0,50,26): # for debug
-            page = self.read_laws_page(x)
-            (names, exps, links) = self.parse_laws_page(page)
-            for (name, exp, link) in zip(names, exps, links):
-                f.write("%s\t%s\t%s\n" % (name, exp, link))
-        f.close()
-
     def download_laws(self):
         """
         returns an array of laws data: laws[i][0] - name, laws[i][1] - name for search, laws[i][2] - summary, laws[i][3] - link
@@ -260,129 +227,6 @@ class Command(NoArgsDbLogCommand):
                 self.get_approved_bill_text_for_vote(vote)
         logger.debug("finished updating laws data")
 
-    def get_votes_data(self):
-        # TODO: is this ever used?
-        self.update_last_downloaded_vote_id()
-        pages_ids = range(self.last_downloaded_vote_id + 1,
-                  17000)  # this is the range of page ids to go over. currently its set manually.
-        for page_id in pages_ids:
-            f = gzip.open(os.path.join(DATA_ROOT, 'results.tsv.gz'), "ab")
-            f2 = gzip.open(os.path.join(DATA_ROOT, 'votes.tsv.gz'), "ab")
-            (page, src_url) = self.read_votes_page(page_id)
-            title = self.get_page_title(page)
-            if title == """הצבעות במליאה-חיפוש""":  # found no vote with this id
-                logger.debug("no vote found at id %d" % page_id)
-            else:
-                count_for = 0
-                count_against = 0
-                count_abstain = 0
-                count_no_vote = 0
-                (name, meeting_num, vote_num, date) = self.get_vote_data(page)
-                results = self.read_member_votes(page)
-                for (voter, party, vote) in results:
-                    f.write("%d\t%s\t%s\t%s\n" % (page_id, voter, party, vote))
-                    if vote == "for":
-                        count_for += 1
-                    if vote == "against":
-                        count_against += 1
-                    if vote == "abstain":
-                        count_abstain += 1
-                    if vote == "no-vote":
-                        count_no_vote += 1
-                f2.write("%d\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\n" % (
-                    page_id, src_url, name, meeting_num, vote_num, date, count_for, count_against, count_abstain,
-                    count_no_vote))
-                logger.debug("downloaded data with vote id %d" % page_id)
-
-            f.close()
-            f2.close()
-
-    def update_last_downloaded_member_id(self):
-        """
-        Reads local members file, and sets self.last_downloaded_member_id to the highest id found in the file.
-        This is later used to skip downloading of data alreay downloaded.
-        """
-        try:
-            f = gzip.open(os.path.join(DATA_ROOT, 'members.tsv.gz'))
-        except:
-            self.last_downloaded_member_id = 0
-            logger.debug("members file does not exist. setting last_downloaded_member_id to 0")
-            return
-        content = f.read().split('\n')
-        for line in content:
-            if len(line) < 2:
-                continue
-            s = line.split('\t')
-            id = int(s[0])
-            if id > self.last_downloaded_member_id:
-                self.last_downloaded_member_id = id
-        logger.debug("last member id found in local files is %d. " % self.last_downloaded_member_id)
-        f.close()
-
-    def get_members_data(self, max_mk_id=1000, min_mk_id=1):
-        """downloads members data to local files
-        """
-        # TODO - find max member id in knesset website and use for max_mk_id
-
-        f = gzip.open(os.path.join(DATA_ROOT, 'members.tsv.gz'), "wb")
-
-        fields = ['img_link', 'טלפון', 'פקס', 'אתר נוסף',
-                  'דואר אלקטרוני', 'מצב משפחתי',
-                  'מספר ילדים', 'תאריך לידה', 'שנת לידה',
-                  'מקום לידה', 'תאריך פטירה', 'שנת עלייה',
-                  'כנסת 18', 'כנסת 19', 'כנסת 20']
-        # note that hebrew strings order is right-to-left
-        # so output file order is id, name, img_link, phone, ...
-
-        fields = [unicode(field.decode('utf8')) for field in fields]
-
-        for mk_id in range(min_mk_id, max_mk_id):
-            logger.debug('mk %s' % mk_id)
-            try:
-                m = mk_parser.MKHtmlParser(mk_id).Dict
-            except UnicodeDecodeError as e:
-                logger.error('unicode decode error at mk id %s' % mk_id)
-                m = {}
-            if m.get('name'):
-                name = m['name'].replace(u'\xa0', u' ').encode(ENCODING).replace('&nbsp;', ' ')
-            else:
-                continue
-            f.write("%d\t%s\t" % (mk_id, name))
-            for field in fields:
-                value = ''
-                if m.get(field):
-                    value = m[field].encode(ENCODING)
-                f.write("%s\t" % value)
-            f.write("\n")
-        f.close()
-
-    def download_all(self):
-        self.get_members_data()
-        self.get_votes_data()
-        self.get_laws_data()
-
-    def update_last_downloaded_vote_id(self):
-        """
-        Reads local votes file, and sets self.last_downloaded_id to the highest id found in the file.
-        This is later used to skip downloading of data alreay downloaded.
-        """
-        try:
-            f = gzip.open(os.path.join(DATA_ROOT, 'votes.tsv.gz'))
-        except:
-            self.last_downloaded_vote_id = 0
-            logger.debug("votes file does not exist. setting last_downloaded_vote_id to 0")
-            return
-        content = f.read().split('\n')
-        for line in content:
-            if (len(line) < 2):
-                continue
-            s = line.split('\t')
-            vote_id = int(s[0])
-            if vote_id > self.last_downloaded_vote_id:
-                self.last_downloaded_vote_id = vote_id
-        logger.debug("last id found in local files is %d. " % self.last_downloaded_vote_id)
-        f.close()
-
     def update_mks_is_current(self):
         """
         Set is_current=True if and only if mk is currently serving.
@@ -400,85 +244,6 @@ class Command(NoArgsDbLogCommand):
         updated = Member.objects.exclude(id__in=mks_ids).update(is_current=False)
         logger.info('updated %d mks to is_current=False' % updated)
 
-    def update_members_from_file(self):
-        logger.debug('update_members_from_file')
-        f = gzip.open(os.path.join(DATA_ROOT, 'members.tsv.gz'))
-        content = f.read().split('\n')
-        for line in content:
-            if len(line) <= 1:
-                continue
-            (member_id, name, img_url, phone, fax, website, email,
-             family_status, number_of_children, date_of_birth,
-             year_of_birth, place_of_birth, date_of_death,
-             year_of_aliyah, k18, k19, _) = line.split('\t')
-            if email != '':
-                email = email.split(':')[1]
-            try:
-                if date_of_birth.find(',') >= 0:
-                    date_of_birth = date_of_birth.split(',')[1].strip(' ')
-                date_of_birth = datetime.datetime.strptime(date_of_birth, "%d/%m/%Y")
-            except:
-                date_of_birth = None
-            try:
-                if date_of_birth.find(',') >= 0:
-                    date_of_death = date_of_birth.split(',')[1].strip(' ')
-                date_of_death = datetime.datetime.strptime(date_of_death, "%d/%m/%Y")
-            except:
-                date_of_death = None
-            try:
-                year_of_birth = int(year_of_birth)
-            except:
-                year_of_birth = None
-            try:
-                year_of_aliyah = int(year_of_aliyah)
-            except:
-                year_of_aliyah = None
-            try:
-                number_of_children = int(number_of_children)
-            except:
-                number_of_children = None
-
-            try:
-                m = Member.objects.get(id=member_id)
-                m.phone = phone
-                m.fax = fax
-                m.email = email
-                m.family_status = family_status
-                m.number_of_children = number_of_children
-                m.date_of_death = date_of_death
-                m.save()
-                logger.debug('updated member %d' % m.id)
-            except Member.DoesNotExist:  # member_id not found. create new
-                m = Member(id=member_id, name=name, img_url=img_url, phone=phone, fax=fax, website=None, email=email,
-                           family_status=family_status,
-                           number_of_children=number_of_children, date_of_birth=date_of_birth,
-                           place_of_birth=place_of_birth,
-                           date_of_death=date_of_death, year_of_aliyah=year_of_aliyah)
-                m.save()
-                m = Member.objects.get(pk=member_id)  # make sure we are are
-                # working on the db object. e.g m.id is a number.
-                logger.debug('created member %d' % m.id)
-                if len(website) > 0:
-                    l = Link(title='אתר האינטרנט של %s' % name, url=website,
-                             content_type=ContentType.objects.get_for_model(m), object_pk=str(m.id))
-                    l.save()
-
-            if k19:  # KNESSET 19 specific
-                parties = Party.objects.filter(knesset_id=19).values_list('name', 'id')
-                k19 = k19.decode(ENCODING)
-                for k, v in parties:
-                    if k in k19:
-                        m.current_party_id = int(v)
-                        logger.debug('member %s, k19 %s, party %s'
-                                     % (m.name,
-                                        k19,
-                                        k))
-                        m.save()
-                if m.current_party is None:
-                    logger.debug('member %s, k19 %s not found' %
-                                 (m.name,
-                                  k19))
-
     def get_search_string(self, s):
         if isinstance(s, unicode):
             s = s.replace(u'\u201d', '').replace(u'\u2013', '')
@@ -488,186 +253,6 @@ class Command(NoArgsDbLogCommand):
 
     heb_months = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר',
                   'דצמבר']
-
-
-    def update_db_from_files(self):
-        logger.debug("Update DB From Files")
-
-        try:
-            laws = []  # of lists: [name,name_for_search,explanation,link]
-            f = gzip.open(os.path.join(DATA_ROOT, 'laws.tsv.gz'))
-            content = f.read().split('\n')
-            for line in content:
-                law = line.split('\t')
-                if len(law) == 3:
-                    name_for_search = self.get_search_string(law[0])
-                    law.insert(1, name_for_search)
-                    laws.append(law)
-            f.close()
-
-            parties = dict()  # key: party-name; value: Party
-            members = dict()  # key: member-name; value: Member
-            votes = dict()  # key: id; value: Vote
-            memberships = dict()  # key: (member.id,party.id)
-            current_max_src_id = Vote.objects.aggregate(Max('src_id'))['src_id__max']
-            if current_max_src_id == None:  # the db contains no votes, meaning its empty
-                current_max_src_id = 0
-
-            logger.debug("processing votes data")
-            f = gzip.open(os.path.join(DATA_ROOT, 'votes.tsv.gz'))
-            content = f.read().split('\n')
-            for line in content:
-                if len(line) <= 1:
-                    continue
-                (vote_id, vote_src_url, vote_label, vote_meeting_num, vote_num, vote_time_string, _, _, _,
-                 _) = line.split('\t')
-                # if vote_id < current_max_src_id: # skip votes already parsed.
-                #    continue
-                vote_time_string = vote_time_string.replace('&nbsp;', ' ')
-                for i in self.heb_months:
-                    if i in vote_time_string:
-                        month = self.heb_months.index(i) + 1
-                day = re.search("""(\d\d?)""", vote_time_string).group(1)
-                year = re.search("""(\d\d\d\d)""", vote_time_string).group(1)
-                vote_hm = datetime.datetime.strptime(vote_time_string.split(' ')[-1], "%H:%M")
-                vote_date = datetime.date(int(year), int(month), int(day))
-                vote_time = datetime.datetime(int(year), int(month), int(day), vote_hm.hour, vote_hm.minute)
-                vote_label_for_search = self.get_search_string(vote_label)
-
-                # if vote_date < datetime.date(2009, 02, 24): # vote before 18th knesset
-                #    continue
-
-                try:
-                    v = Vote.objects.get(src_id=vote_id)
-                    created = False
-                except:
-                    v = Vote(title=vote_label, time_string=vote_time_string, importance=1, src_id=vote_id,
-                             time=vote_time)
-                    try:
-                        vote_meeting_num = int(vote_meeting_num)
-                        v.meeting_number = vote_meeting_num
-                    except:
-                        pass
-                    try:
-                        vote_num = int(vote_num)
-                        v.vote_number = vote_num
-                    except:
-                        pass
-                    v.src_url = vote_src_url
-                    for law in laws:
-                        (_, law_name_for_search, law_exp, law_link) = law
-                        if vote_label_for_search.find(law_name_for_search) >= 0:
-                            v.summary = law_exp
-                            v.full_text_url = law_link
-                    v.save()
-                    if v.full_text_url != None:
-                        l = Link(title=u'מסמך הצעת החוק באתר הכנסת', url=v.full_text_url,
-                                 content_type=ContentType.objects.get_for_model(v), object_pk=str(v.id))
-                        l.save()
-                votes[int(vote_id)] = v
-            f.close()
-
-            logger.debug("processing member votes data")
-            f = gzip.open(os.path.join(DATA_ROOT, 'results.tsv.gz'))
-            content = f.read().split('\n')
-            for line in content:
-                if len(line) < 2:
-                    continue
-                s = line.split('\t')  # (id,voter,party,vote)
-
-                vote_id = int(s[0])
-                voter = s[1]
-                voter_party = s[2]
-
-                # transform party names to canonical form
-                if voter_party in CANONICAL_PARTY_ALIASES:
-                    voter_party = CANONICAL_PARTY_ALIASES[voter_party]
-
-                vote = s[3]
-
-                try:
-                    v = votes[vote_id]
-                except KeyError:  # this vote was skipped in this read, also skip voteactions and members
-                    continue
-                vote_date = v.time.date()
-
-                # create/get the party appearing in this vote
-                if voter_party in parties:
-                    party = parties[voter_party]
-                    created = False
-                else:
-                    party, created = Party.objects.get_or_create(name=voter_party)
-                    parties[voter_party] = party
-                    # if created: # this is magic needed because of unicode chars. if you don't do this, the object p will have gibrish as its name.
-                    # only when it comes back from the db it has valid unicode chars.
-
-                # use this vote's time to update the party's start date and end date
-                if (party.start_date is None) or (party.start_date > vote_date):
-                    party.start_date = vote_date
-                if (party.end_date is None) or (party.end_date < vote_date):
-                    party.end_date = vote_date
-                if created:  # save on first time, so it would have an id, be able to link, etc. all other updates are saved in the end
-                    party.save()
-
-                # create/get the member voting
-                if voter in members:
-                    member = members[voter]
-                    created = False
-                else:
-                    try:
-                        member = Member.objects.get(name=voter)
-                    except:  # if there are several people with same age,
-                        member = Member.objects.filter(name=voter).order_by('-date_of_birth')[
-                            0]  # choose the younger. TODO: fix this
-                    members[voter] = member
-
-                # use this vote's date to update the member's dates.
-                if (member.start_date is None) or (member.start_date > vote_date):
-                    member.start_date = vote_date
-                if (member.end_date is None) or (member.end_date < vote_date):
-                    member.end_date = vote_date
-                # if created: # save on first time, so it would have an id, be able to link, etc. all other updates are saved in the end
-                #    m.save()
-
-
-                # create/get the membership (connection between member and party)
-                if ((member.id, party.id) in memberships):
-                    ms = memberships[(member.id, party.id)]
-                    created = False
-                else:
-                    ms, created = Membership.objects.get_or_create(member=member, party=party)
-                    memberships[(member.id, party.id)] = ms
-                # if created: # again, unicode magic
-                #    ms = Membership.objects.get(member=m,party=p)
-                # again, update the dates on the membership
-                if (ms.start_date is None) or (ms.start_date > vote_date):
-                    ms.start_date = vote_date
-                if (ms.end_date is None) or (ms.end_date < vote_date):
-                    ms.end_date = vote_date
-                if created:  # save on first time, so it would have an id, be able to link, etc. all other updates are saved in the end
-                    ms.save()
-
-                # add the current member's vote
-
-                va, created = VoteAction.objects.get_or_create(vote=v, member=member, type=vote, party=member.current_party)
-                if created:
-                    va.save()
-
-            logger.debug("done")
-            logger.debug(
-                "saving data: %d parties, %d members, %d memberships " % (len(parties), len(members), len(memberships)))
-            for party in parties:
-                parties[party].save()
-            for member in members:
-                members[member].save()
-            for ms in memberships:
-                memberships[ms].save()
-
-            logger.debug("done")
-            f.close()
-        except Exception:
-
-            logger.exception('Update db from file exception')
 
     def calculate_votes_importances(self):
         """
@@ -849,34 +434,6 @@ class Command(NoArgsDbLogCommand):
         except Exception as e:
 
             logger.exception(u'Exception with approved bill text for vote %s title=%s' % (vote.id, vote.title))
-
-    def dump_to_file(self):
-        # TODO: find out if anyone is really using this strange code, and if so, do we need to update the dates
-        f = open('votes.tsv', 'wt')
-        for v in Vote.objects.filter(time__gte=datetime.date(2009, 2, 24)):
-            if v.full_text_url is not None:
-                link = v.full_text_url.encode('utf-8')
-            else:
-                link = ''
-            if v.summary is not None:
-                summary = v.summary.encode('utf-8')
-            else:
-                summary = ''
-
-            f.write("%d\t%s\t%s\t%s\t%s\n" % (v.id, str(v.time), v.title.encode('utf-8'), summary, link))
-        f.close()
-
-        f = open('votings.tsv', 'wt')
-        for v in Vote.objects.filter(time__gte=datetime.date(2009, 2, 24)):
-            for va in v.actions.all():
-                f.write("%d\t%d\t%s\n" % (v.id, va.member.id, va.type))
-        f.close()
-
-        f = open('members.tsv', 'wt')
-        for m in Member.objects.filter(end_date__gte=datetime.date(2009, 2, 24)):
-            f.write("%d\t%s\t%s\n" % (m.id, m.name.encode('utf-8'),
-                                      m.current_party.__unicode__().encode('utf-8') if m.current_party is not None else ''))
-        f.close()
 
     def update_presence(self):
         logger.debug("update presence")

@@ -95,7 +95,7 @@ class BaseCommitteeTestCase(TestCase):
         )
 
     def verify_topics_not_in_response(self, res):
-        self.assertNotIn('topics', res.context, msg="Expected topics to be exist in context but did")
+        self.assertNotIn('topics', res.context, msg="Expected topics not to exist in context but did")
 
     def _verify_attribute_in_response_context_equals_to_value(self, res,
                                                               attribute,
