@@ -38,7 +38,7 @@ PDFINFO=SimpleLazyObject(lambda: get_path_for_tool_by_toolname('pdfinfo'))
 def pdftotext_version():
     if not PDFTOTEXT:
         return ('0', '0', '0')
-    p = subprocess.Popen(executable=PDFTOTEXT, args=[PDFTOTEXT, '-v'], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    p = subprocess.Popen(executable=str(PDFTOTEXT), args=[str(PDFTOTEXT), '-v'], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     major, minor, patchlevel = map(lambda x,y:y if x is None else x,p.stderr.readlines()[0].strip().split()[-1].split('.'),[0]*3)
     p.kill()
     return major, minor, patchlevel
