@@ -925,21 +925,22 @@ def committee_meeting_auto_complete(request):
 
     q = request.GET['query']
 
-    options = CommitteeMeeting.objects.filter(
+    optional_committee_meetings = CommitteeMeeting.objects.filter(
         Q(date_string__icontains=q) | Q(topics__icontains=q)
-    )[:30]
+    )
 
     data = []
     suggestions = []
-    for i in options:
-        title = u'{0} - {1}'.format(i.date_string, i.topics)
-        data.append(i.id)
+    for committee_meeting in optional_committee_meetings:
+        title = u'{0} - {1}'.format(committee_meeting.date_string, committee_meeting.topics)
+        data.append(committee_meeting.pk)
         suggestions.append(title)
 
     result = {'query': request.GET['query'],
               'suggestions': suggestions,
               'data': data}
 
+    return HttpResponse(json.dumps(result), mimetype='application/json')
     return HttpResponse(json.dumps(result), mimetype='application/json')
 
 

@@ -3323,10 +3323,6 @@ msgstr "הצעת החוק האחרת"
 msgid "The vote"
 msgstr "ההצבעה"
 
-#: templates/laws/bill_unbind_vote.html:4
-msgid "Unbind vote"
-msgstr "ניתוק קשר להצבעה"
-
 #: templates/laws/bill_unbind_committee_meeting.html:7
 #: templates/laws/bill_unbind_vote.html:7
 msgid "Really unbind this relation?"
