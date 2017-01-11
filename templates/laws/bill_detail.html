@@ -22,7 +22,6 @@
             } );
         }
 
-
         $(document).ready(function() {
 
                 var options = {
@@ -61,6 +60,25 @@
                         $(this).siblings("input[type$='submit']").attr('disabled', 'disabled');
                      });
                      $(this).autocomplete(options_kp);
+
+                });
+                var options_cm = {
+                     serviceUrl:'/bill/auto_complete_committee_meeting/',
+                     minChars:2,
+                     maxHeight:400,
+                     width:300,
+                     deferRequestBy: 100, //miliseconds
+                     onSelect: function(value, data, me){
+                        me.siblings("input[name$='cm_id']").val(data);
+                        me.siblings("input[type$='submit']").removeAttr('disabled');
+                     }
+                 };
+                $('.cm_input').each(function(item) {
+                     $(this).keydown(function() {
+                        $(this).siblings("input[name$='cm_id']").val('');
+                        $(this).siblings("input[type$='submit']").attr('disabled', 'disabled');
+                     });
+                     $(this).autocomplete(options_cm);
 
                 });
 
@@ -291,10 +309,32 @@ var pre_vote_score = {{ v.for_votes_count }} - {{ v.against_votes_count }};
                                     <a class="item" href="{% url 'committee-meeting' cm.id %}">
                                         {{ cm.date }}
                                     </a>
+                                    {% if user.is_authenticated %}
+                                        <a href="{% url 'bill-unbind-committee-meeting' object.id cm.id '1' %}"><img src="/static/img/X.png"></a>
+                                    {% endif %}
                                 </li>
                             {% endfor %}
 
                         </ul>
+                        {% if user.is_authenticated %}
+                            <ul class="dates-list">
+                                <li>
+                                    {% trans 'Suggest a committee meeting' %}
+                                    <form method="post" action="." class="form-inline">{% csrf_token %}
+                                        <input type="hidden" name="user_input_type"
+                                               value="committee_meetings"></input>
+                                        <input type="hidden" name="cm_stage"
+                                               value="1"></input>
+                                        <input type="text" class="cm_input" name="cm_string"
+                                               placeholder="{% trans 'Start typing a committee meeting title or date and choose one from the list' %}"
+                                               autocomplete="off"></input>
+                                        <input type="hidden" name="cm_id"></input>
+                                        <input type="submit" disabled value="{% trans 'Submit' %}" class="btn"
+                                               autocomplete="off"></input>
+                                    </form>
+                                </li>
+                            </ul>
+                        {% endif %}
                     </section>
 
                     <section
@@ -376,10 +416,31 @@ var first_vote_score = {{ object.first_vote.for_votes_count }} - {{ object.first
                         <ul class="dates-list">
                             {% for cm in object.second_committee_meetings.all %}
                                 <li {% if forloop.counter > 5 %}class="list-more" {% endif %}>
-                                    <a href="{% url 'committee-meeting' cm.id %}">
-                                        {{ cm.date }}</a>
+                                    <a href="{% url 'committee-meeting' cm.id %}">{{ cm.date }}</a>
+                                    {% if user.is_authenticated %}
+                                        <a href="{% url 'bill-unbind-committee-meeting' object.id cm.id '2' %}"><img src="/static/img/X.png"></a>
+                                    {% endif %}
                                 </li>
                             {% endfor %}
+                            {% if user.is_authenticated %}
+                                <ul class="dates-list">
+                                    <li>
+                                        {% trans 'Suggest a committee meeting' %}
+                                        <form method="post" action="." class="form-inline">{% csrf_token %}
+                                            <input type="hidden" name="user_input_type"
+                                                   value="committee_meetings"></input>
+                                            <input type="hidden" name="cm_stage"
+                                                   value="2"></input>
+                                            <input type="text" class="cm_input" name="cm_string"
+                                                   placeholder="{% trans 'Start typing a committee meeting title or date and choose one from the list' %}"
+                                                   autocomplete="off"></input>
+                                            <input type="hidden" name="cm_id"></input>
+                                            <input type="submit" disabled value="{% trans 'Submit' %}" class="btn"
+                                                   autocomplete="off"></input>
+                                        </form>
+                                    </li>
+                                </ul>
+                            {% endif %}
                         </ul>
                     </section>
 
@@ -555,4 +616,5 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
 
         </div>
     </div>
+
 {% endblock %}
