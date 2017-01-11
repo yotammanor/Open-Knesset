@@ -426,6 +426,11 @@ class BillDetailView(DetailView):
             context['budget_ests_form'] = BudgetEstimateForm(bill, self.request.user)
         return context
 
+    def render_post_error(self, request, bill, error, **kwargs):
+        kwargs.update({'error': error, 'bill': bill})
+        context = RequestContext(request, kwargs)
+        return render_to_response('laws/bill_post_error.html', context)
+
     @method_decorator(login_required)
     def post(self, request, **kwargs):
 
@@ -440,14 +445,19 @@ class BillDetailView(DetailView):
             i = vote_types.index(user_input_type)
             vote = Vote.objects.get(pk=request.POST.get('vote_id'))
             if i == 0:
+                try:
+                    vote_bill_approved = vote.bill_approved
+                except ObjectDoesNotExist:
+                    vote_bill_approved = None
+                if vote_bill_approved and vote_bill_approved.pk != bill.pk:
+                    return self.render_post_error(request, bill, _('Vote already linked to another bill'), vote=vote, other_bill=vote_bill_approved)
                 bill.approval_vote = vote
             elif i == 1:
                 bill.first_vote = vote
             elif i == 2:
                 bill.pre_votes.add(vote)
             else:
-                # FIXME: maybe different response.
-                return HttpResponseRedirect(".")
+                return self.render_post_error(request, bill, _('Invalid vote type'), vote=vote)
             bill.update_stage()
             action.send(request.user, verb='added-vote-to-bill',
                         description=vote,
