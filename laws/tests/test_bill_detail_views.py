@@ -3,6 +3,7 @@
 
 import unittest
 from datetime import date, timedelta, datetime
+import json
 
 from django.conf import settings
 from django.contrib.auth.models import User, Group, Permission
@@ -12,14 +13,15 @@ from django.test import TestCase
 from tagging.models import Tag
 
 from laws.models import Vote, Bill, KnessetProposal, BillBudgetEstimation
-
 from mks.models import Knesset, Member
+from committees.models import Committee, CommitteeMeeting
 
 just_id = lambda x: x.id
 APP = 'laws'
 
 
 class BillDetailViewsTest(TestCase):
+
     def setUp(self):
         super(BillDetailViewsTest, self).setUp()
 
@@ -49,6 +51,9 @@ class BillDetailViewsTest(TestCase):
                                                    date=date.today())
         self.mk_1 = Member.objects.create(name='mk 1')
         self.tag_1 = Tag.objects.create(name='tag1')
+
+        self.committee_1 = Committee.objects.create(name='laws bill details view committee 1')
+        self.committee_meeting_1 = self.committee_1.meetings.create(date=datetime.now(), topics="laws bill details view committee meeting 1")
 
     def tearDown(self):
         super(BillDetailViewsTest, self).tearDown()
@@ -326,6 +331,42 @@ class BillDetailViewsTest(TestCase):
         self.bill_1.budget_ests.get(estimator__username='adrian').delete()
         self.bill_2.budget_ests.get(estimator__username='jacob').delete()
         self.client.logout()
+
+    def test_bind_committee_meeting(self):
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        for bill_committee_meetings, cm_stage in ((self.bill_1.first_committee_meetings, "1"),
+                                                  (self.bill_1.second_committee_meetings, "2")):
+            bill_committee_meetings.remove(self.committee_meeting_1)
+            self.assertFalse(bill_committee_meetings.filter(pk=self.committee_meeting_1.pk).exists())
+            res = self.client.post(reverse('bill-detail',
+                                           kwargs={'pk': self.bill_1.id}),
+                                   {'user_input_type': 'committee_meetings',
+                                    'cm_id': self.committee_meeting_1.pk,
+                                    'cm_stage': cm_stage})
+            self.assertEqual(res.status_code, 302)
+            self.assertEqual(res.url, 'http://testserver' + reverse('bill-detail', args=(self.bill_1.pk,)))
+            self.assertTrue(bill_committee_meetings.filter(pk=self.committee_meeting_1.pk).exists())
+
+    def test_unbind_committee_meeting(self):
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        for bill_committee_meetings, cm_stage in ((self.bill_1.first_committee_meetings, "1"),
+                                                  (self.bill_1.second_committee_meetings, "2")):
+            bill_committee_meetings.add(self.committee_meeting_1)
+            self.assertTrue(bill_committee_meetings.filter(pk=self.committee_meeting_1.pk).exists())
+            res = self.client.post(reverse('bill-unbind-committee-meeting', args=(self.bill_1.pk, self.committee_meeting_1.pk, cm_stage)),
+                                   {'explanation': 'sorry, must do it!'})
+            self.assertEqual(res.status_code, 302)
+            self.assertEqual(res.url, 'http://testserver'+reverse('bill-detail', args=(self.bill_1.pk,)))
+            self.assertFalse(bill_committee_meetings.filter(pk=self.committee_meeting_1.pk).exists())
+
+    def test_committee_meeting_auto_complete(self):
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        res = self.client.get(reverse('committee-meeting-auto-complete'), {'query': self.committee_meeting_1.topics})
+        self.assertDictContainsSubset({
+            "query": self.committee_meeting_1.topics,
+            "suggestions": ["{date_string} - {topics}".format(date_string=self.committee_meeting_1.date_string, topics=self.committee_meeting_1.topics)],
+            'data': [self.committee_meeting_1.pk]
+        }, json.loads(res.content))
 
     # def tearDown(self):
     #     self.vote_1.delete()

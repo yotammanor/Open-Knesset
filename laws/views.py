@@ -941,7 +941,6 @@ def committee_meeting_auto_complete(request):
               'data': data}
 
     return HttpResponse(json.dumps(result), mimetype='application/json')
-    return HttpResponse(json.dumps(result), mimetype='application/json')
 
 
 def embed_bill_details(request, object_id):
