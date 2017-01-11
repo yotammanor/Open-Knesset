@@ -6,10 +6,10 @@ from models import Vote, Bill
 from views import (
     VoteListView, VoteCsvView, VoteDetailView, VoteTagsView,
     BillListView, BillCsvView, BillDetailView, BillTagsView,
-    bill_unbind_vote, bill_auto_complete,
+    bill_unbind_vote, bill_unbind_committee_meeting, bill_auto_complete,
     bill_tags_cloud, embed_bill_details,
     vote_tags_cloud, vote_auto_complete,
-    knesset_proposal_auto_complete)
+    knesset_proposal_auto_complete, committee_meeting_auto_complete)
 import feeds
 
 vote_view = VoteListView(queryset=Vote.objects.all(),
@@ -41,10 +41,14 @@ lawsurlpatterns = patterns(
         embed_bill_details, name='embed-bill-details'),
     url(r'^bill/(?P<object_id>\d+)/unbind-vote/(?P<vote_id>\d+)/$',
         bill_unbind_vote, name='bill-unbind-vote'),
+    url(r'^bill/(?P<object_id>\d+)/unbind-committee-meeting/(?P<cm_id>\d+)/(?P<cm_stage>\d+)/$',
+        bill_unbind_committee_meeting, name='bill-unbind-committee-meeting'),
     url(r'^bill/auto_complete/$',
         bill_auto_complete, name='bill-auto-complete'),
     url(r'^bill/auto_complete_knesset_proposal/$',
         knesset_proposal_auto_complete, name='knesset-proposal-auto-complete'),
+    url(r'^bill/auto_complete_committee_meeting/$',
+        committee_meeting_auto_complete, name='committee-meeting-auto-complete'),
     url(r'^bill/(?P<slug>[\w\-\"]+)/(?P<pk>\d+)/$',
         bill_detail_view, name='bill-detail-with-slug'),
     url(r'^vote/$', vote_list_view, name='vote-list'),

@@ -35,6 +35,7 @@ from hashnav import DetailView, ListView as HashnavListView
 from knesset.utils import notify_responsible_adult
 from mks.models import Member
 from models import Bill, BillBudgetEstimation, Vote, KnessetProposal, VoteAction
+from committees.models import CommitteeMeeting
 
 logger = logging.getLogger("open-knesset.laws.views")
 
@@ -494,6 +495,12 @@ class BillDetailView(DetailView):
             if not kp.bill:  # kp already has a bill
                 kp.bill = bill
                 kp.save()
+        elif user_input_type == 'committee_meetings':
+            cm = CommitteeMeeting.objects.get(pk=request.POST.get('cm_id'))
+            if request.POST.get('cm_stage') == "2":
+                bill.second_committee_meetings.add(cm)
+            else:
+                bill.first_committee_meetings.add(cm)
         else:
             return HttpResponseBadRequest()
 
@@ -532,6 +539,34 @@ def bill_unbind_vote(request, object_id, vote_id):
         context = RequestContext(request,
                                  {'object': bill, 'vote': vote})
         return render_to_response("laws/bill_unbind_vote.html", context)
+
+@login_required
+def bill_unbind_committee_meeting(request, object_id, cm_id, cm_stage):
+    try:
+        bill = Bill.objects.get(pk=object_id)
+        cm = CommitteeMeeting.objects.get(pk=cm_id)
+    except ObjectDoesNotExist:
+        raise Http404
+    if request.method == 'POST':  # actually unbind
+        explanation = request.POST.get('explanation', '')
+        msg = u'%s is unbinding committee meeting %s from bill %s at meeting stage %s. explanation: %s' % \
+              (str(request.user).decode('utf8'),
+               cm_id,
+               object_id,
+               cm_stage,
+               explanation)
+        notify_responsible_adult(msg)
+
+        logger.info(msg)
+        if cm_stage == "2":
+            bill.second_committee_meetings.remove(cm)
+        else:
+            bill.first_committee_meetings.remove(cm)
+        return HttpResponseRedirect(reverse('bill-detail', args=[object_id]))
+    else:  # approve unbind
+        context = RequestContext(request,
+                                 {'object': bill, 'cm': cm})
+        return render_to_response("laws/bill_unbind_committee_meeting.html", context)
 
 
 class BillListMixin(object):
@@ -864,6 +899,30 @@ def knesset_proposal_auto_complete(request):
     for i in options:
         formatted_date = i.date.strftime('%d/%m/%Y')
         title = u'{0} - {1} - {2}'.format(formatted_date, i.law.title, i.title)
+        data.append(i.id)
+        suggestions.append(title)
+
+    result = {'query': request.GET['query'],
+              'suggestions': suggestions,
+              'data': data}
+
+    return HttpResponse(json.dumps(result), mimetype='application/json')
+
+@require_http_methods(["GET"])
+def committee_meeting_auto_complete(request):
+    if not request.GET.get('query'):
+        raise Http404
+
+    q = request.GET['query']
+
+    options = CommitteeMeeting.objects.filter(
+        Q(date_string__icontains=q) | Q(topics__icontains=q)
+    )[:30]
+
+    data = []
+    suggestions = []
+    for i in options:
+        title = u'{0} - {1}'.format(i.date_string, i.topics)
         data.append(i.id)
         suggestions.append(title)
 
