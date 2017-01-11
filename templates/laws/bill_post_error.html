@@ -1,0 +1,19 @@
+{% extends "site_base.html" %}
+{% load i18n %}
+
+{% block extratitle %}{% trans "Error" %}{% endblock %}
+
+{% block divcontent %}
+<h1>{% trans "Error" %}</h1>
+    <h2>{{ error }}</h2>
+    <h3>{% trans 'The bill' %}</h3>
+    <p><a href="{{ bill.get_absolute_url }}">{{ bill }}</a></p>
+    {% if other_bill %}
+        <h3>{% trans 'The other Bill' %}</h3>
+        <p><a href="{{ other_bill.get_absolute_url }}">{{ other_bill }}</a></p>
+    {% endif %}
+    {% if vote %}
+        <h3>{% trans 'The vote' %}</h3>
+        <p><a href="{{ vote.get_absolute_url }}">{{ vote }}</a></p>
+    {% endif %}
+{% endblock %}
