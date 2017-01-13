@@ -345,6 +345,9 @@ var pre_vote_score = {{ v.for_votes_count }} - {{ v.against_votes_count }};
                             <ul class="dates-list">
                                 <li>
                                     <a href="{{ object.knesset_proposal.source_url }}">{% trans 'Bill on knesset website' %}</a>
+                                    {% if user.is_authenticated %}
+                                        <a href="{% url 'bill-unbind-knesset-proposal' object.id %}"><img src="/static/img/X.png"></a>
+                                    {% endif %}
                                 </li>
                             </ul>
                         {% else %}

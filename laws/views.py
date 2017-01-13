@@ -427,6 +427,17 @@ class BillDetailView(DetailView):
         return context
 
     def render_post_error(self, request, bill, error, **kwargs):
+        """
+        Renders a common error page
+        Args:
+            request: the http request object
+            bill: bill object
+            error: error message
+            **kwargs: passed as context to the templste (laws/bill_post_error.html)
+
+        Returns:
+            http response object
+        """
         kwargs.update({'error': error, 'bill': bill})
         context = RequestContext(request, kwargs)
         return render_to_response('laws/bill_post_error.html', context)
@@ -502,7 +513,9 @@ class BillDetailView(DetailView):
                 return HttpResponseForbidden()
         elif user_input_type == 'knesset_proposal':
             kp = KnessetProposal.objects.get(pk=request.POST.get('kp_id'))
-            if not kp.bill:  # kp already has a bill
+            if kp.bill:
+                return self.render_post_error(request, bill, _('The selected Knesset proposal is already linked to another bill'), knesset_proposal=kp, other_bill=kp.bill)
+            else:
                 kp.bill = bill
                 kp.save()
         elif user_input_type == 'committee_meetings':
@@ -577,6 +590,31 @@ def bill_unbind_committee_meeting(request, object_id, cm_id, cm_stage):
         context = RequestContext(request,
                                  {'object': bill, 'cm': cm})
         return render_to_response("laws/bill_unbind_committee_meeting.html", context)
+
+@login_required
+def bill_unbind_knesset_proposal(request, object_id):
+    try:
+        bill = Bill.objects.get(pk=object_id)
+        knesset_proposal = bill.knesset_proposal
+    except ObjectDoesNotExist:
+        raise Http404
+    if request.method == 'POST':  # actually unbind
+        explanation = request.POST.get('explanation', '')
+        msg = u'%s is unbinding knesset proposal %s from bill %s. explanation: %s' % \
+              (str(request.user).decode('utf8'),
+               knesset_proposal.pk,
+               object_id,
+               explanation)
+        notify_responsible_adult(msg)
+
+        logger.info(msg)
+
+        knesset_proposal.bill = None
+        knesset_proposal.save()
+        return HttpResponseRedirect(reverse('bill-detail', args=[object_id]))
+    else:  # approve unbind
+        context = RequestContext(request, {'object': bill, 'knesset_proposal': knesset_proposal})
+        return render_to_response("laws/bill_unbind_knesset_proposal.html", context)
 
 
 class BillListMixin(object):
