@@ -368,6 +368,15 @@ class BillDetailViewsTest(TestCase):
             'data': [self.committee_meeting_1.pk]
         }, json.loads(res.content))
 
+    def test_unbind_knesset_proposal(self):
+        self.assertTrue(self.client.login(username='jacob', password='JKM'))
+        self.assertEqual(self.kp_1.bill, self.bill_1)
+        res = self.client.post(reverse('bill-unbind-knesset-proposal', args=(self.bill_1.pk,)), {'explanation': 'sorry, must do it!'})
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res.url, 'http://testserver' + reverse('bill-detail', args=(self.bill_1.pk,)))
+        self.assertIsNone(KnessetProposal.objects.get(pk=self.kp_1.pk).bill)
+        self.assertRaises(KnessetProposal.DoesNotExist, lambda: Bill.objects.get(pk=self.bill_1.pk).knesset_proposal)
+
     # def tearDown(self):
     #     self.vote_1.delete()
     #     self.vote_2.delete()
