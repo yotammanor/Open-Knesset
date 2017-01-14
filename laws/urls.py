@@ -6,7 +6,8 @@ from models import Vote, Bill
 from views import (
     VoteListView, VoteCsvView, VoteDetailView, VoteTagsView,
     BillListView, BillCsvView, BillDetailView, BillTagsView,
-    bill_unbind_vote, bill_unbind_committee_meeting, bill_auto_complete,
+    bill_unbind_vote, bill_unbind_committee_meeting, bill_unbind_knesset_proposal,
+    bill_auto_complete,
     bill_tags_cloud, embed_bill_details,
     vote_tags_cloud, vote_auto_complete,
     knesset_proposal_auto_complete, committee_meeting_auto_complete)
@@ -43,6 +44,8 @@ lawsurlpatterns = patterns(
         bill_unbind_vote, name='bill-unbind-vote'),
     url(r'^bill/(?P<object_id>\d+)/unbind-committee-meeting/(?P<cm_id>\d+)/(?P<cm_stage>\d+)/$',
         bill_unbind_committee_meeting, name='bill-unbind-committee-meeting'),
+    url(r'^bill/(?P<object_id>\d+)/unbind-knesset-proposal/$',
+        bill_unbind_knesset_proposal, name='bill-unbind-knesset-proposal'),
     url(r'^bill/auto_complete/$',
         bill_auto_complete, name='bill-auto-complete'),
     url(r'^bill/auto_complete_knesset_proposal/$',

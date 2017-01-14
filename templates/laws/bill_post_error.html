@@ -16,4 +16,8 @@
         <h3>{% trans 'The vote' %}</h3>
         <p><a href="{{ vote.get_absolute_url }}">{{ vote }}</a></p>
     {% endif %}
+    {% if knesset_proposal %}
+        <h3>{% trans 'Knesset proposal' %}</h3>
+        <p><a href="{{ knesset_proposal.get_absolute_url }}">{{ knesset_proposal }}</a></p>
+    {% endif %}
 {% endblock %}
