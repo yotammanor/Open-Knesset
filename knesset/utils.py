@@ -81,12 +81,14 @@ def clean_string(s):
         s = s.replace('\xe2\x80\x9d', '').replace('\xe2\x80\x93', '')
     return s
 
+
 def clean_string_no_quotes(a_str):
     return clean_string(a_str).replace('"', '')
 
+
 def cannonize(s):
     s = clean_string(s)
-    s = s.replace('&nbsp', ' ').replace('gt;', '').replace('\n', '')
+    s = s.replace('&nbsp', ' ').replace('gt;', '').replace('\n', '').replace('->', '')
     s = re.sub("""\d{4,4}""", '', s)
     return re.sub("""["'`\(\) /.,\-\xa0]""", '', s)  # @IndentOk
 
