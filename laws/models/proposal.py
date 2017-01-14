@@ -4,6 +4,10 @@ import re
 from django.db import models
 import logging
 
+from django.db.models import Max
+
+from mks.models import Knesset
+
 logger = logging.getLogger("open-knesset.laws.models")
 
 
@@ -35,6 +39,16 @@ class BillProposal(models.Model):
         return r.group(1) if r else self.content_html
 
 
+class PrivateProposalsManager(models.Manager):
+    def get_last_private_proposal_date(self):
+        last_date = self.get_queryset().aggregate(Max('date'))['date__max']
+        if not last_date:
+            k = Knesset.objects.current_knesset()
+            last_date = k.start_date
+
+        return last_date
+
+
 class PrivateProposal(BillProposal):
     class Meta:
         app_label = 'laws'
@@ -43,6 +57,15 @@ class PrivateProposal(BillProposal):
     proposers = models.ManyToManyField('mks.Member', related_name='proposals_proposed', blank=True, null=True)
     joiners = models.ManyToManyField('mks.Member', related_name='proposals_joined', blank=True, null=True)
     bill = models.ForeignKey('Bill', related_name='proposals', blank=True, null=True)
+    objects = PrivateProposalsManager()
+
+
+class KnessetProposalsManager(models.Manager):
+    def get_last_booklet(self):
+        last_booklet = self.get_queryset().aggregate(Max('booklet_number')).values()[0]
+        if not last_booklet:
+            last_booklet = 200  # there were no KPs in the DB
+        return last_booklet
 
 
 class KnessetProposal(BillProposal):
@@ -53,6 +76,15 @@ class KnessetProposal(BillProposal):
     booklet_number = models.IntegerField(blank=True, null=True)
     originals = models.ManyToManyField('PrivateProposal', related_name='knesset_proposals', blank=True, null=True)
     bill = models.OneToOneField('Bill', related_name='knesset_proposal', blank=True, null=True)
+    objects = KnessetProposalsManager()
+
+
+class GovProposalsManager(models.Manager):
+    def get_last_booklet(self):
+        last_booklet = self.get_queryset().aggregate(Max('booklet_number')).values()[0]
+        if not last_booklet:
+            last_booklet = 500
+        return last_booklet
 
 
 class GovProposal(BillProposal):
@@ -61,3 +93,4 @@ class GovProposal(BillProposal):
 
     booklet_number = models.IntegerField(blank=True, null=True)
     bill = models.OneToOneField('Bill', related_name='gov_proposal', blank=True, null=True)
+    objects = GovProposalsManager()
