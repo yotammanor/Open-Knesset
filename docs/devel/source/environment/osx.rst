@@ -87,6 +87,20 @@ To do it, we'll source the activation script (to set env vars):
 Note the changed prompt which includes the virtualenv's name.
 
 
+Installing PDF Command Line tools (Optional. This is only needed if you want to work on the scrapers)
+=========================================
+
+
+Now we will install Poppler, which is a package that contains `pdfinfo` and `pdftotext`.
+Both are requirements for running the scrapers.
+
+.. code-block:: sh
+
+    brew install poppler
+
+Note that oknesset will look for the XPATH tools on the `PATH` environment variable. 
+
+
 Getting the Source Code (a.k.a Cloning)
 =========================================
 

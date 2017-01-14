@@ -1,49 +1,49 @@
 #!/usr/bin/python
 import os
-import subprocess
 from string import uppercase
 import sys
-
 from textutil import asblocks, sanitize
+from django.utils.functional import SimpleLazyObject
+if os.name == 'posix' and sys.version_info[0] < 3:
+    import subprocess32 as subprocess
+else:
+    import subprocess
 
 DEBUG=False
 
-def which(x):
-    for p in os.environ['PATH'].split(':'):
-        path = os.path.join(p, x)
-        if os.path.exists(path):
-            return path
-    return None
 
-def firstl(f, it, default):
-    for x in it:
-        t = x() if callable(x) else x
-        if f(t):
-            return t
-    t = default() if callable(default) else default
-    return t
+class PdfToolnameNotFoundException(object):
+    pass
 
-mod_path = os.path.dirname(sys.modules[__name__].__file__)
-if mod_path == '': mod_path = '.'
 
-def local_or_system(toolname):
-    return firstl(os.path.exists,
-        [os.path.join(mod_path, '..', '..', '..', '..', '..', '..',
-                      'parts', 'poppler', 'bin', toolname),
-         os.path.join(mod_path, toolname)], lambda: which(toolname))
+def get_path_for_tool_by_toolname(toolname):
+    default_path = os.path.dirname(sys.modules[__name__].__file__)
+    path_options = [
+                os.path.join(default_path, '..', '..', '..', '..', '..', '..', 'parts', 'poppler', 'bin'),
+                os.path.join(default_path)
+                    ]
+    path_prefix_candidate_list = path_options + os.environ['PATH'].split(":")
 
-PDFTOTEXT=local_or_system('pdftotext')
-PDFINFO=local_or_system('pdfinfo')
+    for path_prefix_option in path_prefix_candidate_list:
+        path_option = os.path.join(path_prefix_option, toolname)
+        if os.path.exists(path_option):
+            return path_option
+    else:
+        raise PdfToolnameNotFoundException(
+            toolname + " not found. Check your PATH environment variable and installation of poppler")
+
+PDFTOTEXT=SimpleLazyObject(lambda: get_path_for_tool_by_toolname('pdftotext'))
+PDFINFO=SimpleLazyObject(lambda: get_path_for_tool_by_toolname('pdfinfo'))
 
 def pdftotext_version():
     if not PDFTOTEXT:
         return ('0', '0', '0')
-    p = subprocess.Popen(executable=PDFTOTEXT, args=[PDFTOTEXT, '-v'], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    p = subprocess.Popen(executable=str(PDFTOTEXT), args=[str(PDFTOTEXT), '-v'], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     major, minor, patchlevel = map(lambda x,y:y if x is None else x,p.stderr.readlines()[0].strip().split()[-1].split('.'),[0]*3)
     p.kill()
     return major, minor, patchlevel
 
-PDFTOTEXT_VERSION = pdftotext_version()
+PDFTOTEXT_VERSION = SimpleLazyObject(lambda: pdftotext_version())
 
 if DEBUG:
     print "pdftotext from %s, version %s" % (PDFTOTEXT, str(PDFTOTEXT_VERSION))
