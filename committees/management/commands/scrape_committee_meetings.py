@@ -2,16 +2,15 @@
 from functools import partial
 from optparse import make_option
 
-from django.db.models import Q
 from django.utils.timezone import now, timedelta
 
 from committees.models import CommitteeMeeting, Committee
 from knesset_data.dataservice.committees import CommitteeMeeting as DataserviceCommitteeMeeting
 from mks.utils import get_all_mk_names
 from simple.scrapers import hebrew_strftime
-from simple.scrapers.management import BaseKnessetDataserviceCommand
-from knesset.utils import send_chat_notification, send_chat_exception_notification
-import traceback
+from simple.scrapers.base_scraper_commands import BaseKnessetDataserviceCommand
+from knesset.utils import send_chat_exception_notification
+
 from knesset_data.dataservice.exceptions import KnessetDataServiceRequestException
 
 ERR_MSG = 'failed to get meetings for committee {}'

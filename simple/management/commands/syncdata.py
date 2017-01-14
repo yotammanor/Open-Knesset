@@ -163,7 +163,7 @@ class Command(NoArgsDbLogCommand):
         count = -1
         lines = page.split('\n')
         for line in lines:
-
+            link = None
             r = re.search("""Href=\"(.*?)\">""", line)
             if r is not None:
                 link = 'http://www.knesset.gov.il/privatelaw/' + r.group(1)
@@ -172,7 +172,8 @@ class Command(NoArgsDbLogCommand):
                 name = r.group(1).replace("</td>", "").strip()
                 if len(name) > 1 and name.find('span') < 0:
                     names.append(name)
-                    links.append(link)
+                    if link:
+                        links.append(link)
                     exps.append('')
                     count += 1
             if re.search("""arrResume\[\d*\]""", line) is not None:
@@ -507,162 +508,86 @@ class Command(NoArgsDbLogCommand):
                                     should be the number of days back to look
            last_booklet - last knesset proposal booklet that you already have.
         """
-        k = Knesset.objects.current_knesset()
-        mks = list(Member.objects.values('id', 'name'))
-
-        # add MK alias names, from person alias table
-        mk_persons = Person.objects.filter(
-            mk__isnull=False,
-            mk__current_party__isnull=False).select_related('mk')
-        mk_aliases = PersonAlias.objects.filter(person__in=mk_persons)
-        for mk_alias in mk_aliases:
-            mks.append({'id': mk_alias.person.mk_id,
-                        'name': mk_alias.name})
-
-        # pre-calculate cannonical represention of all names (without spaces,
-        # and funcky chars - makes more robust comparisons)
-        for mk in mks:
-            mk['cn'] = cannonize(mk['name'])
+        current_knesset = Knesset.objects.current_knesset()
+        mks = self._get_existing_cannonized_mks()
 
         # private laws
-        logger.debug('parsing private laws')
+        logger.info('parsing private laws')
         if private_proposals_days:
             days = private_proposals_days
         else:
-            d = PrivateProposal.objects.aggregate(Max('date'))['date__max']
-            if not d:
-                d = k.start_date
+            d = PrivateProposal.objects.get_last_private_proposal_date()
+
             days = (datetime.date.today() - d).days
 
         proposals = parse_laws.ParsePrivateLaws(days)
         for proposal in proposals.laws_data:
+            try:
+                self._create_or_update_private_proposal_and_respective_law_and_bill(mks, proposal)
+            except Exception:
+                logger.exception(u'UnCaught Exception with private proposal dto %s' % proposal)
 
-            # if proposal['proposal_date'] < datetime.date(2009,02,24):
-            #    continue
-
-            # find the Law this poposal is updating, or create a new one
-            law_name = proposal['law_name']
-            if proposal['comment']:
-                law_name += ' (%s)' % proposal['comment']
-
-            (law, created) = Law.objects.get_or_create(title=law_name, merged_into=None)
-            if created:
-                law.save()
-            if law.merged_into:
-                law = law.merged_into
-
-            # create the bill proposal
-            if proposal['correction']:
-                title = proposal['correction']
-            else:
-                title = "חוק חדש".decode('utf8')
-
-            (pl, created) = PrivateProposal.objects.get_or_create(proposal_id=proposal['law_id'],
-                                                                  knesset_id=proposal['knesset_id'],
-                                                                  date=proposal['proposal_date'],
-                                                                  source_url=proposal['text_link'],
-                                                                  title=title, law=law)
-
-            if created:
-                pl.save()
-
-                # update proposers and joiners
-                for m0 in proposal['proposers']:
-                    cm0 = cannonize(m0)
-                    found = False
-                    for mk in mks:
-                        if cm0 == mk['cn']:
-                            pl.proposers.add(Member.objects.get(pk=mk['id']))
-                            found = True
-                            break
-                    if not found:
-                        logger.warn(u"can't find proposer: %s (%s)" % (m0,
-                                                                       cm0))
-                for m0 in proposal['joiners']:
-                    cm0 = cannonize(m0)
-                    found = False
-                    for mk in mks:
-                        if cm0 == mk['cn']:
-                            pl.joiners.add(Member.objects.get(pk=mk['id']))
-                            found = True
-                            break
-                    if not found:
-                        logger.warn(u"can't find joiner: %s (%s)" % (m0,
-                                                                     cm0))
-
-                # try to look for similar PPs already created:
-                p = PrivateProposal.objects.filter(title=title, law=law).exclude(id=pl.id)
-                b = None
-                if p.count() > 0:  # if there are, assume its the same bill
-                    for p0 in p:
-                        if p0.bill and not (b):
-                            b = p0.bill
-                if not (b):  # if there are no similar proposals, or none of them had a bill
-                    b = Bill(law=law, title=title, stage='1',
-                             stage_date=proposal['proposal_date'])  # create a new Bill, with only this PP.
-                    b.save()
-                for m in pl.proposers.all():  # add current proposers to bill proposers
-                    b.proposers.add(m)
-                for m in pl.joiners.all():  # add joiners to bill
-                    b.joiners.add(m)
-                pl.bill = b  # assign this bill to this PP
-                pl.save()
-
-            if not pl.content_html:
-                self.update_private_proposal_content_html(pl)
-
-        # knesset laws
-        logger.debug('parsing knesset laws')
+        logger.info('parsing knesset laws')
         if not last_booklet:
-            last_booklet = KnessetProposal.objects.aggregate(Max('booklet_number')).values()[0]
-        if not last_booklet:  # there were no KPs in the DB
-            last_booklet = 200
+            last_booklet = KnessetProposal.objects.get_last_booklet()
+
         proposals = parse_laws.ParseKnessetLaws(last_booklet)
         for proposal in proposals.laws_data:
-            # if not(proposal['date']) or proposal['date'] < datetime.date(2009,02,24):
-            #    continue
-            law_name = proposal['law'][:200]  # protect against parsing errors that
-            # create very long (and erroneous) law names
-            (law, created) = Law.objects.get_or_create(title=law_name)
-            if created:
-                law.save()
-            if law.merged_into:
-                law = law.merged_into
-            title = u''
-            if proposal['correction']:
-                title += proposal['correction']
-            if proposal['comment']:
-                title += ' ' + proposal['comment']
-            if len(title) <= 1:
-                title = 'חוק חדש'.decode('utf8')
-            (kl, created) = KnessetProposal.objects.get_or_create(
-                booklet_number=proposal['booklet'],
-                knesset_id=k.number,
-                source_url=proposal['link'],
-                title=title,
-                law=law,
-                date=proposal['date'])
-            if created:
-                kl.save()
+            try:
+                self._create_or_update_knesset_proposal_and_respective_law_and_bill(current_knesset, proposal)
+            except Exception:
+                logger.exception(u'UnCaught Exception with knesset proposal dto %s' % proposal)
 
-            if not (proposal.has_key('original_ids')):
-                logger.warn('Knesset proposal %d doesn\'t have original ids' % kl.id)
-            else:
-                for orig in proposal['original_ids']:  # go over all originals in the document
-                    try:
-                        knesset_id = int(orig.split('/')[1])  # check if they are from current Knesset
-                    except:
-                        logger.warn('knesset proposal %d doesn\'t have knesset id' % kl.id)
-                        continue
-                    if knesset_id != k.number:
-                        logger.warn('knesset proposal %d has wrong knesset id (%d)' % (kl.id, knesset_id))
-                        continue
-                    orig_id = int(orig.split('/')[0])  # find the PP id
-                    try:
-                        pp = PrivateProposal.objects.get(proposal_id=orig_id)  # find our PP object
+        # parse gov proposals
+        logger.info('parsing gov laws')
+        last_booklet = GovProposal.objects.get_last_booklet()
+
+        # TODO: WTF? this does not do anything with the data!
+        gov_proposals = parse_laws.ParseGovLaws(last_booklet)
+        gov_proposals.parse_gov_laws()
+
+    def _create_or_update_knesset_proposal_and_respective_law_and_bill(self, k, proposal):
+        logger.info('Processing knesset law dto %s' % proposal)
+        law_name = proposal['law'][:200]  # protect against parsing errors that
+        # create very long (and erroneous) law names
+        (law, created) = Law.objects.get_or_create(title=law_name)
+
+        if law.merged_into:
+            law = law.merged_into
+        title = u''
+        if proposal['correction']:
+            title += proposal['correction']
+        if proposal['comment']:
+            title += ' ' + proposal['comment']
+        if len(title) <= 1:
+            title = 'חוק חדש'.decode('utf8')
+        (kl, created) = KnessetProposal.objects.get_or_create(
+            booklet_number=proposal['booklet'],
+            knesset_id=k.number,
+            source_url=proposal['link'],
+            title=title,
+            law=law,
+            date=proposal['date'])
+
+        if not (proposal.has_key('original_ids')):
+            logger.warn('Knesset proposal %d doesn\'t have original ids' % kl.id)
+        else:
+            for orig in proposal['original_ids']:  # go over all originals in the document
+                try:
+                    knesset_id = int(orig.split('/')[1])  # check if they are from current Knesset
+                except:
+                    logger.warn('knesset proposal %d doesn\'t have knesset id' % kl.id)
+                    continue
+                if knesset_id != k.number:
+                    logger.warn('knesset proposal %d has wrong knesset id (%d)' % (kl.id, knesset_id))
+                    continue
+                orig_id = int(orig.split('/')[0])  # find the PP id
+                try:
+                    original_private_proposals = PrivateProposal.objects.filter(proposal_id=orig_id)  # find our PP object
+                    for pp in original_private_proposals:
                         kl.originals.add(pp)  # and add a link to it
                         if pp.bill:
-                            if not (kl.bill):  # this kl stil has no bill associated with it, but PP has one
+                            if not kl.bill:  # this kl stil has no bill associated with it, but PP has one
                                 if KnessetProposal.objects.filter(
                                         bill=pp.bill).count():  # this bill is already taken by another KP
                                     logger.warn('Bill %d already has a KP, but should be assigned to KP %d' % (
@@ -678,24 +603,100 @@ class Command(NoArgsDbLogCommand):
                             else:  # this kl already had a bill (from another PP)
                                 kl.bill.merge(pp.bill)  # merge them
 
-                    except PrivateProposal.DoesNotExist:
-                        logger.warn(
-                            u"can't find private proposal with id %d, referenced by knesset proposal %d %s %s" % (
-                                orig_id, kl.id, kl.title, kl.source_url))
+                except PrivateProposal.DoesNotExist:
+                    logger.warn(
+                        u"can't find private proposal with id %d, referenced by knesset proposal %d %s %s" % (
+                            orig_id, kl.id, kl.title, kl.source_url))
 
-            if not kl.bill:  # finished all original PPs, but found no bill yet - create a new bill
-                b = Bill(law=law, title=title, stage='3', stage_date=proposal['date'])
-                b.save()
-                kl.bill = b
-                kl.save()
+        if not kl.bill:  # finished all original PPs, but found no bill yet - create a new bill
+            bill = Bill(law=law, title=title, stage='3', stage_date=proposal['date'])
+            bill.save()
+            kl.bill = bill
+            kl.save()
 
-        # parse gov proposals
-        logger.debug('parsing gov laws')
-        last_booklet = GovProposal.objects.aggregate(Max('booklet_number')).values()[0]
-        if not last_booklet:  # there were no KPs in the DB
-            last_booklet = 500
-        proposals = parse_laws.ParseGovLaws(last_booklet)
-        proposals.parse_gov_laws()
+    def _create_or_update_private_proposal_and_respective_law_and_bill(self, mks, proposal):
+        # find the Law this poposal is updating, or create a new one
+        logger.info(u'Processing private law dto %s' % proposal)
+        law_name = proposal['law_name']
+        if proposal['comment']:
+            law_name += ' (%s)' % proposal['comment']
+        (law, created) = Law.objects.get_or_create(title=law_name, merged_into=None)
+        if law.merged_into:
+            law = law.merged_into
+
+        # create the bill proposal
+        if proposal['correction']:
+            title = proposal['correction']
+        else:
+            title = "חוק חדש".decode('utf8')
+        (pl, created) = PrivateProposal.objects.get_or_create(proposal_id=proposal['law_id'],
+                                                              knesset_id=proposal['knesset_id'],
+                                                              date=proposal['proposal_date'],
+                                                              source_url=proposal['text_link'],
+                                                              title=title, law=law)
+        if created:
+
+            # update proposers and joiners
+            for m0 in proposal['proposers']:
+                cm0 = cannonize(m0)
+                found = False
+                for mk in mks:
+                    if cm0 == mk['cn']:
+                        pl.proposers.add(Member.objects.get(pk=mk['id']))
+                        found = True
+                        break
+                if not found:
+                    logger.warn(u"can't find proposer: %s (cannonized %s) law %s" % (m0,
+                                                                                     cm0, pl))
+            for m0 in proposal['joiners']:
+                cm0 = cannonize(m0)
+                found = False
+                for mk in mks:
+                    if cm0 == mk['cn']:
+                        pl.joiners.add(Member.objects.get(pk=mk['id']))
+                        found = True
+                        break
+                if not found:
+                    logger.warn(u"can't find joiner: %s (cannonized %s) law %s" % (m0,
+                                                                                   cm0, pl))
+
+            # try to look for similar PPs already created:
+            private_proposal = PrivateProposal.objects.filter(title=title, law=law).exclude(id=pl.id)
+            bill = None
+            if private_proposal.count() > 0:  # if there are, assume its the same bill
+                for p0 in private_proposal:
+                    if p0.bill and not bill:
+                        bill = p0.bill
+            if not bill:  # if there are no similar proposals, or none of them had a bill
+                bill = Bill(law=law, title=title, stage='1',
+                            stage_date=proposal['proposal_date'])  # create a new Bill, with only this PP.
+                bill.save()
+            for m in pl.proposers.all():  # add current proposers to bill proposers
+                bill.proposers.add(m)
+            for m in pl.joiners.all():  # add joiners to bill
+                bill.joiners.add(m)
+            pl.bill = bill  # assign this bill to this PP
+            pl.save()
+        if not pl.content_html:
+            self.update_private_proposal_content_html(pl)
+
+    def _get_existing_cannonized_mks(self):
+        mks = list(Member.objects.values('id', 'name'))
+        # add MK alias names, from person alias table
+        mk_persons = Person.objects.filter(
+            mk__isnull=False,
+            mk__current_party__isnull=False).select_related('mk')
+        mk_aliases = PersonAlias.objects.filter(person__in=mk_persons)
+        for mk_alias in mk_aliases:
+            mks.append({'id': mk_alias.person.mk_id,
+                        'name': mk_alias.name})
+
+        # pre-calculate cannonical represention of all names (without spaces,
+        # and funcky chars - makes more robust comparisons)
+        for mk in mks:
+            mk['cn'] = cannonize(mk['name'])
+
+        return mks
 
     def find_proposals_in_other_data(self):
         """

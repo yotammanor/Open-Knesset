@@ -18,7 +18,7 @@ CANONICAL_PARTY_ALIASES = {'עבודה': 'העבודה',
 
 KNESSET_BASE_LAW_RTF_URL = r"http://www.knesset.gov.il/privatelaw"
 SECOND_AND_THIRD_READING_LAWS_URL = 'http://www.knesset.gov.il/privatelaw/plaw_display.asp?LawTp=2'
-PRIVATE_LAWS_URL = r"http://www.knesset.gov.il/privatelaw/Plaw_display.asp?lawtp=1"
+PRIVATE_LAWS_URL = r"http://knesset.gov.il/privatelaw/Plaw_display.asp?lawtp=1"
 KNESSET_LAWS_URL = r"http://www.knesset.gov.il/laws/heb/template.asp?Type=3"
 GOV_LAWS_URL = r"http://www.knesset.gov.il/laws/heb/template.asp?Type=4"
 GOVT_INFO_PAGE = r"http://www.knesset.gov.il/mk/heb/MKIndex_Current.asp?view=4"

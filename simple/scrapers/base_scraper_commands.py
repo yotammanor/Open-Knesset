@@ -3,6 +3,9 @@ from okscraper_django.management.base_commands import NoArgsDbLogCommand
 from optparse import make_option
 import sys
 import csv
+from logging import getLogger
+
+logger = getLogger(__name__)
 
 
 class BaseKnessetDataserviceCommand(NoArgsDbLogCommand):
@@ -244,14 +247,17 @@ class BaseKnessetDataserviceCollectionCommand(BaseKnessetDataserviceCommand):
                 break
 
     def _handle_noargs(self, **options):
-        if options['recreate'] != '':
-            self._handle_recreate(options)
-        elif options.get('createsrcid'):
-            self._handle_createsrcid(options)
-        elif options.get('validatepages'):
-            self._handle_validatepages(options)
-        elif options.get('pagerange'):
-            self._handle_pagerange(options)
+        try:
+            if options['recreate'] != '':
+                self._handle_recreate(options)
+            elif options.get('createsrcid'):
+                self._handle_createsrcid(options)
+            elif options.get('validatepages'):
+                self._handle_validatepages(options)
+            elif options.get('pagerange'):
+                self._handle_pagerange(options)
+        except Exception:
+            logger.exception('DATASERVICE scraper command UnCaughtException with options %s' % options)
         else:
             raise TypeError('invalid arguments')
 

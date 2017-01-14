@@ -13,7 +13,7 @@ def normalize_correction_title_dashes(raw_title):
 
 
 def parse_title(unparsed_title):
-    return re.match(u'הצעת ([^\(,]*)(.*?\((.*?)\))?(.*?\((.*?)\))?(.*?,(.*))?', unparsed_title)
+    return re.match(u'הצע[תה] ([^\(,]*)(.*?\((.*?)\))?(.*?\((.*?)\))?(.*?,(.*))?', unparsed_title)
 
 
 def clean_line(a_line_str):

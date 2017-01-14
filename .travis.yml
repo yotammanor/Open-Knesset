@@ -25,7 +25,7 @@ install:
   - pip install -r requirements.txt --timeout 30
 # command to run tests, e.g. python setup.py test
 script:
-  - ./manage.py test
+  - ./manage.py test -v3
   # for the browser tests we need a real db with full data - we rely on cached version to speed up tests
   - if [ ! -f devdb/dev.db ]; then wget http://oknesset-devdb.s3.amazonaws.com/dev.db.bz2; fi
   - if [ ! -f devdb/dev.db ]; then bunzip2 dev.db.bz2 && cp dev.db devdb/dev.db; else cp devdb/dev.db dev.db; fi

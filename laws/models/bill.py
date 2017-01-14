@@ -325,7 +325,7 @@ class Bill(models.Model):
             self.save()
             return
         for cm in self.second_committee_meetings.all():
-            if not (self.stage_date) or self.stage_date < cm.date:
+            if not self.stage_date or self.stage_date < cm.date:
                 self.stage = BillStages.COMMITTEE_CORRECTIONS
                 self.stage_date = cm.date
         if self.stage == BillStages.COMMITTEE_CORRECTIONS:
