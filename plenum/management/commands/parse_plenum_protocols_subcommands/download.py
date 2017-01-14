@@ -1,15 +1,21 @@
 # encoding: utf-8
 
-import urllib, urllib2, re, datetime, traceback, sys, os, subprocess
+import datetime
+import logging
+import os
+import re
+import urllib
+import urllib2
+
 from BeautifulSoup import BeautifulSoup
 from django.conf import settings
-from committees.models import Committee, CommitteeMeeting
-from simple.management.utils import antiword
-import logging
-from knesset.utils import send_chat_notification
 
-URL = "http://www.knesset.gov.il/plenum/heb/plenum_queue.aspx"
-ROBOTS_URL = "http://www.knesset.gov.il/robots.txt"
+from committees.models import Committee, CommitteeMeeting
+from knesset.utils import send_chat_notification
+from simple.utils import doc_to_xml
+
+PLENUM_URL = "http://www.knesset.gov.il/plenum/heb/plenum_queue.aspx"
+
 FULL_URL = "http://www.knesset.gov.il/plenum/heb/display_full.asp"
 FILE_BASE_URL = "http://www.knesset.gov.il/plenum/heb/"
 WORDS_OF_THE_KNESSET = u"דברי הכנסת"
@@ -24,7 +30,7 @@ def _get_committees_index_page(full):
         url = FULL_URL
         encoding = 'iso_8859_8'
     else:
-        url = URL
+        url = PLENUM_URL
         # encoding='utf8'
         # the encoding of this page used to be utf-8 but looks like they reverted back to iso-8859-8
         encoding = 'iso_8859_8'
@@ -51,7 +57,7 @@ def _copy(url, to, recopy=False):
 
 def _antiword(filename):
     try:
-        return antiword(filename, logger)
+        return doc_to_xml(filename, logger)
     except:
         logger.exception(u'antiword failure with file: %s' % filename)
         return ''
