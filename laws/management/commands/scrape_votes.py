@@ -7,7 +7,7 @@ from knesset_data.html_scrapers.votes import HtmlVote
 from laws.models import Vote, VoteAction
 from simple.constants import KNESSET_VOTE_PAGE
 from simple.scrapers import hebrew_strftime
-from simple.scrapers.management import BaseKnessetDataserviceCollectionCommand
+from simple.scrapers.base_scraper_commands import BaseKnessetDataserviceCollectionCommand
 from mks.models import Member
 from simple.management.commands.syncdata import Command as SyncdataCommand
 from links.models import Link
