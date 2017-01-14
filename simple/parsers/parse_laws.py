@@ -8,7 +8,7 @@ import urllib2
 from HTMLParser import HTMLParseError
 from urlparse import urlparse
 
-from BeautifulSoup import BeautifulSoup
+from BeautifulSoup import BeautifulSoup, Comment, NavigableString
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.base import ContentFile
 
@@ -19,6 +19,7 @@ from links.models import Link, LinkedFile
 from mks.models import Knesset
 from simple.constants import PRIVATE_LAWS_URL, KNESSET_LAWS_URL, GOV_LAWS_URL
 from simple.government_bills.parse_government_bill_pdf import GovProposalParser
+from simple.parsers.utils import laws_parser_utils
 from simple.parsers.utils.laws_parser_utils import normalize_correction_title_dashes, clean_line
 
 logger = logging.getLogger("open-knesset.parse_laws")
@@ -45,6 +46,7 @@ class ParseLaws(object):
                 return None
             try:
                 soup = BeautifulSoup(html_page)
+
             except HTMLParseError as e:
                 logger.debug("parsing URL: %s - %s. will try harder." % (self.url, e))
                 html_page = re.sub("(?s)<!--.*?-->", " ", html_page)  # cut anything that looks suspicious
@@ -56,6 +58,8 @@ class ParseLaws(object):
                     logger.debug("error parsing URL: %s - %s" % (self.url, e))
                     send_chat_notification(__name__, 'failed to parse url', {'url': self.url, 'params': None})
                     return None
+            comments = soup.findAll(text=lambda text: isinstance(text, Comment))
+            [comment.extract() for comment in comments]
             return soup
         else:
             data = urllib.urlencode(params)
@@ -68,10 +72,13 @@ class ParseLaws(object):
             html_page = url_data.read().decode('windows-1255').encode('utf-8')
             try:
                 soup = BeautifulSoup(html_page)
+
             except HTMLParseError as e:
                 logger.debug("error parsing URL: %s - %s" % (self.url, e))
                 send_chat_notification(__name__, 'failed to parse url', {'url': self.url, 'params': data})
                 return None
+            comments = soup.findAll(text=lambda text: isinstance(text, Comment))
+            [comment.extract() for comment in comments]
             return soup
 
 
@@ -106,11 +113,15 @@ class ParsePrivateLaws(ParseLaws):
             last_law_checked_date = self.update_last_date()
 
     def get_param(self, soup):
-        name_tag = soup.findAll(
+        name_tags = soup.findAll(
             lambda tag: tag.name == 'a' and tag.has_key('href') and re.match("javascript:SndSelf\((\d+)\);",
                                                                              tag['href']))
-        m = re.match("javascript:SndSelf\((\d+)\);", name_tag[0]['href'])
-        return m.groups(1)[0]
+        if name_tags and name_tags[0].get('href'):
+            m = re.match("javascript:SndSelf\((\d+)\);", name_tags[0]['href'])
+            return m.groups(1)[0]
+        else:
+            logger.error('Can not find any more name tags')
+            return None
 
     def parse_private_laws_page(self, soup):
         name_tag = soup.findAll(lambda tag: tag.name == 'tr' and tag.has_key('valign') and tag['valign'] == 'Top')
@@ -122,13 +133,13 @@ class ParsePrivateLaws(ParseLaws):
             if tds[2].findAll('a')[0].has_key('href'):
                 law_data['text_link'] = self.rtf_url + r"/" + tds[2].findAll('a')[0]['href']
             law_data['law_full_title'] = tds[3].string.strip()
-            m = re.match(u'הצעת ([^\(,]*)(.*?\((.*?)\))?(.*?\((.*?)\))?(.*?,(.*))?', law_data['law_full_title'])
-            if not m:
+            parsed_law_title = laws_parser_utils.parse_title(law_data['law_full_title'])
+            if not parsed_law_title:
                 logger.warn("can't parse proposal title: %s" % law_data['law_full_title'])
                 continue
-            law_data['law_name'] = clean_line(m.group(1))
-            comment1 = m.group(3)
-            comment2 = m.group(5)
+            law_data['law_name'] = clean_line(parsed_law_title.group(1))
+            comment1 = parsed_law_title.group(3)
+            comment2 = parsed_law_title.group(5)
             if comment2:
                 law_data['correction'] = clean_line(comment2)
                 law_data['comment'] = comment1
@@ -139,12 +150,13 @@ class ParsePrivateLaws(ParseLaws):
                 else:
                     law_data['correction'] = None
             law_data['correction'] = normalize_correction_title_dashes(law_data['correction'])
-            law_data['law_year'] = m.group(7)
+            law_data['law_year'] = parsed_law_title.group(7)
             law_data['proposal_date'] = datetime.datetime.strptime(tds[4].string.strip(), '%d/%m/%Y').date()
             names_string = ''.join([unicode(y) for y in tds[5].findAll('font')[0].contents])
             names_string = clean_line(names_string)
             proposers = []
             joiners = []
+            # Old deprecated way to search for joiners
             if re.search('ONMOUSEOUT', names_string) > 0:
                 splitted_names = names_string.split('ONMOUSEOUT')
                 joiners = [name for name in re.match('(.*?)\',\'', splitted_names[0]).group(1).split('<br />') if
@@ -152,6 +164,11 @@ class ParsePrivateLaws(ParseLaws):
                 proposers = splitted_names[1][10:].split('<br />')
             else:
                 proposers = names_string.split('<br />')
+
+            more_joiners = [name for name in tds[6].findAll(text=lambda text: isinstance(text, NavigableString)) if
+                            name.strip() not in [u'מצטרפים לחוק:', u'אין מצטרפים לחוק']]
+            if len(more_joiners) and not joiners:
+                joiners = more_joiners
             law_data['proposers'] = proposers
             law_data['joiners'] = joiners
             self.laws_data.append(law_data)
@@ -187,13 +204,17 @@ class ParseKnessetLaws(ParseLaws):
             full_page_parsed = self.parse_laws_page(soup_current_page)
 
     def get_param(self, soup):
-        name_tag = soup.findAll(
+        name_tags = soup.findAll(
             lambda tag: tag.name == 'a' and tag.has_key('href') and re.match("javascript:SndSelf\((\d+),(\d+)\);",
                                                                              tag['href']))
-        if name_tag:
-            m = re.match("javascript:SndSelf\((\d+),(\d+)\);", name_tag[0]['href'])
+        if name_tags and name_tags[0] and name_tags[0].get('href'):
+            m = re.match("javascript:SndSelf\((\d+),(\d+)\);", name_tags[0]['href'])
             return m.groups()
         else:
+            if not name_tags:
+                logger.info('Failed to find name tags')
+            elif not name_tags[0].get('href'):
+                logger.error('First name tag missing href %s' % name_tags[0])
             return None
 
     def parse_pdf(self, pdf_url):
