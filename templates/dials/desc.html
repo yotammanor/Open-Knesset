@@ -16,14 +16,18 @@
         <header>
           <h1>כמה הכנסת פתוחה?</h1>
         </header>
+        <p> <center>
+            <iframe src="{% url 'dial-svg' dial.slug %}"></iframe>
+        </center> </p>
 
         <ul>
+        <li>אמ;לק: <a href="#embed">עמבדו אצלכם ועזרו לנו לפתוח את הכנסת</a></li>
           <li>במשך מעל שבע שנים אנחנו מגרדים מידע מהכנסת וזה לא הופך ליותר קל.
           בשם השקיפות, אנחנו מפרסמים מדד לאיכות המידע שנגיש מהכנסת.  הציון
           והתיאור שלהלן מתעדכנים על ידי צוות מפתחי האתר בהתאם למצב.</li>
           <li><h2>איך חישבנו?</h2><br>
                 {{ dial.description|linebreaks }} </li>
-          <li>אתם מוזמנים להוסיף את המכוון לאתר שלכם ולעזור לנו לפתוח את הכנסת.
+          <li id="embed">אתם מוזמנים להוסיף את המכוון לאתר שלכם ולעזור לנו לפתוח את הכנסת.
           פשוט תעתיקו את הקוד שלהלן לאתר שלכן:
           <textarea style="width: 96%;margin-top:0.5em;direction:ltr;" readonly >
 <iframe src="http://oknesset.org{% url 'dial-svg' dial.slug %}"></iframe>
