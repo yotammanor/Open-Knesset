@@ -3,6 +3,7 @@
 import os
 import logging
 from datetime import timedelta
+from knesset_data_django import KNESSET_DATA_DJANGO_APPS
 
 # dummy gettext, to get django-admin makemessages to find i18n texts in this file
 import sys
@@ -190,7 +191,7 @@ INSTALLED_APPS = (
     'kikar',
     'ok_tag',
     'dials',
-)
+) + KNESSET_DATA_DJANGO_APPS
 
 TEMPLATE_CONTEXT_PROCESSORS = (
     "django.contrib.auth.context_processors.auth",
