@@ -1,8 +1,6 @@
 # encoding: utf-8
 import re
 import logging
-import sys
-import traceback
 from datetime import datetime, timedelta, date
 from django.db import models
 from django.db.models.query_utils import Q
@@ -12,25 +10,20 @@ from django.contrib.contenttypes import generic
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.utils.functional import cached_property
-from django.core.exceptions import ValidationError
-from django.contrib.contenttypes.models import ContentType
 from django.conf import settings
 from tagging.models import Tag, TaggedItem
 from djangoratings.fields import RatingField
-from annotatetext.models import Annotation
 
 from committees.enums import CommitteeTypes
 from events.models import Event
 from links.models import Link
-from plenum.create_protocol_parts import create_plenum_protocol_parts
 from mks.models import Knesset
-from lobbyists.models import LobbyistHistory, LobbyistCorporation
+from lobbyists.models import LobbyistCorporation
 from itertools import groupby
 from hebrew_numbers import gematria_to_int
 from mks.utils import get_all_mk_names
 from knesset_data.protocols.committee import \
     CommitteeMeetingProtocol as KnessetDataCommitteeMeetingProtocol
-from knesset_data.protocols.exceptions import AntiwordException
 
 COMMITTEE_PROTOCOL_PAGINATE_BY = 120
 
@@ -339,87 +332,17 @@ class CommitteeMeeting(models.Model):
     def save(self, **kwargs):
         super(CommitteeMeeting, self).save(**kwargs)
 
-    def create_protocol_parts(self, delete_existing=False, mks=None,
-                              mk_names=None):
-        """ Create protocol parts from this instance's protocol_text
-            Optionally, delete existing parts.
-            If the meeting already has parts, and you don't ask to
-            delete them, a ValidationError will be thrown, because
-            it doesn't make sense to create the parts again.
-        """
-        logger.debug('create_protocol_parts %s' % delete_existing)
-        if delete_existing:
-            ppct = ContentType.objects.get_for_model(ProtocolPart)
-            annotations = Annotation.objects.filter(content_type=ppct,
-                                                    object_id__in=self.parts.all)
-            logger.debug(
-                'deleting %d annotations, because I was asked to delete the relevant protocol parts on cm.id=%d' % (
-                    annotations.count(), self.id))
-            annotations.delete()
-            self.parts.all().delete()
-        else:
-            if self.parts.count():
-                raise ValidationError(
-                    'CommitteeMeeting already has parts. delete them if you want to run create_protocol_parts again.')
-        if not self.protocol_text:  # sometimes there are empty protocols
-            return  # then we don't need to do anything here.
-        if self.committee.type == 'plenum':
-            create_plenum_protocol_parts(self, mks=mks, mk_names=mk_names)
-            return
-        else:
-            def get_protocol_part(i, part):
-                logger.debug('creating protocol part %s' % i)
-                return ProtocolPart(meeting=self, order=i, header=part.header,
-                                    body=part.body)
-
-            with KnessetDataCommitteeMeetingProtocol.get_from_text(
-                    self.protocol_text) as protocol:
-                # TODO: use bulk_create (I had a strange error when using it)
-                # ProtocolPart.objects.bulk_create(
-                # for testing, you could just save one part:
-                # get_protocol_part(1, protocol.parts[0]).save()
-                list([
-                         get_protocol_part(i, part).save()
-                         for i, part
-                         in
-                         zip(range(1, len(protocol.parts) + 1), protocol.parts)
-                         ])
-            self.protocol_parts_update_date = datetime.now()
-            self.save()
+    def create_protocol_parts(self, delete_existing=False, mks=None, mk_names=None):
+        from knesset_data_django.committees.meetings import create_protocol_parts
+        create_protocol_parts(self, delete_existing, mks, mk_names)
 
     def redownload_protocol(self):
-        if self.committee.type == 'plenum':
-            # TODO: Using managment command this way is an antipattern, a common service should be extracted and used
-            from plenum.management.commands.parse_plenum_protocols_subcommands.download import \
-                download_for_existing_meeting
-            download_for_existing_meeting(self)
-        else:
-            try:
-                with KnessetDataCommitteeMeetingProtocol.get_from_url(
-                        self.src_url) as protocol:
-                    self.protocol_text = protocol.text
-                    self.protocol_text_update_date = datetime.now()
-                    self.save()
-            except AntiwordException as e:
-                logger.error(
-                    e.message,
-                    exc_info=True,
-                    extra={
-                        'output': e.output
-                    }
-                )
-                raise e
+        from knesset_data_django.committees.meetings import redownload_protocol
+        redownload_protocol(self)
 
     def reparse_protocol(self, redownload=True, mks=None, mk_names=None):
-        if redownload: self.redownload_protocol()
-        if self.committee.type == 'plenum':
-            # See above
-            from plenum.management.commands.parse_plenum_protocols_subcommands.parse import \
-                parse_for_existing_meeting
-            parse_for_existing_meeting(self)
-        else:
-            self.create_protocol_parts(delete_existing=True)
-            self.find_attending_members(mks, mk_names)
+        from knesset_data_django.committees.meetings import reparse_protocol
+        reparse_protocol(self, redownload, mks, mk_names)
 
     def update_from_dataservice(self, dataservice_object=None):
         from committees.management.commands.scrape_committee_meetings import \
@@ -509,22 +432,8 @@ class CommitteeMeeting(models.Model):
                                        CommitteeMeeting).id)
 
     def find_attending_members(self, mks=None, mk_names=None):
-        logger.debug('find_attending_members')
-        if mks is None and mk_names is None:
-            logger.debug('get_all_mk_names')
-            mks, mk_names = get_all_mk_names()
-        with KnessetDataCommitteeMeetingProtocol.get_from_text(
-                self.protocol_text) as protocol:
-            attended_mk_names = protocol.find_attending_members(mk_names)
-            for name in attended_mk_names:
-                i = mk_names.index(name)
-                if not mks[i].party_at(
-                        self.date):  # not a member at time of this meeting?
-                    continue  # then don't search for this MK.
-                self.mks_attended.add(mks[i])
-        logger.debug('meeting %d now has %d attending members' % (
-            self.id,
-            self.mks_attended.count()))
+        from knesset_data_django.committees.meetings import find_attending_members
+        find_attending_members(self, mks, mk_names)
 
     @cached_property
     def main_lobbyist_corporations_mentioned(self):
