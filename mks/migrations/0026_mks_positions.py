@@ -132,14 +132,17 @@ class Migration(DataMigration):
     def forwards(self, orm):
         "Write your forwards methods here."
         for name, pos in self.POSITIONS:
-            member = orm.Member.objects.get(name=name)
-            membership = orm.Membership.objects.filter(member=member).order_by('-start_date')[0]
+            try:
+                member = orm.Member.objects.get(name=name)
+                membership = orm.Membership.objects.filter(member=member).order_by('-start_date')[0]
 
-            member.current_position = pos
-            member.save()
+                member.current_position = pos
+                member.save()
 
-            membership.position = pos
-            membership.save()
+                membership.position = pos
+                membership.save()
+            except models.ObjectDoesNotExist, e:
+                pass
 
     def backwards(self, orm):
         "Write your backwards methods here."

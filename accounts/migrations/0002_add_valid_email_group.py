@@ -1,21 +1,29 @@
 # encoding: utf-8
-import datetime
-from south.db import db
 from south.v2 import DataMigration
-from django.db import models
-from django.contrib.auth.models import User,Group,Permission
 
 class Migration(DataMigration):
 
+    def get_or_create(self, model, **kwargs):
+        if model.objects.filter(**kwargs).exists():
+            return model.objects.get(**kwargs), False
+        else:
+            return model.objects.create(**kwargs), True
+
     def forwards(self, orm):
-        (g,created) = Group.objects.get_or_create(name='Valid Email')
+        Group = orm['auth.Group']
+        Permission = orm['auth.Permission']
+        User = orm['auth.User']
+        g, created = self.get_or_create(Group, name='Valid Email')
         if created:
             g.save()
-        
-        p = Permission.objects.get(name='Can add comment')
-        g.permissions.add(p)
-        g.permissions.add(Permission.objects.get(name='Can add annotation'))
-                
+
+        qs = Permission.objects.filter(name='Can add comment')
+        if qs.exists():
+            g.permissions.add(qs.first())
+        qs = Permission.objects.filter(name='Can add annotation')
+        if qs.exists():
+            g.permissions.add(qs.first())
+
         for u in User.objects.all():
             if p in u.user_permissions.all():
                 u.groups.add(g)
@@ -23,6 +31,10 @@ class Migration(DataMigration):
                 print "user %s: permission->group" % u.username
 
     def backwards(self, orm):
+        Group = orm['auth.Group']
+        Permission = orm['auth.Permission']
+        User = orm['auth.User']
+
         p = Permission.objects.get(name='Can add comment')
         g = Group.objects.get(name='Valid Email')
         

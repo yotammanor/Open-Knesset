@@ -12,17 +12,20 @@ class Migration(DataMigration):
         call_command("loaddata", "data/linktypes")
 
         # update all wikipedia links
-        wikipedia = orm.LinkType.objects.get(title='ויקיפדיה')
-        for l in orm.Link.objects.filter(url__contains='wikipedia'):
-            l.link_type = wikipedia
-            l.save()
+        try:
+            wikipedia = orm.LinkType.objects.get(title='ויקיפדיה')
+            for l in orm.Link.objects.filter(url__contains='wikipedia'):
+                l.link_type = wikipedia
+                l.save()
 
-        # update all default links
-        default = orm.LinkType.objects.get(title='default')
-        for l in orm.Link.objects.filter(link_type__isnull=True):
-            l.link_type = default
-            l.save()
-            
+            # update all default links
+            default = orm.LinkType.objects.get(title='default')
+            for l in orm.Link.objects.filter(link_type__isnull=True):
+                l.link_type = default
+                l.save()
+        except models.ObjectDoesNotExist:
+            pass
+
     def backwards(self, orm):
         "Write your backwards methods here."
 
