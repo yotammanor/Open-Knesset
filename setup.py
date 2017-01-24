@@ -25,7 +25,6 @@ install_requires = [
     'vobject',
     'django-tastypie',
     'django-ratings',
-
 ]
 
 setup(
@@ -35,6 +34,7 @@ setup(
     description="Bringing transperancy to the Israeli Knesset",
     author='Ofri Raviv and others',
     packages=find_packages(exclude=["tests", "test.*"]),
+    # disabled verifying requirements because it prevents code integration (with knesset-data-django project)
     # install_requires=install_requires,
     classifiers=[
         'Development Status :: 4 - Beta',

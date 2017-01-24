@@ -37,6 +37,7 @@ from auxiliary.mixins import GetMoreView, CsvView
 from auxiliary.serializers import PromiseAwareJSONEncoder
 
 from actstream import Action
+from knesset_data_django.committees import members_by_presence
 
 logger = logging.getLogger("open-knesset.mks")
 
@@ -439,7 +440,7 @@ class MemberDetailView(DetailView):
             has_protocols_not_published = False
             committees = member.get_active_committees()
             for committee in committees:
-                committee_member = committee.members_by_presence(ids=[member.id])[0]
+                committee_member = members_by_presence(committee, ids=[member.id])[0]
                 committees_presence.append({"committee": committee,
                                             "presence": committee_member.meetings_percentage})
                 if committee.protocol_not_published:

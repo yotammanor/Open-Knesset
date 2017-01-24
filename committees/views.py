@@ -42,6 +42,7 @@ from mks.utils import get_all_mk_names
 from mmm.models import Document
 from models import Committee, CommitteeMeeting, Topic
 from ok_tag.views import BaseTagMemberListView
+from knesset_data_django.committees import members_by_presence
 
 logger = logging.getLogger("open-knesset.committees.views")
 
@@ -107,7 +108,7 @@ class CommitteeDetailView(DetailView):
 
         if waffle.flag_is_active(self.request, 'show_member_presence'):
             cached_context['show_member_presence'] = True
-            members = cm.members_by_presence(current_only=True)
+            members = members_by_presence(cm, current_only=True)
         else:
             cached_context['show_member_presence'] = False
             members = cm.members_by_name(current_only=True)
@@ -234,7 +235,7 @@ class MeetingDetailView(DetailView):
             # get meeting members with presence calculation
             meeting_members_ids = set(
                 member.id for member in cm.mks_attended.all())
-            members = cm.committee.members_by_presence(ids=meeting_members_ids)
+            members = members_by_presence(cm.committee, ids=meeting_members_ids)
             context['show_member_presence'] = True
         else:
             members = cm.mks_attended.order_by('name')
