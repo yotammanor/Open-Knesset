@@ -271,7 +271,8 @@ class BillResource(BaseResource):
             bundle.src_parts = parts
         return parts
 
-    def build_filters(self, filters={}):
+    def build_filters(self, filters=None):
+        filters = {} if not filters else filters
         orm_filters = super(BillResource, self).build_filters(filters)
         if 'proposer' in filters:
             orm_filters["proposers"] = filters['proposer']
