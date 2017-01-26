@@ -33,7 +33,7 @@ from forms import VoteSelectForm, BillSelectForm, BudgetEstimateForm
 from forms import AttachBillFromVoteForm
 from hashnav import DetailView, ListView as HashnavListView
 from knesset.utils import notify_responsible_adult
-from mks.models import Member
+from mks.models import Member, Knesset
 from models import Bill, BillBudgetEstimation, Vote, KnessetProposal, VoteAction
 from committees.models import CommitteeMeeting
 
@@ -191,7 +191,8 @@ class VoteTagsView(BaseTagMemberListView):
         if self.member:
             context['title'] = ugettext_lazy(
                 'Votes tagged %(tag)s by %(member)s') % {
-                                   'tag': self.tag_instance.name, 'member': self.member.name}
+                                   'tag': self.tag_instance.name,
+                                   'member': self.member.name}
         else:  # only tag is given
             context['title'] = ugettext_lazy('Votes tagged %(tag)s') % {
                 'tag': self.tag_instance.name}
@@ -277,9 +278,12 @@ class BillCsvView(CsvView):
                     ('get_stage_display', _('Stage')),
                     ('stage_date', _('Stage Date')),
                     ('pre_votes', _('Pre-Votes')),
-                    ('first_committee_meetings', _('First Committee Meetings')),
+                    (
+                        'first_committee_meetings',
+                        _('First Committee Meetings')),
                     ('first_vote', _('First Vote')),
-                    ('second_committee_meetings', _('Second Committee Meetings')),
+                    ('second_committee_meetings',
+                     _('Second Committee Meetings')),
                     ('approval_vote', _('Approval Vote')),
                     ('proposers', _('Proposers')),
                     ('joiners', _('Joiners')))
@@ -307,7 +311,8 @@ class BillCsvView(CsvView):
         : return : A string with the urls comma-separated
         '''
         host = self.request.build_absolute_uri("/")
-        return " ".join(host + row.get_absolute_url() for row in getattr(obj, attr).all())
+        return " ".join(
+            host + row.get_absolute_url() for row in getattr(obj, attr).all())
 
     def members_gen(self, obj, attr):
         '''
@@ -363,7 +368,15 @@ class BillDetailView(DetailView):
             userprofile = None
 
         # compute data for user votes on this bill
-        proposers = bill.proposers.select_related('current_party')
+        if bill.latest_private_proposal and \
+                        bill.latest_private_proposal.knesset_id == \
+                        Knesset.objects.current_knesset().number:
+            proposers = bill.proposers.filter(is_current=True)
+        else:
+            proposers = bill.latest_private_proposal.proposers.all() if \
+                bill.latest_private_proposal else bill.proposers.all()
+        proposers = proposers.select_related('current_party')
+
         links = list(Link.objects.for_model(Member))
         links_by_member = {}
         for k, g in itertools.groupby(links, lambda x: x.object_pk):
@@ -392,7 +405,8 @@ class BillDetailView(DetailView):
         party_voting_score = {'for': votes_for, 'against': votes_against,
                               'total': votes_for - votes_against,
                               'count': count}
-        (party_voting_score['for_percent'], party_voting_score['against_percent']) = votes_to_bar_widths(
+        (party_voting_score['for_percent'],
+         party_voting_score['against_percent']) = votes_to_bar_widths(
             count, party_voting_score['for'], party_voting_score['against'])
 
         # Count only votes by users that are members of the party of the viewing
@@ -402,14 +416,17 @@ class BillDetailView(DetailView):
                 bill).filter(user__profiles__party=userprofile.party,
                              is_archived=False)
             votes_for = user_party_member_votes.filter(direction=1).count()
-            votes_against = user_party_member_votes.filter(direction=-1).count()
+            votes_against = user_party_member_votes.filter(
+                direction=-1).count()
             count = votes_for + votes_against
-            user_party_voting_score = {'for': votes_for, 'against': votes_against,
+            user_party_voting_score = {'for': votes_for,
+                                       'against': votes_against,
                                        'total': votes_for - votes_against,
                                        'count': count}
             (user_party_voting_score['for_percent'],
              user_party_voting_score['against_percent']) = votes_to_bar_widths(
-                count, user_party_voting_score['for'], user_party_voting_score['against'])
+                count, user_party_voting_score['for'],
+                user_party_voting_score['against'])
         else:
             user_party_voting_score = None
 
@@ -419,11 +436,13 @@ class BillDetailView(DetailView):
         context['tags'] = list(bill.tags)
         context['budget_ests'] = list(bill.budget_ests.all())
         if self.request.user:
-            context['user_has_be'] = bill.budget_ests.filter(estimator__username=str(self.request.user)).count()
+            context['user_has_be'] = bill.budget_ests.filter(
+                estimator__username=str(self.request.user)).count()
         if 'budget_ests_form' in kwargs:
             context['budget_ests_form'] = kwargs['budget_ests_form']
         else:
-            context['budget_ests_form'] = BudgetEstimateForm(bill, self.request.user)
+            context['budget_ests_form'] = BudgetEstimateForm(bill,
+                                                             self.request.user)
         return context
 
     def render_post_error(self, request, bill, error, **kwargs):
@@ -476,9 +495,11 @@ class BillDetailView(DetailView):
                         timestamp=datetime.datetime.now())
         elif user_input_type == 'budget_est':
             try:
-                budget_est = BillBudgetEstimation.objects.get(bill=bill, estimator=request.user)
+                budget_est = BillBudgetEstimation.objects.get(bill=bill,
+                                                              estimator=request.user)
             except BillBudgetEstimation.DoesNotExist:
-                budget_est = BillBudgetEstimation(bill=bill, estimator=request.user)
+                budget_est = BillBudgetEstimation(bill=bill,
+                                                  estimator=request.user)
             # FIXME: breakage! sanitize!
             form = BudgetEstimateForm(bill, request.user, request.POST)
             if form.is_valid():
@@ -501,13 +522,16 @@ class BillDetailView(DetailView):
                 # budget_est.yearly_ext = int(bye) if bye != "" else None
                 # budget_est.summary = bs if bs != "" else None
         elif user_input_type == 'change_bill_name':
-            if request.user.has_perm('laws.change_bill') and 'bill_name' in request.POST.keys():
+            if request.user.has_perm(
+                    'laws.change_bill') and 'bill_name' in request.POST.keys():
                 new_title = request.POST.get('bill_name')
                 new_popular_name = request.POST.get('popular_name')
-                logger.info('user %d is updating bill %s. new_title=%s, new_popular_name=%s' %
-                            (request.user.id, object_id, new_title,
-                             new_popular_name))
-                Bill.objects.filter(pk=object_id).update(title=new_title, full_title=new_title,
+                logger.info(
+                    'user %d is updating bill %s. new_title=%s, new_popular_name=%s' %
+                    (request.user.id, object_id, new_title,
+                     new_popular_name))
+                Bill.objects.filter(pk=object_id).update(title=new_title,
+                                                         full_title=new_title,
                                                          popular_name=new_popular_name)
             else:
                 return HttpResponseForbidden()
@@ -662,7 +686,8 @@ class BillListView(BillListMixin, HashnavListView):
 
     def get_context(self):
         context = super(BillListView, self).get_context()
-        r = [['?%s=%s' % (x[0], x[1]), x[2], False, x[1]] for x in self.friend_pages]
+        r = [['?%s=%s' % (x[0], x[1]), x[2], False, x[1]] for x in
+             self.friend_pages]
         stage = self.request.GET.get('stage', False)
         pp_id = self.request.GET.get('pp_id', False)
         knesset_booklet = self.request.GET.get('knesset_booklet', False)
@@ -677,7 +702,8 @@ class BillListView(BillListMixin, HashnavListView):
             if stage in self.bill_stages_names:
                 context['stage'] = self.bill_stages_names.get(stage)
                 context['title'] = _('Bills %(stage)s') % {'stage':
-                                                               context['stage']}
+                                                               context[
+                                                                   'stage']}
         elif pp_id:
             context['title'] = _('Bills based on private proposal with id '
                                  '%s') % pp_id
@@ -692,12 +718,15 @@ class BillListView(BillListMixin, HashnavListView):
             r[0][2] = True
         if member:
             context['member'] = get_object_or_404(Member, pk=member)
-            context['member_url'] = reverse('member-detail', args=[context['member'].id])
+            context['member_url'] = reverse('member-detail',
+                                            args=[context['member'].id])
             if stage in self.bill_stages_names:
-                context['title'] = _('Bills %(stage)s by %(member)s') % {'stage': self.bill_stages_names[stage],
-                                                                         'member': context['member'].name}
+                context['title'] = _('Bills %(stage)s by %(member)s') % {
+                    'stage': self.bill_stages_names[stage],
+                    'member': context['member'].name}
             else:
-                context['title'] = _('Bills by %(member)s') % {'member': context['member'].name}
+                context['title'] = _('Bills by %(member)s') % {
+                    'member': context['member'].name}
 
         context['friend_pages'] = r
         context['form'] = self._get_filter_form()
@@ -786,9 +815,12 @@ class VoteDetailView(DetailView):
         if Bill.objects.filter(first_vote=vote).count() > 0:
             related_bills.extend(vote.bills_first.all())
 
-        for_votes = vote.for_votes().select_related('member', 'member__current_party')
-        against_votes = vote.against_votes().select_related('member', 'member__current_party')
-        abstain_votes = vote.abstain_votes().select_related('member', 'member__current_party')
+        for_votes = vote.for_votes().select_related('member',
+                                                    'member__current_party')
+        against_votes = vote.against_votes().select_related('member',
+                                                            'member__current_party')
+        abstain_votes = vote.abstain_votes().select_related('member',
+                                                            'member__current_party')
 
         try:
             next_v = vote.get_next_by_time()
@@ -873,7 +905,9 @@ class VoteDetailView(DetailView):
                 return self.get(request, bill_form=form)
 
         else:  # adding an MK (either for or against)
-            mk_name = difflib.get_close_matches(request.POST.get('mk_name'), mk_names)[0]
+            mk_name = \
+                difflib.get_close_matches(request.POST.get('mk_name'),
+                                          mk_names)[0]
             mk = Member.objects.get(name=mk_name)
             stand = None
             if user_input_type == 'mk-for':
