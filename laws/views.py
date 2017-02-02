@@ -965,7 +965,7 @@ def committee_meeting_auto_complete(request):
 
     optional_committee_meetings = CommitteeMeeting.objects.filter(
         Q(date_string__icontains=q) | Q(topics__icontains=q)
-    )
+    )[:10]
 
     data = []
     suggestions = []
