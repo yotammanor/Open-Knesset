@@ -8,16 +8,10 @@ from django.db import models
 class Migration(DataMigration):
 
     def forwards(self, orm):
-        "Write your forwards methods here."
-        # Note: Remember to use orm['appname.ModelName'] rather than "from appname.models..."
-        orm.Knesset.objects.get_or_create(
-            number=18,
-            defaults={'start_date': datetime.date(2009, 2, 24),
-                      'end_date': datetime.date(2012, 10, 16)})
+        if not orm.Knesset.objects.filter(number=18).exists():
+            orm.Knesset.objects.create(number=18, start_date=datetime.date(2009, 2, 24), end_date=datetime.date(2012, 10, 16))
 
     def backwards(self, orm):
-        "Write your backwards methods here."
-
         orm.Knesset.objects.filter(number=18).delete()
 
     models = {

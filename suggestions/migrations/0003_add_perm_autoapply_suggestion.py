@@ -6,14 +6,18 @@ from django.db import models
 
 class Migration(DataMigration):
 
+    def get_or_create(self, model_class, **kwargs):
+        if model_class.objects.filter(**kwargs).exists():
+            return model_class.objects.get(**kwargs), False
+        else:
+            return model_class.objects.create(**kwargs), True
+
     def forwards(self, orm):
         "Write your forwards methods here."
-
-        ct, created = orm['contenttypes.ContentType'].objects.get_or_create(
-            model='suggestion', app_label='suggestions')
-        perm, created = orm['auth.permission'].objects.get_or_create(
-            content_type=ct, codename='autoapply_suggestion',
-            defaults=dict(name='Can auto apply suggestion'))
+        ContentType = orm['contenttypes.ContentType']
+        Permission = orm['auth.permission']
+        ct, created = self.get_or_create(ContentType, model='suggestion', app_label='suggestions')
+        perm, created = self.get_or_create(Permission, content_type=ct, codename='autoapply_suggestion', name='Can auto apply suggestion')
 
     def backwards(self, orm):
         "Write your backwards methods here."

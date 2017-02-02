@@ -25,7 +25,6 @@ install_requires = [
     'vobject',
     'django-tastypie',
     'django-ratings',
-
 ]
 
 setup(
@@ -34,9 +33,9 @@ setup(
     url='http://github.com/ofri/Open-Knesset',
     description="Bringing transperancy to the Israeli Knesset",
     author='Ofri Raviv and others',
-    packages=find_packages('src'),
-    package_dir={'': 'src'},
-    install_requires=install_requires,
+    packages=find_packages(exclude=["tests", "test.*"]),
+    # disabled verifying requirements because it prevents code integration (with knesset-data-django project)
+    # install_requires=install_requires,
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Web Environment',

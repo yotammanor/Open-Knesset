@@ -17,6 +17,8 @@ class Migration(DataMigration):
         if not db.dry_run:
             t = datetime.time()
             print 'Updating End Date of 18th Knesset to Start Date of 19th Knesset'
+            if not orm['mks.Knesset'].objects.filter(number=19).exists():
+                orm['mks.Knesset'].objects.create(number=19, start_date=datetime.date(2013, 2, 5), end_date=datetime.date(2015, 3, 31))
             new_end_date = orm['mks.Knesset'].objects.get(number=19).start_date
             knesset18 = orm['mks.Knesset'].objects.get(number=18)
             old_end_date = knesset18.end_date

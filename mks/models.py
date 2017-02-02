@@ -296,17 +296,8 @@ class Member(models.Model):
     PartiesString.allow_tags = True
 
     def party_at(self, date):
-        """Returns the party this memeber was at given date
-        """
-        # make sure date is not a datetime object
-        if isinstance(date, datetime.datetime):
-            date = datetime.date(date.year, date.month, date.day)
-        memberships = Membership.objects.filter(member=self).order_by('-start_date')
-        for membership in memberships:
-            if (not membership.start_date or membership.start_date <= date) and \
-                    (not membership.end_date or membership.end_date >= date):
-                return membership.party
-        return None
+        from knesset_data_django.mks.utils import party_at
+        return party_at(self, date)
 
     def TotalVotesCount(self):
         return self.votes.exclude(voteaction__type='no-vote').count()
