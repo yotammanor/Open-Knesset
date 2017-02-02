@@ -8,6 +8,7 @@ from tastypie.throttle import CacheThrottle
 from tastypie.serializers import Serializer
 
 import ujson
+import StringIO
 
 # are we using DummyCache ?
 _cache = getattr(settings, 'CACHES', {})
@@ -40,14 +41,12 @@ class IterJSONAndCSVSerializer(Serializer):
 
         data = self.to_simple(data, options)
         return ujson.dumps(data)
-        # return ''.join(json.DjangoJSONEncoder(sort_keys=True).iterencode(data))
 
     def to_csv(self, data, options=None):
         options = options or {}
         data = self.to_simple(data, options)
-        response = HttpResponse(mimetype='text/csv')
-        response['Content-Disposition'] = 'attachment; filename=data.csv'
 
+        response = StringIO.StringIO()
         response.write(u'\ufeff'.encode('utf8'))  # BOM for excel
         writer = csv.writer(response, dialect='excel')
 
@@ -63,6 +62,12 @@ class IterJSONAndCSVSerializer(Serializer):
         for item in objects:
             writer.writerow([unicode(item[key]).encode(
                 "utf-8", "replace") for key in item.keys()])
+        return response.getvalue()
+
+    @staticmethod
+    def modify_response(response, desired_format):
+        if desired_format == "text/csv":
+            response["Content-Disposition"] = "attachment; filename=data.csv"
         return response
 
 
@@ -75,6 +80,11 @@ class BaseNonModelResource(Resource):
         throttle = SmartCacheThrottle(throttle_at=60, timeframe=60)
         serializer = IterJSONAndCSVSerializer(
             formats=['json', 'jsonp', 'csv'])
+
+    def create_response(self, request, *args, **kwargs):
+        return IterJSONAndCSVSerializer.modify_response(
+            super(BaseNonModelResource, self).create_response(request, *args, **kwargs),
+            self.determine_format(request))
 
 
 class BaseResource(ModelResource):
@@ -92,6 +102,11 @@ class BaseResource(ModelResource):
 
     class Meta(BaseNonModelResource.Meta):
         pass
+
+    def create_response(self, request, *args, **kwargs):
+        return IterJSONAndCSVSerializer.modify_response(
+            super(BaseResource, self).create_response(request, *args, **kwargs),
+            self.determine_format(request))
 
     def _get_list_fields(self, request):
         """Helper to return list and extra fields for list mode.
