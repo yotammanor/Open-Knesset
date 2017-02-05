@@ -3184,6 +3184,10 @@ msgstr "שלב"
 msgid "Bill initiation"
 msgstr "יזום הצעת החוק"
 
+#: templates/laws/bill_detail.html:205
+msgid "Extra proposers"
+msgstr "יוזמי החוק בעבר"
+
 #: templates/laws/bill_detail.html:211 templates/laws/bill_detail.html:230
 #: templates/laws/bill_detail.html:347
 #: templates/laws/knessetproposal_detail.html:10

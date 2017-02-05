@@ -112,6 +112,16 @@ class BillDetailViewsTest(TestCase):
 
         self._verify_active_mks_only_in_proposers(res)
 
+    def test_private_bill_proposed_during_current_knesset_has_correct_extra_proposers(
+            self):
+        self._given_bill_with_proposals_from_current_and_non_current_knesset()
+
+        res = self.client.get(
+            reverse('bill-detail', kwargs={'pk': self.bill_with_proposal.id}))
+        self.assertEqual(res.status_code, 200)
+
+        self._verify_extra_mks_only_in_extra_proposers(res)
+
     def _given_bill_with_proposals_from_current_and_non_current_knesset(self):
         self.mk_active_1 = Member.objects.create(name='mk_active_1',
                                                  is_current=True)
@@ -141,9 +151,18 @@ class BillDetailViewsTest(TestCase):
         self.assertTrue(proposers.filter(id=self.mk_active_2.id).exists())
         self.assertFalse(proposers.filter(id=self.mk_non_active.id).exists())
 
+    def _verify_extra_mks_only_in_extra_proposers(self, res):
+        extra_proposers = res.context['extra_proposers']
+        self.assertFalse(
+            extra_proposers.filter(id=self.mk_active_1.id).exists())
+        self.assertFalse(
+            extra_proposers.filter(id=self.mk_active_2.id).exists())
+        self.assertTrue(
+            extra_proposers.filter(id=self.mk_non_active.id).exists())
+
     def test_private_bill_proposed_before_current_knesset_displays_latest_proposers_only(
             self):
-        self._given_bill_with_proposals_from_non_current_knesset()
+        self._given_bill_with_proposals_from_non_current_knesset_only()
 
         res = self.client.get(
             reverse('bill-detail', kwargs={'pk': self.bill_with_proposal.id}))
@@ -151,7 +170,19 @@ class BillDetailViewsTest(TestCase):
 
         self._verify_latest_proposal_mks_in_proposers_only(res)
 
-    def _given_bill_with_proposals_from_non_current_knesset(self):
+    def test_private_bill_proposed_before_current_knesset_has_non_latest_proposers_in_extra_proposers(
+            self):
+        self._given_bill_with_proposals_from_non_current_knesset_only()
+
+        res = self.client.get(
+            reverse('bill-detail', kwargs={'pk': self.bill_with_proposal.id}))
+        self.assertEqual(res.status_code, 200)
+
+        self._verify_only_non_latest_proposers_in_extra_proposers(res)
+
+    def _given_bill_with_proposals_from_non_current_knesset_only(self):
+        non_current_knesset_id = Knesset.objects.current_knesset().number - 1
+
         self.bill_with_proposal = Bill.objects.create(
             title='bill_for_proposal', stage='1')
         self.mk_early_proposer = Member.objects.create(
@@ -159,22 +190,34 @@ class BillDetailViewsTest(TestCase):
             is_current=True)
         self.mk_late_proposer = Member.objects.create(name='mk_late_proposer',
                                                       is_current=False)
-        first_proposal = PrivateProposal.objects.create(
+
+        PrivateProposal.objects.create(
             date=date(2009, 10, 26),
             bill=self.bill_with_proposal,
-            knesset_id=Knesset.objects.current_knesset().number - 1)
-        first_proposal.proposers.add(self.mk_early_proposer)
-        second_proposal = PrivateProposal.objects.create(
+            knesset_id=non_current_knesset_id).proposers.add(
+            self.mk_early_proposer)
+
+        PrivateProposal.objects.create(
             date=date(2010, 10, 26),
             bill=self.bill_with_proposal,
-            knesset_id=Knesset.objects.current_knesset().number - 1)
-        second_proposal.proposers.add(self.mk_late_proposer)
+            knesset_id=non_current_knesset_id).proposers.add(
+            self.mk_late_proposer)
+
+        self.bill_with_proposal.proposers.add(self.mk_early_proposer,
+                                              self.mk_late_proposer)
 
     def _verify_latest_proposal_mks_in_proposers_only(self, res):
         proposers = res.context['proposers']
         self.assertTrue(proposers.filter(id=self.mk_late_proposer.id).exists())
         self.assertFalse(
             proposers.filter(id=self.mk_early_proposer.id).exists())
+
+    def _verify_only_non_latest_proposers_in_extra_proposers(self, res):
+        extra_proposers = res.context['extra_proposers']
+        self.assertFalse(
+            extra_proposers.filter(id=self.mk_late_proposer.id).exists())
+        self.assertTrue(
+            extra_proposers.filter(id=self.mk_early_proposer.id).exists())
 
     def testLoginRequired(self):
         res = self.client.post(reverse('bill-detail',

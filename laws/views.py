@@ -368,14 +368,21 @@ class BillDetailView(DetailView):
             userprofile = None
 
         # compute data for user votes on this bill
-        if bill.latest_private_proposal and \
-                        bill.latest_private_proposal.knesset_id == \
-                        Knesset.objects.current_knesset().number:
+        current_knesset_id = Knesset.objects.current_knesset().number
+        if bill.latest_private_proposal \
+                and bill.latest_private_proposal.knesset_id == current_knesset_id:
             proposers = bill.proposers.filter(is_current=True)
+            extra_proposers = bill.proposers.filter(is_current=False)
+        elif bill.latest_private_proposal:
+            proposers = bill.latest_private_proposal.proposers.all()
+            extra_proposers = bill.proposers.exclude(
+                id__in=proposers.values_list('id', flat=True))
         else:
-            proposers = bill.latest_private_proposal.proposers.all() if \
-                bill.latest_private_proposal else bill.proposers.all()
+            print 3
+            proposers = bill.proposers.all()
+            extra_proposers = Member.objects.none()
         proposers = proposers.select_related('current_party')
+        extra_proposers = extra_proposers.select_related('current_party')
 
         links = list(Link.objects.for_model(Member))
         links_by_member = {}
@@ -383,7 +390,10 @@ class BillDetailView(DetailView):
             links_by_member[str(k)] = list(g)
         for proposer in proposers:
             proposer.cached_links = links_by_member.get(str(proposer.pk), [])
+        for proposer in extra_proposers:
+            proposer.cached_links = links_by_member.get(str(proposer.pk), [])
         context['proposers'] = proposers
+        context['extra_proposers'] = extra_proposers
         votes = voting.models.Vote.objects.get_object_votes(bill)
         if 1 not in votes: votes[1] = 0
         if -1 not in votes: votes[-1] = 0

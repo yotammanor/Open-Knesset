@@ -2,64 +2,67 @@
 {% load i18n laws_tags bills_tags mks_tags links_tags voting_tags agendas_tags i18ninclude hlp %}
 {% load static from staticfiles %}
 {% block extracss %}
-    <link href="{% static "css/jquery.autocomplete.css" %}" rel="stylesheet" type="text/css" media="screen"/>
+    <link href="{% static "css/jquery.autocomplete.css" %}" rel="stylesheet"
+          type="text/css" media="screen"/>
 {% endblock %}
 {% block extrajs %}
-    <script type="text/javascript" src="{% static "js/jquery.autocomplete.js" %}"></script>
-    <script type="text/javascript" src="{% static "js/ok-watch.js" %}?v=1"></script>
+    <script type="text/javascript"
+            src="{% static "js/jquery.autocomplete.js" %}"></script>
+    <script type="text/javascript"
+            src="{% static "js/ok-watch.js" %}?v=1"></script>
     {% include "auxiliary/../ok_tag/tags_object_edit_extrajs.html" with app_label="laws" object_type="bill" object_id=object.id %}
     <script type="text/javascript">
-        function show_only_vote_stage_div( div ) {
-                $("#visible-bill-stage").html($("#"+div).html());
+        function show_only_vote_stage_div(div) {
+            $("#visible-bill-stage").html($("#" + div).html());
 
 
-                return true;
-         }
-
-        function connect_el_to_div( el, div ) {
-            el.click( function () {
-                $("#" + div).get(0).scrollIntoView();
-            } );
+            return true;
         }
 
-        $(document).ready(function() {
+        function connect_el_to_div(el, div) {
+            el.click(function () {
+                $("#" + div).get(0).scrollIntoView();
+            });
+        }
 
-                var options = {
-                     serviceUrl:'/vote/auto_complete/',
-                     minChars:2,
-                     maxHeight:400,
-                     width:300,
-                     deferRequestBy: 100, //miliseconds
-                     onSelect: function(value, data, me){
-                        me.siblings("input[name$='vote_id']").val(data);
-                        me.siblings("input[type$='submit']").removeAttr('disabled');
-                     }
-                 };
-                $('.vote_input').each(function(item) {
-                     $(this).keydown(function() {
-                        $(this).siblings("input[name$='vote_id']").val('');
-                        $(this).siblings("input[type$='submit']").attr('disabled', 'disabled');
-                     });
-                     $(this).autocomplete(options);
+        $(document).ready(function () {
 
+            var options = {
+                serviceUrl: '/vote/auto_complete/',
+                minChars: 2,
+                maxHeight: 400,
+                width: 300,
+                deferRequestBy: 100, //miliseconds
+                onSelect: function (value, data, me) {
+                    me.siblings("input[name$='vote_id']").val(data);
+                    me.siblings("input[type$='submit']").removeAttr('disabled');
+                }
+            };
+            $('.vote_input').each(function (item) {
+                $(this).keydown(function () {
+                    $(this).siblings("input[name$='vote_id']").val('');
+                    $(this).siblings("input[type$='submit']").attr('disabled', 'disabled');
                 });
-                var options_kp = {
-                     serviceUrl:'/bill/auto_complete_knesset_proposal/',
-                     minChars:2,
-                     maxHeight:400,
-                     width:300,
-                     deferRequestBy: 100, //miliseconds
-                     onSelect: function(value, data, me){
-                        me.siblings("input[name$='kp_id']").val(data);
-                        me.siblings("input[type$='submit']").removeAttr('disabled');
-                     }
-                 };
-                $('.kp_input').each(function(item) {
-                     $(this).keydown(function() {
-                        $(this).siblings("input[name$='kp_id']").val('');
-                        $(this).siblings("input[type$='submit']").attr('disabled', 'disabled');
-                     });
-                     $(this).autocomplete(options_kp);
+                $(this).autocomplete(options);
+
+            });
+            var options_kp = {
+                serviceUrl: '/bill/auto_complete_knesset_proposal/',
+                minChars: 2,
+                maxHeight: 400,
+                width: 300,
+                deferRequestBy: 100, //miliseconds
+                onSelect: function (value, data, me) {
+                    me.siblings("input[name$='kp_id']").val(data);
+                    me.siblings("input[type$='submit']").removeAttr('disabled');
+                }
+            };
+            $('.kp_input').each(function (item) {
+                $(this).keydown(function () {
+                    $(this).siblings("input[name$='kp_id']").val('');
+                    $(this).siblings("input[type$='submit']").attr('disabled', 'disabled');
+                });
+                $(this).autocomplete(options_kp);
 
                 });
                 var options_cm = {
@@ -82,45 +85,50 @@
 
                 });
 
-                if (location.hash) {
-                  // Can be '#' + one of the "bill-stage" class divs.
-                    $(location.hash).get(0).scrollIntoView();
-                }
-                if (typeof pre_vote_score != 'undefined') {
-                  $("#pre-vote").css('background', pre_vote_score>0?"#39b44a":"#A60600");
-                  $("#pre-vote").css('color', "white");
-                  $("#pre-vote a.item").css('color', "white");
-                }
-                if (typeof first_vote_score != 'undefined') {
-                  $("#first-vote").css('background', first_vote_score>0?"#39b44a":"#A60600");
-                  $("#first-vote").css('color', "white");
-                  $("#first-vote a.item").css('color', "white");
-                }
-                if (typeof third_vote_score != 'undefined') {
-                  $("#third-vote").css('background', third_vote_score>0?"#39b44a":"#A60600");
-                  $("#third-vote").css('color', "white");
-                  $("#third-vote a.item").css('color', "white");
-                }
-            });
+            if (location.hash) {
+                // Can be '#' + one of the "bill-stage" class divs.
+                $(location.hash).get(0).scrollIntoView();
+            }
+            if (typeof pre_vote_score != 'undefined') {
+                $("#pre-vote").css('background', pre_vote_score > 0 ? "#39b44a" : "#A60600");
+                $("#pre-vote").css('color', "white");
+                $("#pre-vote a.item").css('color', "white");
+            }
+            if (typeof first_vote_score != 'undefined') {
+                $("#first-vote").css('background', first_vote_score > 0 ? "#39b44a" : "#A60600");
+                $("#first-vote").css('color', "white");
+                $("#first-vote a.item").css('color', "white");
+            }
+            if (typeof third_vote_score != 'undefined') {
+                $("#third-vote").css('background', third_vote_score > 0 ? "#39b44a" : "#A60600");
+                $("#third-vote").css('color', "white");
+                $("#third-vote a.item").css('color', "white");
+            }
+        });
 
 
     </script>
 {% endblock %}
-{% block extratitle %} {% bill_type_display object %} | {% bill_full_name object %}{% endblock %}
+{% block extratitle %} {% bill_type_display object %} |
+    {% bill_full_name object %}{% endblock %}
 {% block keywords %}{% bill_full_name object %},{{ keywords }}{% endblock %}
 {% block description %}{% bill_full_name object %} -
     {% trans 'Open Knesset - Opening the Knesset to the public' %}{% endblock %}
 {% block nav-laws %}class="active"{% endblock %}
 {% block breadcrumbs %}
-    <li><a href="{% url 'bill-list' %}">{% trans "Legislation" %}</a> <span class="divider">/</span></li>
+    <li><a href="{% url 'bill-list' %}">{% trans "Legislation" %}</a> <span
+            class="divider">/</span></li>
     <li class="active">{% bill_full_name object %}</li>
 {% endblock %}
 
 {% block divcontent %}
     <div id="legislation-information-modal" class="modal hide fade"
-         tabindex="-1" role="dialog" aria-labelledby="LegislationModalLabel" aria-hidden="true">
+         tabindex="-1" role="dialog" aria-labelledby="LegislationModalLabel"
+         aria-hidden="true">
         <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+            <button type="button" class="close" data-dismiss="modal"
+                    aria-hidden="true">x
+            </button>
             <h3 id="legislationModalLabel">{% trans "Legislation" %}</h3>
         </div>
         <div class="modal-body">
@@ -130,49 +138,64 @@
             {% i18ninclude "laws/bill_detail_help.html" LANGUAGE_CODE %}
         </div>
         <div class="modal-footer">
-            <button class="btn" data-dismiss="modal" aria-hidden="true">{% trans "Close" %}</button>
+            <button class="btn" data-dismiss="modal"
+                    aria-hidden="true">{% trans "Close" %}</button>
         </div>
     </div>
 
-    <div id="embed-information-modal" class="modal hide fade" tabindex="-1" role="dialog"
+    <div id="embed-information-modal" class="modal hide fade" tabindex="-1"
+         role="dialog"
          aria-labelledby="embedModalLabel" aria-hidden="true">
         <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+            <button type="button" class="close" data-dismiss="modal"
+                    aria-hidden="true">x
+            </button>
             <h3 id="embedModalLabel">קחו את החוק לידיים!</h3>
         </div>
         <div class="modal-body">
-            בדיוק כמו שסרטוני יוטוב יכולים להיות מוטמעים באתרים אחרים, גם תהליך החקיקה הזה יכול להופיע בבלוגים, כתבות,
+            בדיוק כמו שסרטוני יוטוב יכולים להיות מוטמעים באתרים אחרים, גם תהליך
+            החקיקה הזה יכול להופיע בבלוגים, כתבות,
             פייסבוק וכן הלאה...<br>
             <b>העתיקו את קוד ההטמעה (html):</b><br>
             <input type="text" readonly="readonly"
                    value='<iframe frameborder="0" id="embed-widget" src="https://oknesset.org/bill/{{ object.id }}/embed/" style="width: 505px; height: 375px;"></iframe>'></br>
             <b>העתיקו את הלינק (להטמעה בפייסבוק):</b><br>
-            <input type="text" readonly="readonly" value='https://oknesset.org/bill/{{ object.id }}'/>
+            <input type="text" readonly="readonly"
+                   value='https://oknesset.org/bill/{{ object.id }}'/>
         </div>
         <div class="modal-footer">
-            <button class="btn" data-dismiss="modal" aria-hidden="true">{% trans "Close" %}</button>
+            <button class="btn" data-dismiss="modal"
+                    aria-hidden="true">{% trans "Close" %}</button>
         </div>
     </div>
     {% if perms.laws.change_bill %}
         <div id="edit-bill-modal" class="modal hide fade"
-             tabindex="-1" role="dialog" aria-labelledby="editBillModalLabel" aria-hidden="true">
+             tabindex="-1" role="dialog" aria-labelledby="editBillModalLabel"
+             aria-hidden="true">
             <form method="post" action="." class="modal-form">{% csrf_token %}
                 <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">x</button>
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-hidden="true">x
+                    </button>
                     <h3 id="editBillModalLabel">{% trans "Edit Bill" %}</h3>
                 </div>
                 <div class="modal-body">
-                    <input type="hidden" name="user_input_type" value="change_bill_name"></input>
+                    <input type="hidden" name="user_input_type"
+                           value="change_bill_name"></input>
                     <label for="bill_name">{% trans 'name' %}:</label>
-                    <input type="text" class="input-block-level" name="bill_name" id="bill_name"
+                    <input type="text" class="input-block-level"
+                           name="bill_name" id="bill_name"
                            value="{{ object.full_title }}"/><br/>
                     <label for="bill_name">{% trans 'popular name' %}:</label>
-                    <input type="text" class="input-block-level" name="popular_name" id="popular_name"
+                    <input type="text" class="input-block-level"
+                           name="popular_name" id="popular_name"
                            value="{{ object.popular_name }}"/>
                 </div>
                 <div class="modal-footer">
-                    <input class="btn btn-primary" type="submit" value="{% trans "Submit" %}"/>
-                    <button class="btn" data-dismiss="modal" aria-hidden="true">{% trans "Close" %}</button>
+                    <input class="btn btn-primary" type="submit"
+                           value="{% trans "Submit" %}"/>
+                    <button class="btn" data-dismiss="modal"
+                            aria-hidden="true">{% trans "Close" %}</button>
                 </div>
             </form>
         </div>
@@ -181,20 +204,35 @@
         <div class="cards span12">
             <section class="card card-list padded">
                 <p>
-                    {% trans 'stage date' %}: <strong>{{ object.stage_date }}</strong>
+                    {% trans 'stage date' %}:
+                    <strong>{{ object.stage_date }}</strong>
                     <!-- add next event -->
                 </p>
-                <a class="btn btn-mini btn-question" href="#legislation-information-modal" data-toggle="modal">?</a>
+                <a class="btn btn-mini btn-question"
+                   href="#legislation-information-modal"
+                   data-toggle="modal">?</a>
                 <h1>{% bill_full_name object %}</h1>
                 <div>
                     <h3>{% bill_type_display object %}, {% trans "Booklet Number" %}: {% bill_booklet_number object %}</h3>
                 </div>
                 {% if proposers %}
                     <h4>{% trans "proposers" %}</h4>
-                    {% include "mks/member_photos.html" with members=proposers %}
+                    {% include "mks/member_photos.html" with members=proposers extra_class='bill-proposers' %}
+                    {% if extra_proposers %}
+                        <div id="proposers-extra" style="display:none">
+                            <h4>{% trans "Extra proposers" %}</h4>
+                            {% include "mks/member_photos.html" with members=extra_proposers extra_class='bill-extra-proposers' %}
+                        </div>
+                        <a href="#" class="btn btn-mini btn-expand"
+                           data-target="#proposers-extra"
+                           data-toggle="oktoggle"
+                           data-text="{% trans "More" %} +|{% trans "Collapse" %} -">{% trans "More" %}
+                            +</a>
+                    {% endif %}
                 {% endif %}
             </section>
-            <section class="card card-list padded">{% ht "Legistlation Process" %}
+            <section
+                    class="card card-list padded">{% ht "Legistlation Process" %}
                 <p>
                     {% trans 'stage' %}:<strong{% if object.frozen %}
                     class="text-error"{% endif %}>{% trans object.get_stage_display %}</strong>
@@ -208,7 +246,8 @@
                         <ul class="dates-list">
                             {% if object.gov_proposal %}
                                 <li>
-                                    <a rel="tooltip" title="{% trans 'Bill on knesset website' %}"
+                                    <a rel="tooltip"
+                                       title="{% trans 'Bill on knesset website' %}"
                                        href="{{ object.gov_proposal.source_url }}">
                                         <p>{% trans 'Government Proposal' %}</p>
                                         <p>{{ object.gov_proposal.date }}</p>
@@ -217,12 +256,17 @@
                             {% else %}
                                 {% for pp in object.proposals.all %}
                                     <li>
-                                        <a href="#pp{{ pp.pk }}" data-toggle="modal">{{ pp.date }}</a></p>
-                                        <div id="pp{{ pp.pk }}" class="modal hide fade"
-                                             tabindex="-1" role="dialog" aria-labelledby="pp{{ pp.pk }}ModalLabel"
+                                        <a href="#pp{{ pp.pk }}"
+                                           data-toggle="modal">{{ pp.date }}</a></p>
+                                        <div id="pp{{ pp.pk }}"
+                                             class="modal hide fade"
+                                             tabindex="-1" role="dialog"
+                                             aria-labelledby="pp{{ pp.pk }}ModalLabel"
                                              aria-hidden="true">
                                             <div class="modal-header">
-                                                <button type="button" class="close" data-dismiss="modal"
+                                                <button type="button"
+                                                        class="close"
+                                                        data-dismiss="modal"
                                                         aria-hidden="true">x
                                                 </button>
                                                 <h3 id="pp{{ pp.pk }}ModalLabel">{{ pp.title }}</h3>
@@ -237,7 +281,8 @@
                                                     </p>
                                                 </div>
                                                 <div class="modal-footer">
-                                                    <button class="btn" data-dismiss="modal"
+                                                    <button class="btn"
+                                                            data-dismiss="modal"
                                                             aria-hidden="true">{% trans "Close" %}</button>
                                                 </div>
                                             </div>
@@ -258,7 +303,8 @@
                         <ul class="dates-list">
                             {% for v in object.pre_votes.all %}
                                 <li {% if forloop.counter > 3 %}class="list-more" {% endif %}>
-                                    <a class="item" href="{% url 'vote-detail' v.id %}">
+                                    <a class="item"
+                                       href="{% url 'vote-detail' v.id %}">
                                         <p class="pull-left">
                                             <span class="badge badge-success">{{ v.for_votes_count }}</span><br/>
                                             <span class="badge badge-important">{{ v.against_votes_count }}</span>
@@ -273,7 +319,7 @@
                                     </a>
                                     {% if forloop.last %}
                                         <script>
-var pre_vote_score = {{ v.for_votes_count }} - {{ v.against_votes_count }};
+                                            var pre_vote_score = {{ v.for_votes_count }} - {{ v.against_votes_count }};
 
 
                                         </script>
@@ -283,13 +329,21 @@ var pre_vote_score = {{ v.for_votes_count }} - {{ v.against_votes_count }};
                                 {% if user.is_authenticated %}
                                     <li>
                                         {% trans 'Suggest a matching vote' %}
-                                        <form method="post" action="." class="form-inline">{% csrf_token %}
-                                            <input type="hidden" name="user_input_type" value="pre vote"></input>
-                                            <input type="text" class="vote_input" name="vote_string"
+                                        <form method="post" action="."
+                                              class="form-inline">{% csrf_token %}
+                                            <input type="hidden"
+                                                   name="user_input_type"
+                                                   value="pre vote"></input>
+                                            <input type="text"
+                                                   class="vote_input"
+                                                   name="vote_string"
                                                    placeholder="{% trans 'Start typing a bill title and choose one from the list' %}"
                                                    autocomplete="off"></input>
-                                            <input type="hidden" name="vote_id"></input>
-                                            <input type="submit" disabled value="{% trans 'Submit' %}" class="btn"
+                                            <input type="hidden"
+                                                   name="vote_id"></input>
+                                            <input type="submit" disabled
+                                                   value="{% trans 'Submit' %}"
+                                                   class="btn"
                                                    autocomplete="off"></input>
                                         </form>
                                     </li>
@@ -306,7 +360,8 @@ var pre_vote_score = {{ v.for_votes_count }} - {{ v.against_votes_count }};
                         <ul class="dates-list">
                             {% for cm in object.first_committee_meetings.all %}
                                 <li {% if forloop.counter > 5 %}class="list-more" {% endif %}>
-                                    <a class="item" href="{% url 'committee-meeting' cm.id %}">
+                                    <a class="item"
+                                       href="{% url 'committee-meeting' cm.id %}">
                                         {{ cm.date }}
                                     </a>
                                     {% if user.is_authenticated %}
@@ -355,14 +410,20 @@ var pre_vote_score = {{ v.for_votes_count }} - {{ v.against_votes_count }};
                                 <ul class="dates-list">
                                     <li>
                                         {% trans 'Suggest a Knesset Proposal' %}
-                                        <form method="post" action="." class="form-inline">{% csrf_token %}
-                                            <input type="hidden" name="user_input_type"
+                                        <form method="post" action="."
+                                              class="form-inline">{% csrf_token %}
+                                            <input type="hidden"
+                                                   name="user_input_type"
                                                    value="knesset_proposal"></input>
-                                            <input type="text" class="kp_input" name="kp_string"
+                                            <input type="text" class="kp_input"
+                                                   name="kp_string"
                                                    placeholder="{% trans 'Start typing a bill title and choose one from the list' %}"
                                                    autocomplete="off"></input>
-                                            <input type="hidden" name="kp_id"></input>
-                                            <input type="submit" disabled value="{% trans 'Submit' %}" class="btn"
+                                            <input type="hidden"
+                                                   name="kp_id"></input>
+                                            <input type="submit" disabled
+                                                   value="{% trans 'Submit' %}"
+                                                   class="btn"
                                                    autocomplete="off"></input>
                                         </form>
                                     </li>
@@ -377,7 +438,8 @@ var pre_vote_score = {{ v.for_votes_count }} - {{ v.against_votes_count }};
                         {% ht "Legistlation stage: First Vote" %}
                         <ul class="dates-list">
                             {% if object.first_vote %}
-                                <li><a class="item" href="{% url 'vote-detail' object.first_vote.id %}">
+                                <li><a class="item"
+                                       href="{% url 'vote-detail' object.first_vote.id %}">
                                     <p class="pull-left">
                                         <span class="badge badge-success">{{ object.first_vote.for_votes_count }}</span><br/>
                                         <span class="badge badge-important">{{ object.first_vote.against_votes_count }}</span>
@@ -389,21 +451,28 @@ var pre_vote_score = {{ v.for_votes_count }} - {{ v.against_votes_count }};
                                     {% endif %}
                                 </a></li>
                                 <script>
-var first_vote_score = {{ object.first_vote.for_votes_count }} - {{ object.first_vote.against_votes_count }};
+                                    var first_vote_score = {{ object.first_vote.for_votes_count }} - {{ object.first_vote.against_votes_count }};
 
 
                                 </script>
                             {% else %}
                                 {% if user.is_authenticated %}
                                     {% trans 'Suggest a matching vote' %}
-                                    <form method="post" action="." class="form-inline">
+                                    <form method="post" action="."
+                                          class="form-inline">
                                         {% csrf_token %}
-                                        <input type="hidden" name="user_input_type" value="first vote"></input>
-                                        <input type="text" class="vote_input" name="vote_string"
+                                        <input type="hidden"
+                                               name="user_input_type"
+                                               value="first vote"></input>
+                                        <input type="text" class="vote_input"
+                                               name="vote_string"
                                                placeholder="{% trans 'Start typing a bill title and choose one from the list' %}"
                                                autocomplete="off"></input>
-                                        <input type="hidden" name="vote_id"></input>
-                                        <input type="submit" disabled value="{% trans 'Submit' %}" class="btn"
+                                        <input type="hidden"
+                                               name="vote_id"></input>
+                                        <input type="submit" disabled
+                                               value="{% trans 'Submit' %}"
+                                               class="btn"
                                                autocomplete="off"></input>
                                     </form>
                                 {% endif %}
@@ -453,7 +522,8 @@ var first_vote_score = {{ object.first_vote.for_votes_count }} - {{ object.first
                         {% ht "Legistlation stage: Bill Approval" %}
                         <ul class="dates-list">
                             {% if object.approval_vote %}
-                                <li><a class="item" href="{% url 'vote-detail' object.approval_vote.id %}">
+                                <li><a class="item"
+                                       href="{% url 'vote-detail' object.approval_vote.id %}">
                                     <p class="pull-left">
                                         <span class="badge badge-success">{{ object.approval_vote.for_votes_count }}</span><br/>
                                         <span class="badge badge-important">{{ object.approval_vote.against_votes_count }}</span>
@@ -465,7 +535,7 @@ var first_vote_score = {{ object.first_vote.for_votes_count }} - {{ object.first
                                     {% endif %}
                                 </a></li>
                                 <script>
-var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.approval_vote.against_votes_count }};
+                                    var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.approval_vote.against_votes_count }};
 
 
                                 </script>
@@ -473,13 +543,21 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
                                 {% if user.is_authenticated %}
                                     <li>
                                         {% trans 'Suggest a matching vote' %}
-                                        <form method="post" action="." class="form-inline">{% csrf_token %}
-                                            <input type="hidden" name="user_input_type" value="approval vote"></input>
-                                            <input type="text" class="vote_input" name="vote_string"
+                                        <form method="post" action="."
+                                              class="form-inline">{% csrf_token %}
+                                            <input type="hidden"
+                                                   name="user_input_type"
+                                                   value="approval vote"></input>
+                                            <input type="text"
+                                                   class="vote_input"
+                                                   name="vote_string"
                                                    placeholder="{% trans 'Start typing a bill title and choose one from the list' %}"
                                                    autocomplete="off"></input>
-                                            <input type="hidden" name="vote_id"></input>
-                                            <input type="submit" disabled value="{% trans 'Submit' %}" class="btn"
+                                            <input type="hidden"
+                                                   name="vote_id"></input>
+                                            <input type="submit" disabled
+                                                   value="{% trans 'Submit' %}"
+                                                   class="btn"
                                                    autocomplete="off"></input>
                                         </form>
                                     </li>
@@ -495,12 +573,17 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
                         <ul class="dates-list">
                             {% for d in object.gov_decisions.all %}
                                 <li>
-                                    <a href="#gd{{ d.id }}" data-toggle="modal">{{ d.date }}</a>
-                                    <div id="gd{{ d.id }}" class="modal hide fade"
-                                         tabindex="-1" role="dialog" aria-labelledby="gd{{ d.id }}ModalLabel"
+                                    <a href="#gd{{ d.id }}"
+                                       data-toggle="modal">{{ d.date }}</a>
+                                    <div id="gd{{ d.id }}"
+                                         class="modal hide fade"
+                                         tabindex="-1" role="dialog"
+                                         aria-labelledby="gd{{ d.id }}ModalLabel"
                                          aria-hidden="true">
                                         <div class="modal-header">
-                                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">
+                                            <button type="button" class="close"
+                                                    data-dismiss="modal"
+                                                    aria-hidden="true">
                                                 x
                                             </button>
                                             <h3 id="pp{{ pp.pk }}ModalLabel">{% trans 'Government Stand' %}</h3>
@@ -510,7 +593,8 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
                                                 <p> {{ d.text|safe }} </p>
                                             </div>
                                             <div class="modal-footer">
-                                                <button class="btn" data-dismiss="modal"
+                                                <button class="btn"
+                                                        data-dismiss="modal"
                                                         aria-hidden="true">{% trans "Close" %}</button>
                                             </div>
                                         </div>
@@ -532,9 +616,11 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
                     <div class="clearfix"></div>
                     {% if object.first_committee_meetings.count > 5 or object.pre_votes.count > 3 or object.second_committee_meetings.count > 5 %}
                         <footer>
-                            <a href="#" class="btn btn-mini btn-expand" data-target=".list-more"
+                            <a href="#" class="btn btn-mini btn-expand"
+                               data-target=".list-more"
                                data-toggle="oktoggle"
-                               data-text="{% trans "More" %} +|{% trans "Collapse" %} -">{% trans "More" %} +</a>
+                               data-text="{% trans "More" %} +|{% trans "Collapse" %} -">{% trans "More" %}
+                                +</a>
                         </footer>
                     {% endif %}
             </section>
@@ -546,10 +632,12 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
             <aside class="sidebar">
                 <div class="spacer actions-panel">
                     {% include "auxiliary/_watch.html" with watched_id=object.id watched_type="bill" %}
-                    <a href="#embed-information-modal" class="btn btn-big" role="button"
+                    <a href="#embed-information-modal" class="btn btn-big"
+                       role="button"
                        data-toggle="modal">{% trans "embed" %}</a>
                     {% if perms.laws.change_bill %}
-                        <a href="#edit-bill-modal" class="btn btn-big" role="button"
+                        <a href="#edit-bill-modal" class="btn btn-big"
+                           role="button"
                            data-toggle="modal">{% trans "Edit Bill" %}</a>
                     {% endif %}
                 </div>
@@ -558,7 +646,7 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
                 {% include "ok_tag/tags_object_edit.html" with tags=tags %}
             </aside>
         </div>
-        
+
         <div class="span4">
             <!-- Currently no in use, until this feature is revisited -->
             {#            {% include "laws/_public_opinion_partial.html" with voting_score=voting_score %}#}
@@ -592,10 +680,13 @@ var third_vote_score = {{ object.approval_vote.for_votes_count }} - {{ object.ap
                         {% endif %}
                         <!--<div id="create_budget_est" style='display:none'>-->
                         <!--{% if perms.tagging.add_tag %}-->
-                            <form action="." method="post" id="create_budget_est_form">{% csrf_token %}
-                                <input type="hidden" name="user_input_type" value="budget_est">
+                            <form action="." method="post"
+                                  id="create_budget_est_form">{% csrf_token %}
+                                <input type="hidden" name="user_input_type"
+                                       value="budget_est">
                                 {{ budget_ests_form.as_p }}
-                                <input type="submit" value="{% trans "Send" %}" id="be_submit" class="btn">
+                                <input type="submit" value="{% trans "Send" %}"
+                                       id="be_submit" class="btn">
                             </form>
                             <!--{% else %}-->
                             <!--{% trans 'Please' %} <a class="bold-link" href="{% url 'edit-profile' %}">{% trans 'validate your email' %}</a>{% trans ' to create new tags' %}-->
