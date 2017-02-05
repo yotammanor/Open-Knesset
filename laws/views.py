@@ -378,7 +378,6 @@ class BillDetailView(DetailView):
             extra_proposers = bill.proposers.exclude(
                 id__in=proposers.values_list('id', flat=True))
         else:
-            print 3
             proposers = bill.proposers.all()
             extra_proposers = Member.objects.none()
         proposers = proposers.select_related('current_party')
