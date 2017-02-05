@@ -1,32 +1,34 @@
-{% load links_tags waffle_tags %}<div class="card-party-members {{extra_class}}">
-    <div>
-{% for member in members %}
+{% load links_tags waffle_tags %}
+<div class="card-party-members {{ extra_class }}">
+    {% for member in members %}
         <div class="party-member-photo{% flag 'show_member_presence' %} party-member-photo-with-presence{% endflag %}">
-            <a href="{{member.get_absolute_url}}">
-                <img src="{{member.img_url}}">
-                <span class="party-member-name {% flag 'show_member_presence' %} party-member-name-with-presence{% endflag %}">{{member.name}}</span>
+            <a href="{{ member.get_absolute_url }}">
+                <img src="{{ member.img_url }}">
+                <span class="party-member-name {% flag 'show_member_presence' %} party-member-name-with-presence{% endflag %}">{{ member.name }}</span>
             </a>
-          <div class="party-member-extra">{% block member_extra %}{% endblock %}</div>
-          <div class="party-member-info">
-            <div class="party-member-info-text">
-              <h3><a href="{{member.get_absolute_url}}">{{member.name}}</a></h3>
-                <p>{{member.get_role}}</p>
-                {% if member.current_party %}
-                <div>
-                    <a href="{% url 'party-detail' member.current_party.id %}">{{ member.current_party.name }}</a>
+            <div class="party-member-extra">
+                {% block member_extra %}{% endblock %}</div>
+            <div class="party-member-info">
+                <div class="party-member-info-text">
+                    <h3>
+                        <a href="{{ member.get_absolute_url }}">{{ member.name }}</a>
+                    </h3>
+                    <p>{{ member.get_role }}</p>
+                    {% if member.current_party %}
+                        <div>
+                            <a href="{% url 'party-detail' member.current_party.id %}">{{ member.current_party.name }}</a>
+                        </div>
+                    {% endif %}
                 </div>
-                {% endif %}
+                <div class="party-member-info-links">
+                    <ul>
+                        {% object_icon_links member %}
+                    </ul>
+                </div>
+                <div class="party-member-info-photo">
+                    <img data-src="{{ member.highres_img_url }}">
+                </div>
             </div>
-            <div class="party-member-info-links">
-                <ul>
-                {% object_icon_links member %}
-                </ul>
-            </div>
-            <div class="party-member-info-photo">
-              <img data-src="{{member.highres_img_url}}">
-            </div>
-          </div>
-        </div>    
-{% endfor %}
-    </div>
+        </div>
+    {% endfor %}
 </div>

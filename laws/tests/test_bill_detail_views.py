@@ -13,6 +13,8 @@ from django.test import TestCase
 from tagging.models import Tag
 
 from laws.models import Vote, Bill, KnessetProposal, BillBudgetEstimation
+from laws.models.proposal import PrivateProposal
+
 from mks.models import Knesset, Member
 from committees.models import Committee, CommitteeMeeting
 
@@ -43,9 +45,10 @@ class BillDetailViewsTest(TestCase):
         g.permissions.add(p)
 
         self.adrian.groups.add(g)
-        self.bill_1 = Bill.objects.create(stage='1', title='bill 1', popular_name="The Bill")
+        self.bill_1 = Bill.objects.create(stage='1', title='bill 1',
+                                          popular_name="The Bill")
         self.bill_2 = Bill.objects.create(stage='2', title='bill 2')
-        self.bill_3 = Bill.objects.create(stage='2', title='bill 1')
+        self.bill_3 = Bill.objects.create(stage='2', title='bill 3')
         self.kp_1 = KnessetProposal.objects.create(booklet_number=2,
                                                    bill=self.bill_1,
                                                    date=date.today())
@@ -81,8 +84,9 @@ class BillDetailViewsTest(TestCase):
 
     def test_bill_popular_name_by_slug(self):
         res = self.client.get(reverse('bill-detail-with-slug',
-                                      kwargs={'slug': self.bill_1.popular_name_slug,
-                                              'pk': self.bill_1.id}))
+                                      kwargs={
+                                          'slug': self.bill_1.popular_name_slug,
+                                          'pk': self.bill_1.id}))
         self.assertEqual(res.status_code, 200)
         self.assertTemplateUsed(res,
                                 'laws/bill_detail.html')
@@ -98,12 +102,130 @@ class BillDetailViewsTest(TestCase):
         self.assertEqual(res.context['object'].id, self.bill_1.id)
     '''
 
+    def test_private_bill_proposed_during_current_knesset_displays_active_members_only(
+            self):
+        self._given_bill_with_proposals_from_current_and_non_current_knesset()
+
+        res = self.client.get(
+            reverse('bill-detail', kwargs={'pk': self.bill_with_proposal.id}))
+        self.assertEqual(res.status_code, 200)
+
+        self._verify_active_mks_only_in_proposers(res)
+
+    def test_private_bill_proposed_during_current_knesset_has_correct_extra_proposers(
+            self):
+        self._given_bill_with_proposals_from_current_and_non_current_knesset()
+
+        res = self.client.get(
+            reverse('bill-detail', kwargs={'pk': self.bill_with_proposal.id}))
+        self.assertEqual(res.status_code, 200)
+
+        self._verify_extra_mks_only_in_extra_proposers(res)
+
+    def _given_bill_with_proposals_from_current_and_non_current_knesset(self):
+        self.mk_active_1 = Member.objects.create(name='mk_active_1',
+                                                 is_current=True)
+        self.mk_active_2 = Member.objects.create(name='mk_active_2',
+                                                 is_current=True)
+        self.mk_non_active = Member.objects.create(name='mk_non_active',
+                                                   is_current=False)
+        self.bill_with_proposal = Bill.objects.create(
+            title='bill_for_proposal_2', stage='1')
+        early_proposal = PrivateProposal.objects.create(
+            date=date(2009, 10, 26),
+            bill=self.bill_with_proposal,
+            knesset_id=Knesset.objects.current_knesset().number - 1)
+        early_proposal.proposers.add(self.mk_active_1)
+        current_proposal = PrivateProposal.objects.create(
+            date=date(2010, 10, 26),
+            bill=self.bill_with_proposal,
+            knesset_id=Knesset.objects.current_knesset().number)
+        current_proposal.proposers.add(self.mk_active_2, self.mk_non_active)
+        self.bill_with_proposal.proposers.add(self.mk_active_1,
+                                              self.mk_active_2,
+                                              self.mk_non_active)
+
+    def _verify_active_mks_only_in_proposers(self, res):
+        proposers = res.context['proposers']
+        self.assertTrue(proposers.filter(id=self.mk_active_1.id).exists())
+        self.assertTrue(proposers.filter(id=self.mk_active_2.id).exists())
+        self.assertFalse(proposers.filter(id=self.mk_non_active.id).exists())
+
+    def _verify_extra_mks_only_in_extra_proposers(self, res):
+        extra_proposers = res.context['extra_proposers']
+        self.assertFalse(
+            extra_proposers.filter(id=self.mk_active_1.id).exists())
+        self.assertFalse(
+            extra_proposers.filter(id=self.mk_active_2.id).exists())
+        self.assertTrue(
+            extra_proposers.filter(id=self.mk_non_active.id).exists())
+
+    def test_private_bill_proposed_before_current_knesset_displays_latest_proposers_only(
+            self):
+        self._given_bill_with_proposals_from_non_current_knesset_only()
+
+        res = self.client.get(
+            reverse('bill-detail', kwargs={'pk': self.bill_with_proposal.id}))
+        self.assertEqual(res.status_code, 200)
+
+        self._verify_latest_proposal_mks_in_proposers_only(res)
+
+    def test_private_bill_proposed_before_current_knesset_has_non_latest_proposers_in_extra_proposers(
+            self):
+        self._given_bill_with_proposals_from_non_current_knesset_only()
+
+        res = self.client.get(
+            reverse('bill-detail', kwargs={'pk': self.bill_with_proposal.id}))
+        self.assertEqual(res.status_code, 200)
+
+        self._verify_only_non_latest_proposers_in_extra_proposers(res)
+
+    def _given_bill_with_proposals_from_non_current_knesset_only(self):
+        non_current_knesset_id = Knesset.objects.current_knesset().number - 1
+
+        self.bill_with_proposal = Bill.objects.create(
+            title='bill_for_proposal', stage='1')
+        self.mk_early_proposer = Member.objects.create(
+            name='mk_early_proposer',
+            is_current=True)
+        self.mk_late_proposer = Member.objects.create(name='mk_late_proposer',
+                                                      is_current=False)
+
+        PrivateProposal.objects.create(
+            date=date(2009, 10, 26),
+            bill=self.bill_with_proposal,
+            knesset_id=non_current_knesset_id).proposers.add(
+            self.mk_early_proposer)
+
+        PrivateProposal.objects.create(
+            date=date(2010, 10, 26),
+            bill=self.bill_with_proposal,
+            knesset_id=non_current_knesset_id).proposers.add(
+            self.mk_late_proposer)
+
+        self.bill_with_proposal.proposers.add(self.mk_early_proposer,
+                                              self.mk_late_proposer)
+
+    def _verify_latest_proposal_mks_in_proposers_only(self, res):
+        proposers = res.context['proposers']
+        self.assertTrue(proposers.filter(id=self.mk_late_proposer.id).exists())
+        self.assertFalse(
+            proposers.filter(id=self.mk_early_proposer.id).exists())
+
+    def _verify_only_non_latest_proposers_in_extra_proposers(self, res):
+        extra_proposers = res.context['extra_proposers']
+        self.assertFalse(
+            extra_proposers.filter(id=self.mk_late_proposer.id).exists())
+        self.assertTrue(
+            extra_proposers.filter(id=self.mk_early_proposer.id).exists())
+
     def testLoginRequired(self):
         res = self.client.post(reverse('bill-detail',
                                        kwargs={'pk': self.bill_1.id}))
         self.assertEqual(res.status_code, 302)
         self.assertTrue(res['location'].startswith('%s%s' %
-                                                   ('http://testserver', settings.LOGIN_URL)))
+                                                   ('http://testserver',
+                                                    settings.LOGIN_URL)))
 
     def testPOSTApprovalVote(self):
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
@@ -161,14 +283,17 @@ class BillDetailViewsTest(TestCase):
 
     def test_add_tag_to_bill_login_required(self):
         url = reverse('add-tag-to-object',
-                      kwargs={'app': APP, 'object_type': 'bill', 'object_id': self.bill_1.id})
+                      kwargs={'app': APP, 'object_type': 'bill',
+                              'object_id': self.bill_1.id})
         res = self.client.post(url, {'tag_id': self.tag_1})
-        self.assertRedirects(res, "%s?next=%s" % (settings.LOGIN_URL, url), status_code=302)
+        self.assertRedirects(res, "%s?next=%s" % (settings.LOGIN_URL, url),
+                             status_code=302)
 
     def test_add_tag_to_bill(self):
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
         url = reverse('add-tag-to-object',
-                      kwargs={'app': APP, 'object_type': 'bill', 'object_id': self.bill_1.id})
+                      kwargs={'app': APP, 'object_type': 'bill',
+                              'object_id': self.bill_1.id})
         res = self.client.post(url, {'tag_id': self.tag_1.id})
         self.assertEqual(res.status_code, 200)
         self.assertIn(self.tag_1, self.bill_1.tags)
@@ -177,15 +302,19 @@ class BillDetailViewsTest(TestCase):
     def test_create_tag_permission_required(self):
         self.assertTrue(self.client.login(username='jacob', password='JKM'))
         url = reverse('create-tag',
-                      kwargs={'app': APP, 'object_type': 'bill', 'object_id': self.bill_1.id})
+                      kwargs={'app': APP, 'object_type': 'bill',
+                              'object_id': self.bill_1.id})
         res = self.client.post(url, {'tag': 'new tag'})
-        self.assertRedirects(res, "%s?next=%s" % (settings.LOGIN_URL, url), status_code=302)
+        self.assertRedirects(res, "%s?next=%s" % (settings.LOGIN_URL, url),
+                             status_code=302)
 
     @unittest.skip("creating tags currently disabled")
     def test_create_tag(self):
-        self.assertTrue(self.client.login(username='adrian', password='ADRIAN'))
+        self.assertTrue(
+            self.client.login(username='adrian', password='ADRIAN'))
         url = reverse('create-tag',
-                      kwargs={'app': APP, 'object_type': 'bill', 'object_id': self.bill_1.id})
+                      kwargs={'app': APP, 'object_type': 'bill',
+                              'object_id': self.bill_1.id})
         res = self.client.post(url, {'tag': 'new tag'})
         self.assertEqual(res.status_code, 200)
         self.new_tag = Tag.objects.get(name='new tag')
@@ -262,7 +391,8 @@ class BillDetailViewsTest(TestCase):
                                 'be_summary': 'Trust me.'})
         self.assertEqual(res.status_code, 200)
         try:
-            budget_est = self.bill_1.budget_ests.get(estimator__username='jacob')
+            budget_est = self.bill_1.budget_ests.get(
+                estimator__username='jacob')
             budget_est.delete()
             raise AssertionError('Budget shouldn\'t be created.')
         except BillBudgetEstimation.DoesNotExist:
@@ -290,7 +420,8 @@ class BillDetailViewsTest(TestCase):
         self.assertEqual(budget_est.summary, 'Trust me.')
         self.client.logout()
         # now add with other user.
-        self.assertTrue(self.client.login(username='adrian', password='ADRIAN'))
+        self.assertTrue(
+            self.client.login(username='adrian', password='ADRIAN'))
         res = self.client.post(reverse('bill-detail',
                                        kwargs={'pk': self.bill_1.id}),
                                {'user_input_type': 'budget_est',
