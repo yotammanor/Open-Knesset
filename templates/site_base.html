@@ -26,54 +26,58 @@
 
 
 
+
                   {% block description %}{% trans 'Open Knesset - Opening the Knesset to the public' %}{% endblock %}">
     <meta name="google-site-verification"
           content="TAmHbnTgm9dvrNMB41Ke-lZesXPgTd5xSW5lBTzq020"/>
     {% block social_share %}
-        {% block facebook_social_share %}
-            {% block facebook_social_share_base %}
-                <meta property="fb:app_id" content="156662232223"/>
-                <meta property="og:site_name"
-                      content="{% trans 'Open Knesset' %}">
-                <meta property="og:url"
-                      content="{{ request.build_absolute_uri }}">
-                <meta property="og:type" content="website"/>
-                <meta property="og:locale" content="{{ LANGUAGE_CODE }}"/>
-            {% endblock facebook_social_share_base %}
-            {% block facebook_social_share_page_specific %}
-                <meta property="og:image"
-                      content="https://oknesset.org/static/img/300px-Oknesset.jpg"/>
-                <meta property="og:title" content="{% trans 'Open Knesset' %}">
-                <meta property="og:description"
-                      content="{% trans 'Open Knesset - Opening the Knesset to the public' %}">
+        {% with OKNESSET_IMAGE_URL="https://oknesset.org/static/img/300px-Oknesset.jpg" %}
+            {% block facebook_social_share %}
+                {% block facebook_social_share_base %}
+                    <meta property="fb:app_id" content="156662232223"/>
+                    <meta property="og:site_name"
+                          content="{% trans 'Open Knesset' %}">
+                    <meta property="og:url"
+                          content="{{ request.build_absolute_uri }}">
+                    <meta property="og:type" content="website"/>
+                    <meta property="og:locale" content="{{ LANGUAGE_CODE }}"/>
+                {% endblock facebook_social_share_base %}
+                {% block facebook_social_share_page_specific %}
+                    <meta property="og:image"
+                          content="{{ OKNESSET_IMAGE_URL }}"/>
+                    <meta property="og:title"
+                          content="{% trans 'Open Knesset' %}">
+                    <meta property="og:description"
+                          content="{% trans 'Open Knesset - Opening the Knesset to the public' %}">
 
-                <meta property="og:image:secure_url"
-                      content="https://oknesset.org/static/img/300px-Oknesset.jpg">
-            {% endblock facebook_social_share_page_specific %}
-        {% endblock facebook_social_share %}
+                    <meta property="og:image:secure_url"
+                          content="{{ OKNESSET_IMAGE_URL }}">
+                {% endblock facebook_social_share_page_specific %}
+            {% endblock facebook_social_share %}
 
-        {% block twitter_social_share %}
-            {% block twitter_social_share_base %}
-                <meta name="twitter:creator" content="@hasadna">
-                <meta name="twitter:site" content="{{ request.build_absolute_uri }}">
-            {% endblock twitter_social_share_base %}
+            {% block twitter_social_share %}
+                {% block twitter_social_share_base %}
+                    <meta name="twitter:creator" content="@hasadna">
+                    <meta name="twitter:site"
+                          content="{{ request.build_absolute_uri }}">
+                {% endblock twitter_social_share_base %}
 
-            {% block twitter_social_share_page_specific %}
-                <meta name="twitter:card" content="summary_large_image"/>
-                <meta name="twitter:title"
-                      content="{% trans 'Open Knesset' %}"/>
-                <meta name="twitter:description"
-                      content="{% trans 'Open Knesset - Opening the Knesset to the public' %}"/>
-                <meta name="twitter:image"
-                      content="https://oknesset.org/static/img/300px-Oknesset.jpg"/>
-            {% endblock twitter_social_share_page_specific %}
-        {% endblock twitter_social_share %}
-        <!-- For some other bots-->
-        <link rel="image_src"
-              href="https://oknesset.org/static/img/300px-Oknesset.jpg"/>
+                {% block twitter_social_share_page_specific %}
+                    <meta name="twitter:card" content="summary_large_image"/>
+                    <meta name="twitter:title"
+                          content="{% trans 'Open Knesset' %}"/>
+                    <meta name="twitter:description"
+                          content="{% trans 'Open Knesset - Opening the Knesset to the public' %}"/>
+                    <meta name="twitter:image"
+                          content="https://oknesset.org/static/img/300px-Oknesset.jpg"/>
+                {% endblock twitter_social_share_page_specific %}
+            {% endblock twitter_social_share %}
+            <!-- For some other bots-->
+            <link rel="image_src"
+                  href="https://oknesset.org/static/img/300px-Oknesset.jpg"/>
 
-
-    {% endblock %}
+        {% endwith %}
+    {% endblock social_share %}
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 

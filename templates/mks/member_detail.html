@@ -48,25 +48,28 @@
     <link rel="alternate" type="application/rss+xml" title="RSS"
           href="{% url 'member-activity-feed' object.id %}">
 {% endblock %}
-{% block facebook_social_share_page_specific %}
-    <meta property="og:description"
-          content='{% trans 'Information on' %} {% trans 'MK' %} {{ object.name }}{% trans 'on Open Knesset' %}.  {% trans 'Bill proposals, Voting, Committee attendance, Facebook activity and more!' %}'>
-    <meta property="og:title"
-          content='{% trans 'MK' %} {{ object.name }} {% trans 'on Open Knesset' %}'>
-    <meta property="og:image"
-          content="https://oknesset.org/static/img/300px-Oknesset.jpg"/>
-    <meta property="og:image:secure_url"
-          content="https://oknesset.org/static/img/300px-Oknesset.jpg">
-{% endblock facebook_social_share_page_specific %}
-{% block twitter_social_share_page_specific %}
-    <meta name="twitter:card" content="summary_large_image"/>
-    <meta name="twitter:title"
-          content='{% trans 'MK' %} {{ object.name }} {% trans 'on Open Knesset' %}'/>
-    <meta name="twitter:description"
-          content='{% trans 'Information on' %} {% trans 'MK' %} {{ object.name }} {% trans 'on Open Knesset' %}. {% trans 'Bill proposals, Voting, Committee attendance, Facebook activity and more!' %}' />
-    <meta name="twitter:image"
-          content="https://oknesset.org/static/img/300px-Oknesset.jpg"/>
-{% endblock twitter_social_share_page_specific %}
+{% with OKNESSET_IMAGE_URL="https://oknesset.org/static/img/300px-Oknesset.jpg" %}
+
+    {% block facebook_social_share_page_specific %}
+        <meta property="og:description"
+              content='{% trans 'Information on' %} {% trans 'MK' %} {{ object.name }} {% trans 'on Open Knesset' %}.  {% trans 'Bill proposals, Voting, Committee attendance, Facebook activity and more!' %}'>
+        <meta property="og:title"
+              content='{% trans 'MK' %} {{ object.name }} {% trans 'on Open Knesset' %}'>
+        <meta property="og:image"
+              content="{{ OKNESSET_IMAGE_URL }}"/>
+        <meta property="og:image:secure_url"
+              content="{{ OKNESSET_IMAGE_URL }}">
+    {% endblock facebook_social_share_page_specific %}
+    {% block twitter_social_share_page_specific %}
+        <meta name="twitter:card" content="summary_large_image"/>
+        <meta name="twitter:title"
+              content='{% trans 'MK' %} {{ object.name }} {% trans 'on Open Knesset' %}'/>
+        <meta name="twitter:description"
+              content='{% trans 'Information on' %} {% trans 'MK' %} {{ object.name }} {% trans 'on Open Knesset' %}. {% trans 'Bill proposals, Voting, Committee attendance, Facebook activity and more!' %}'/>
+        <meta name="twitter:image"
+              content="{{ OKNESSET_IMAGE_URL }}"/>
+    {% endblock twitter_social_share_page_specific %}
+{% endwith %}
 {% block description %} {% with object.name as name %} {% blocktrans %} Up to
     date information about {{ name }} in the
     knesset: votes, bills, committees, attendance and more.   Information about
